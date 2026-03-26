@@ -1,7 +1,7 @@
 <UserControl x:Class="CRDebugger.Wpf.Views.ConsoleView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:logging="clr-namespace:CRDebugger.Core.Logging;assembly=CRDebugger.Core">
+             xmlns:logging="clr-namespace:CRDebugger.Core.Logging">
 
     <Grid Margin="20">
         <Grid.RowDefinitions>

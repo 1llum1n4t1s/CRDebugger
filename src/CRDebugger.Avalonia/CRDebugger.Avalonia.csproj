@@ -11,8 +11,13 @@
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\CRDebugger.Core\CRDebugger.Core.csproj" />
+    <!-- Coreのソースファイルを直接コンパイル（NuGet依存なし） -->
+    <Compile Include="..\CRDebugger.Core\**\*.cs" Link="Core\%(RecursiveDir)%(Filename)%(Extension)"
+             Exclude="..\CRDebugger.Core\obj\**;..\CRDebugger.Core\bin\**" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="Avalonia" Version="11.3.12" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.12" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.2" />
   </ItemGroup>
 </Project>

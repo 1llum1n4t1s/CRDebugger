@@ -8,7 +8,7 @@ namespace CRDebugger.Core.Profiler;
 /// </summary>
 public sealed class ProfilerEngine : IDisposable
 {
-    private Timer? _timer;
+    private System.Threading.Timer? _timer;
     private readonly TimeSpan _interval;
     private readonly List<ProfilerSnapshot> _history = new();
     private readonly object _lock = new();
@@ -33,7 +33,7 @@ public sealed class ProfilerEngine : IDisposable
     public void Start()
     {
         _fpsStopwatch.Start();
-        _timer = new Timer(OnTick, null, TimeSpan.Zero, _interval);
+        _timer = new System.Threading.Timer(OnTick, null, TimeSpan.Zero, _interval);
     }
 
     /// <summary>

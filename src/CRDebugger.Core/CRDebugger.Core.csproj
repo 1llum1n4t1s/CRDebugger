@@ -5,15 +5,11 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>12</LangVersion>
     <RootNamespace>CRDebugger.Core</RootNamespace>
-    <IsPackable>true</IsPackable>
-    <PackageId>CRDebugger.Core</PackageId>
-    <Description>CRDebugger Core - SRDebugger-like debug panel for .NET desktop apps. Platform-agnostic logic (internal dependency, install platform-specific package instead).</Description>
+    <!-- テスト・サンプル用にビルドするが、NuGetパッケージとしては公開しない -->
+    <IsPackable>false</IsPackable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
   <ItemGroup>
-    <InternalsVisibleTo Include="CRDebugger.Wpf" />
-    <InternalsVisibleTo Include="CRDebugger.Avalonia" />
-    <InternalsVisibleTo Include="CRDebugger.WinForms" />
     <InternalsVisibleTo Include="CRDebugger.Core.Tests" />
   </ItemGroup>
   <ItemGroup>
