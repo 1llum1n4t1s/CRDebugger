@@ -7,11 +7,7 @@
     <RootNamespace>CRDebugger.Core</RootNamespace>
     <IsPackable>true</IsPackable>
     <PackageId>CRDebugger.Core</PackageId>
-    <Version>1.0.0</Version>
-    <Authors>ゆろち</Authors>
-    <Description>CRDebugger Core - SRDebugger-like debug panel for .NET desktop apps</Description>
-    <PackageTags>debug;logging;devtools;diagnostics;profiler</PackageTags>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <Description>CRDebugger Core - SRDebugger-like debug panel for .NET desktop apps. Platform-agnostic logic, logging, options, profiler, and bug reporter.</Description>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
   <ItemGroup>

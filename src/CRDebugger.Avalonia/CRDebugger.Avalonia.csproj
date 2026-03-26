@@ -7,10 +7,7 @@
     <RootNamespace>CRDebugger.Avalonia</RootNamespace>
     <IsPackable>true</IsPackable>
     <PackageId>CRDebugger.Avalonia</PackageId>
-    <Version>1.0.0</Version>
-    <Authors>ゆろち</Authors>
-    <Description>CRDebugger Avalonia UI - SRDebugger-like debug panel for Avalonia apps</Description>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <Description>CRDebugger Avalonia UI - SRDebugger-like debug panel for Avalonia apps. Add runtime debugging, logging console, options editor, and profiler to any Avalonia application.</Description>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>
   <ItemGroup>

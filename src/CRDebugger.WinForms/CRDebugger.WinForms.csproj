@@ -8,10 +8,7 @@
     <RootNamespace>CRDebugger.WinForms</RootNamespace>
     <IsPackable>true</IsPackable>
     <PackageId>CRDebugger.WinForms</PackageId>
-    <Version>1.0.0</Version>
-    <Authors>ゆろち</Authors>
-    <Description>CRDebugger WinForms UI - SRDebugger-like debug panel for WinForms apps</Description>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <Description>CRDebugger WinForms UI - SRDebugger-like debug panel for WinForms apps. Add runtime debugging, logging console, options editor, and profiler to any WinForms application.</Description>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\CRDebugger.Core\CRDebugger.Core.csproj" />

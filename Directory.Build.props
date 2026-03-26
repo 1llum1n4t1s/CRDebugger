@@ -1,0 +1,19 @@
+<Project>
+  <PropertyGroup>
+    <Version>1.0.0</Version>
+    <Authors>ゆろち</Authors>
+    <Copyright>Copyright (C) 2026 ゆろち</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/1llum1n4t1s/CRDebugger</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/1llum1n4t1s/CRDebugger</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageOutputPath>$(MSBuildThisFileDirectory)artifacts</PackageOutputPath>
+    <PackageTags>debug;logging;devtools;diagnostics;profiler;srdebugger</PackageTags>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(IsPackable)' == 'true'">
+    <None Include="$(MSBuildThisFileDirectory)icon/icon.png" Pack="true" PackagePath="icon.png" Visible="false" />
+    <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>

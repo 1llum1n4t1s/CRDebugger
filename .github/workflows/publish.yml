@@ -1,0 +1,45 @@
+name: Publish to NuGet
+
+on:
+  push:
+    branches:
+      - 'release/**'
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore CRDebugger.slnx
+
+      - name: Build Release
+        run: dotnet build CRDebugger.slnx -c Release --no-restore
+
+      - name: Pack CRDebugger.Core
+        run: dotnet pack src/CRDebugger.Core/CRDebugger.Core.csproj -c Release --no-build -o artifacts
+
+      - name: Pack CRDebugger.WinForms
+        run: dotnet pack src/CRDebugger.WinForms/CRDebugger.WinForms.csproj -c Release --no-build -o artifacts
+
+      - name: Pack CRDebugger.Wpf
+        run: dotnet pack src/CRDebugger.Wpf/CRDebugger.Wpf.csproj -c Release --no-build -o artifacts
+
+      - name: Pack CRDebugger.Avalonia
+        run: dotnet pack src/CRDebugger.Avalonia/CRDebugger.Avalonia.csproj -c Release --no-build -o artifacts
+
+      - name: Publish to NuGet
+        run: |
+          $apiKey = $env:NUGET_API_KEY
+          .\publish.ps1
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        shell: pwsh

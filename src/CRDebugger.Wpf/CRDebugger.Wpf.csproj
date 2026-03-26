@@ -8,10 +8,7 @@
     <RootNamespace>CRDebugger.Wpf</RootNamespace>
     <IsPackable>true</IsPackable>
     <PackageId>CRDebugger.Wpf</PackageId>
-    <Version>1.0.0</Version>
-    <Authors>ゆろち</Authors>
-    <Description>CRDebugger WPF UI - SRDebugger-like debug panel for WPF apps</Description>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <Description>CRDebugger WPF UI - SRDebugger-like debug panel for WPF apps. Add runtime debugging, logging console, options editor, and profiler to any WPF application.</Description>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\CRDebugger.Core\CRDebugger.Core.csproj" />
