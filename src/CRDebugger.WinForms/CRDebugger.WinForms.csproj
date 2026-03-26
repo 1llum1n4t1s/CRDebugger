@@ -11,6 +11,7 @@
     <Description>CRDebugger WinForms UI - SRDebugger-like debug panel for WinForms apps. Add runtime debugging, logging console, options editor, and profiler to any WinForms application.</Description>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\CRDebugger.Core\CRDebugger.Core.csproj" />
+    <ProjectReference Include="..\CRDebugger.Core\CRDebugger.Core.csproj" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.2" />
   </ItemGroup>
 </Project>
