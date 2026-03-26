@@ -12,5 +12,11 @@ public sealed record ProfilerSnapshot(
     int Gen0Collections,
     int Gen1Collections,
     int Gen2Collections,
-    long GcPauseTimeMs
+    long GcPauseTimeMs,
+    // GPU情報
+    double GpuUsagePercent = 0,
+    long GpuDedicatedMemoryBytes = 0,
+    long GpuSharedMemoryBytes = 0,
+    double GpuTemperatureCelsius = -1,
+    string GpuDeviceName = "N/A"
 );

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using CRDebugger.Core.Abstractions;
 using CRDebugger.Core.BugReporter;
+using CRDebugger.Core.Input;
 using CRDebugger.Core.Logging;
 using CRDebugger.Core.Options;
 using CRDebugger.Core.Profiler;
@@ -23,6 +24,7 @@ internal sealed class CRDebuggerContext : IDisposable
     public ThemeManager ThemeManager { get; }
     public DebuggerViewModel RootViewModel { get; }
     public CRLoggerProvider LoggerProvider { get; }
+    public KeyboardShortcutManager ShortcutManager { get; }
 
     public IDebuggerWindow Window { get; }
     public IUiThread UiThread { get; }
@@ -31,22 +33,26 @@ internal sealed class CRDebuggerContext : IDisposable
 
     public CRDebuggerContext(CRDebuggerOptions options)
     {
-        var window = options.Window ?? throw new InvalidOperationException(
+        var window = options.Window ?? throw new CRDebuggerConfigurationException(
             "IDebuggerWindowが設定されていません。UseWpf(), UseAvalonia(), UseWinForms() のいずれかを呼んでください。");
-        var uiThread = options.UiThread ?? throw new InvalidOperationException(
+        var uiThread = options.UiThread ?? throw new CRDebuggerConfigurationException(
             "IUiThreadが設定されていません。");
 
         Window = window;
         UiThread = uiThread;
 
         // サービス初期化
-        LogStore = new LogStore(options.MaxLogEntries);
+        LogStore = new LogStore(options.MaxLogEntries, options.CollapseDuplicateLogs);
         SystemInfo = new SystemInfoCollector();
         Options = new OptionsEngine();
-        Profiler = new ProfilerEngine(options.ProfilerSampleInterval);
+        Profiler = new ProfilerEngine(options.ProfilerSampleInterval, options.GpuMonitor);
         BugReporter = new BugReportEngine(LogStore, SystemInfo, options.BugReportSender);
         ThemeManager = new ThemeManager(options.Theme);
         LoggerProvider = new CRLoggerProvider(LogStore);
+        ShortcutManager = new KeyboardShortcutManager
+        {
+            Enabled = options.EnableKeyboardShortcuts
+        };
 
         // TraceListener登録
         if (options.CaptureTraceOutput)
@@ -70,7 +76,10 @@ internal sealed class CRDebuggerContext : IDisposable
 
         RootViewModel = new DebuggerViewModel(
             systemInfoVm, consoleVm, optionsVm, profilerVm, bugReporterVm,
-            ThemeManager, options.DefaultTab);
+            ThemeManager, options.DefaultTab, options.DisabledTabs);
+
+        // デフォルトキーボードショートカット登録
+        RegisterDefaultShortcuts();
 
         // テーマプロバイダー設定
         if (options.ThemeProvider != null)
@@ -84,6 +93,25 @@ internal sealed class CRDebuggerContext : IDisposable
 
         // Profiler開始
         Profiler.Start();
+    }
+
+    private void RegisterDefaultShortcuts()
+    {
+        // F1〜F5でタブ切替
+        ShortcutManager.Register(new KeyCombination(CRKey.F1), () =>
+            UiThread.Invoke(() => RootViewModel.SelectedTab = CRTab.System));
+        ShortcutManager.Register(new KeyCombination(CRKey.F2), () =>
+            UiThread.Invoke(() => RootViewModel.SelectedTab = CRTab.Console));
+        ShortcutManager.Register(new KeyCombination(CRKey.F3), () =>
+            UiThread.Invoke(() => RootViewModel.SelectedTab = CRTab.Options));
+        ShortcutManager.Register(new KeyCombination(CRKey.F4), () =>
+            UiThread.Invoke(() => RootViewModel.SelectedTab = CRTab.Profiler));
+        ShortcutManager.Register(new KeyCombination(CRKey.F5), () =>
+            UiThread.Invoke(() => RootViewModel.SelectedTab = CRTab.BugReporter));
+
+        // Escでウィンドウを閉じる
+        ShortcutManager.Register(new KeyCombination(CRKey.Escape), () =>
+            UiThread.Invoke(() => Window.Hide()));
     }
 
     private void OnUnhandledException(object sender, UnhandledExceptionEventArgs e)

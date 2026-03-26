@@ -42,6 +42,14 @@ internal sealed class CircularBuffer<T> : IReadOnlyList<T>
             _count++;
     }
 
+    /// <summary>最後に追加した要素を上書きする</summary>
+    public void UpdateLast(T item)
+    {
+        if (_count == 0) throw new InvalidOperationException("バッファが空です。");
+        var lastIndex = (_head + _count - 1) % _buffer.Length;
+        _buffer[lastIndex] = item;
+    }
+
     public void Clear()
     {
         Array.Clear(_buffer, 0, _buffer.Length);

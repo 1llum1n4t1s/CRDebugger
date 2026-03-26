@@ -18,6 +18,18 @@ public sealed class CRDebuggerOptions
     public double WindowWidth { get; set; } = 900;
     public double WindowHeight { get; set; } = 600;
 
+    /// <summary>連続する同一ログを折りたたむ</summary>
+    public bool CollapseDuplicateLogs { get; set; } = true;
+
+    /// <summary>キーボードショートカットを有効にする</summary>
+    public bool EnableKeyboardShortcuts { get; set; } = true;
+
+    /// <summary>無効化するタブの一覧</summary>
+    public HashSet<CRTab> DisabledTabs { get; set; } = new();
+
+    /// <summary>GPU監視プロバイダー（プラットフォーム固有実装を注入）</summary>
+    public IGpuMonitor? GpuMonitor { get; set; }
+
     // UIフレームワーク層が設定（内部使用）
     internal IDebuggerWindow? Window { get; set; }
     internal IUiThread? UiThread { get; set; }

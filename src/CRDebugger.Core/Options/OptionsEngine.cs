@@ -45,21 +45,34 @@ public sealed class OptionsEngine
 
         foreach (var container in snapshot)
         {
+            // DynamicOptionContainerは専用のスキャンロジック
+            if (container is DynamicOptionContainer dynamic)
+            {
+                options.AddRange(dynamic.Options);
+                actions.AddRange(dynamic.Actions);
+                continue;
+            }
+
             ScanProperties(container, options);
             ScanMethods(container, actions);
         }
 
-        // カテゴリ別にグループ化
-        var categoryNames = options.Select(o => o.Category)
-            .Concat(actions.Select(a => a.Category))
+        // カテゴリ別にグループ化（O(n)のGroupByで最適化）
+        var optionsByCategory = options.GroupBy(o => o.Category)
+            .ToDictionary(g => g.Key, g => (IReadOnlyList<OptionDescriptor>)g.OrderBy(o => o.SortOrder).ToList());
+        var actionsByCategory = actions.GroupBy(a => a.Category)
+            .ToDictionary(g => g.Key, g => (IReadOnlyList<ActionDescriptor>)g.OrderBy(a => a.SortOrder).ToList());
+
+        var categoryNames = optionsByCategory.Keys
+            .Concat(actionsByCategory.Keys)
             .Distinct()
             .OrderBy(c => c);
 
         return categoryNames.Select(name => new OptionCategory
         {
             Name = name,
-            Options = options.Where(o => o.Category == name).OrderBy(o => o.SortOrder).ToList(),
-            Actions = actions.Where(a => a.Category == name).OrderBy(a => a.SortOrder).ToList()
+            Options = optionsByCategory.GetValueOrDefault(name, Array.Empty<OptionDescriptor>()),
+            Actions = actionsByCategory.GetValueOrDefault(name, Array.Empty<ActionDescriptor>())
         }).ToList();
     }
 
@@ -173,8 +186,9 @@ public sealed class OptionsEngine
                type.IsEnum;
     }
 
-    private static string SplitCamelCase(string input)
-    {
-        return System.Text.RegularExpressions.Regex.Replace(input, "([a-z])([A-Z])", "$1 $2");
-    }
+    private static readonly System.Text.RegularExpressions.Regex CamelCaseRegex =
+        new("([a-z])([A-Z])", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    private static string SplitCamelCase(string input) =>
+        CamelCaseRegex.Replace(input, "$1 $2");
 }

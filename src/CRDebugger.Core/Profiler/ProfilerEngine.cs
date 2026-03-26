@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using CRDebugger.Core.Abstractions;
 
 namespace CRDebugger.Core.Profiler;
 
@@ -12,6 +13,7 @@ public sealed class ProfilerEngine : IDisposable
     private readonly List<ProfilerSnapshot> _history = new();
     private readonly object _lock = new();
     private readonly Stopwatch _fpsStopwatch = new();
+    private readonly IGpuMonitor _gpuMonitor;
     private int _frameCount;
     private double _lastFps;
 
@@ -19,9 +21,13 @@ public sealed class ProfilerEngine : IDisposable
 
     public event EventHandler<ProfilerSnapshot>? SnapshotTaken;
 
-    public ProfilerEngine(TimeSpan? interval = null)
+    /// <summary>ロジック単位のプロファイリングトラッカー</summary>
+    public OperationTracker Operations { get; } = new();
+
+    public ProfilerEngine(TimeSpan? interval = null, IGpuMonitor? gpuMonitor = null)
     {
         _interval = interval ?? TimeSpan.FromMilliseconds(500);
+        _gpuMonitor = gpuMonitor ?? new NullGpuMonitor();
     }
 
     public void Start()
@@ -73,6 +79,22 @@ public sealed class ProfilerEngine : IDisposable
         }
 
         using var process = Process.GetCurrentProcess();
+
+        // GPU情報取得
+        double gpuUsage = 0;
+        long gpuDedicated = 0, gpuShared = 0;
+        double gpuTemp = -1;
+        string gpuName = "N/A";
+        try
+        {
+            gpuUsage = _gpuMonitor.GetUsagePercent();
+            gpuDedicated = _gpuMonitor.GetDedicatedMemoryBytes();
+            gpuShared = _gpuMonitor.GetSharedMemoryBytes();
+            gpuTemp = _gpuMonitor.GetTemperatureCelsius();
+            gpuName = _gpuMonitor.GetDeviceName();
+        }
+        catch { /* GPU情報取得失敗は無視 */ }
+
         var snapshot = new ProfilerSnapshot(
             Timestamp: DateTimeOffset.Now,
             FpsEstimate: Math.Round(_lastFps, 1),
@@ -82,7 +104,12 @@ public sealed class ProfilerEngine : IDisposable
             Gen0Collections: GC.CollectionCount(0),
             Gen1Collections: GC.CollectionCount(1),
             Gen2Collections: GC.CollectionCount(2),
-            GcPauseTimeMs: 0 // .NET 7+ で GC.GetTotalPauseDuration() 利用可能
+            GcPauseTimeMs: 0,
+            GpuUsagePercent: gpuUsage,
+            GpuDedicatedMemoryBytes: gpuDedicated,
+            GpuSharedMemoryBytes: gpuShared,
+            GpuTemperatureCelsius: gpuTemp,
+            GpuDeviceName: gpuName
         );
 
         lock (_lock)
@@ -92,7 +119,14 @@ public sealed class ProfilerEngine : IDisposable
                 _history.RemoveAt(0);
         }
 
-        SnapshotTaken?.Invoke(this, snapshot);
+        try
+        {
+            SnapshotTaken?.Invoke(this, snapshot);
+        }
+        catch
+        {
+            // Timer内の未処理例外はプロセスをクラッシュさせるため、ここでキャッチする
+        }
     }
 
     public void Dispose()

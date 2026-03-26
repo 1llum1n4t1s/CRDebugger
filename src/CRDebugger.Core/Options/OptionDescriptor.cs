@@ -51,6 +51,6 @@ public sealed class ActionDescriptor
 public sealed class OptionCategory
 {
     public string Name { get; init; } = string.Empty;
-    public IReadOnlyList<OptionDescriptor> Options { get; init; } = Array.Empty<OptionDescriptor>();
-    public IReadOnlyList<ActionDescriptor> Actions { get; init; } = Array.Empty<ActionDescriptor>();
+    public IReadOnlyList<OptionDescriptor> Options { get; init; } = [];
+    public IReadOnlyList<ActionDescriptor> Actions { get; init; } = [];
 }

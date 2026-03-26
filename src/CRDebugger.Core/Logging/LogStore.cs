@@ -7,13 +7,18 @@ public sealed class LogStore
 {
     private readonly CircularBuffer<LogEntry> _buffer;
     private readonly ReaderWriterLockSlim _lock = new();
+    private readonly bool _collapseDuplicates;
     private int _nextId;
+    private LogEntry? _lastEntry;
 
     public event EventHandler<LogEntry>? EntryAdded;
+    /// <summary>重複ログが更新された時に発火（折りたたみ時）</summary>
+    public event EventHandler<LogEntry>? EntryUpdated;
 
-    public LogStore(int maxEntries = 2000)
+    public LogStore(int maxEntries = 2000, bool collapseDuplicates = true)
     {
         _buffer = new CircularBuffer<LogEntry>(maxEntries);
+        _collapseDuplicates = collapseDuplicates;
     }
 
     public int Count
@@ -26,22 +31,62 @@ public sealed class LogStore
         }
     }
 
-    public void Append(CRLogLevel level, string channel, string message, string? stackTrace = null)
+    public void Append(CRLogLevel level, string channel, string message,
+        string? stackTrace = null, IReadOnlyList<RichTextSpan>? richSpans = null)
     {
-        var entry = new LogEntry(
-            Id: Interlocked.Increment(ref _nextId),
-            Timestamp: DateTimeOffset.Now,
-            Level: level,
-            Channel: channel,
-            Message: message,
-            StackTrace: stackTrace
-        );
-
         _lock.EnterWriteLock();
-        try { _buffer.Add(entry); }
-        finally { _lock.ExitWriteLock(); }
+        try
+        {
+            // 重複ログ折りたたみ
+            if (_collapseDuplicates && _lastEntry != null &&
+                _lastEntry.Level == level &&
+                _lastEntry.Channel == channel &&
+                _lastEntry.Message == message)
+            {
+                var updated = _lastEntry with
+                {
+                    DuplicateCount = _lastEntry.DuplicateCount + 1,
+                    Timestamp = DateTimeOffset.Now
+                };
 
-        EntryAdded?.Invoke(this, entry);
+                // バッファ内の最後のエントリを更新
+                _buffer.UpdateLast(updated);
+                _lastEntry = updated;
+
+                // ロック外でイベント発火
+                _lock.ExitWriteLock();
+                try { EntryUpdated?.Invoke(this, updated); }
+                catch { /* イベントハンドラの例外でログ記録が失敗しないようにする */ }
+                return;
+            }
+
+            var entry = new LogEntry(
+                Id: Interlocked.Increment(ref _nextId),
+                Timestamp: DateTimeOffset.Now,
+                Level: level,
+                Channel: channel,
+                Message: message,
+                StackTrace: stackTrace,
+                RichSpans: richSpans
+            );
+
+            _buffer.Add(entry);
+            _lastEntry = entry;
+        }
+        finally
+        {
+            if (_lock.IsWriteLockHeld)
+                _lock.ExitWriteLock();
+        }
+
+        try
+        {
+            EntryAdded?.Invoke(this, _lastEntry!);
+        }
+        catch
+        {
+            // イベントハンドラの例外でログ記録が失敗しないようにする
+        }
     }
 
     public IReadOnlyList<LogEntry> GetAll()
@@ -91,7 +136,11 @@ public sealed class LogStore
     public void Clear()
     {
         _lock.EnterWriteLock();
-        try { _buffer.Clear(); }
+        try
+        {
+            _buffer.Clear();
+            _lastEntry = null;
+        }
         finally { _lock.ExitWriteLock(); }
     }
 }

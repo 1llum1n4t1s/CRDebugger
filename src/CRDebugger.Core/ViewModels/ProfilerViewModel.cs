@@ -56,13 +56,15 @@ public sealed class ProfilerViewModel : ViewModelBase
             Gen1 = snap.Gen1Collections.ToString();
             Gen2 = snap.Gen2Collections.ToString();
 
+            // ObservableCollection.RemoveAt(0)はO(n)のため、容量超過時は
+            // 先頭から超過分をまとめて削除する
             FpsHistory.Add(snap.FpsEstimate);
-            if (FpsHistory.Count > ProfilerEngine.MaxHistorySize)
+            while (FpsHistory.Count > ProfilerEngine.MaxHistorySize)
                 FpsHistory.RemoveAt(0);
 
             var memMb = snap.WorkingSetBytes / (1024.0 * 1024.0);
             MemoryHistory.Add(memMb);
-            if (MemoryHistory.Count > ProfilerEngine.MaxHistorySize)
+            while (MemoryHistory.Count > ProfilerEngine.MaxHistorySize)
                 MemoryHistory.RemoveAt(0);
         });
     }

@@ -54,6 +54,17 @@ public sealed class CRSortOrderAttribute : Attribute
 }
 
 /// <summary>
+/// オプションコンテナクラスにメタデータを付与
+/// </summary>
+[AttributeUsage(AttributeTargets.Class)]
+public sealed class CRContainerAttribute : Attribute
+{
+    public string? Group { get; set; }
+    public int SortOrder { get; set; }
+    public bool IsVisible { get; set; } = true;
+}
+
+/// <summary>
 /// メソッドをボタンとして表示
 /// </summary>
 [AttributeUsage(AttributeTargets.Method)]

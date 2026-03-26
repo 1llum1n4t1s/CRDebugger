@@ -8,7 +8,7 @@ namespace CRDebugger.Core.Logging;
 public sealed class CRTraceListener : TraceListener
 {
     private readonly LogStore _logStore;
-    private string? _partialMessage;
+    private System.Text.StringBuilder? _messageBuilder;
 
     public CRTraceListener(LogStore logStore)
     {
@@ -18,15 +18,24 @@ public sealed class CRTraceListener : TraceListener
 
     public override void Write(string? message)
     {
-        _partialMessage = (_partialMessage ?? string.Empty) + message;
+        if (message == null) return;
+        _messageBuilder ??= new System.Text.StringBuilder();
+        _messageBuilder.Append(message);
     }
 
     public override void WriteLine(string? message)
     {
-        var fullMessage = _partialMessage != null
-            ? _partialMessage + message
-            : message ?? string.Empty;
-        _partialMessage = null;
+        string fullMessage;
+        if (_messageBuilder != null)
+        {
+            if (message != null) _messageBuilder.Append(message);
+            fullMessage = _messageBuilder.ToString();
+            _messageBuilder.Clear();
+        }
+        else
+        {
+            fullMessage = message ?? string.Empty;
+        }
 
         _logStore.Append(CRLogLevel.Debug, "Trace", fullMessage);
     }

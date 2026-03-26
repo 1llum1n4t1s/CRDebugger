@@ -9,5 +9,7 @@ public sealed record LogEntry(
     CRLogLevel Level,
     string Channel,
     string Message,
-    string? StackTrace
+    string? StackTrace,
+    int DuplicateCount = 1,
+    IReadOnlyList<RichTextSpan>? RichSpans = null
 );
