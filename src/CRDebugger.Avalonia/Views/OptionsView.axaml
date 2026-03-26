@@ -62,6 +62,30 @@
     <Style Selector="Border.option-card:pointerover">
       <Setter Property="Background" Value="#FFFFFF0A"/>
     </Style>
+    <!-- アクションボタン -->
+    <Style Selector="Button.action-btn">
+      <Setter Property="Background" Value="#FFFFFF08"/>
+      <Setter Property="Foreground" Value="#C0C0D5"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="BorderBrush" Value="#FFFFFF10"/>
+      <Setter Property="Padding" Value="16,8"/>
+      <Setter Property="CornerRadius" Value="8"/>
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="HorizontalAlignment" Value="Left"/>
+      <Setter Property="Margin" Value="0,3"/>
+    </Style>
+    <Style Selector="Button.action-btn /template/ ContentPresenter">
+      <Setter Property="Background" Value="#FFFFFF08"/>
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Background" Duration="0:0:0.15"/>
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Button.action-btn:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="#FFFFFF14"/>
+    </Style>
   </UserControl.Styles>
 
   <DockPanel Margin="20">
@@ -86,17 +110,14 @@
                   <DataTemplate x:DataType="vm:ActionItemViewModel">
                     <Button Content="{Binding Label}"
                             Command="{Binding ExecuteCommand}"
-                            Background="#FFFFFF08" Foreground="#C0C0D5"
-                            BorderThickness="1" BorderBrush="#FFFFFF10"
-                            Padding="16,8" CornerRadius="8" FontSize="12"
-                            Cursor="Hand" Margin="0,3"
-                            HorizontalAlignment="Left"/>
+                            Classes="action-btn"/>
                   </DataTemplate>
                 </ItemsControl.ItemTemplate>
               </ItemsControl>
 
-              <!-- オプション -->
-              <Border Classes="option-card">
+              <!-- オプション（Items が空なら非表示） -->
+              <Border Classes="option-card"
+                      IsVisible="{Binding Items.Count}">
                 <ItemsControl ItemsSource="{Binding Items}">
                   <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:OptionItemViewModel">
