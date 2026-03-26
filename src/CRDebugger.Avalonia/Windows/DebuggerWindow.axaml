@@ -126,37 +126,15 @@
         </ExperimentalAcrylicBorder>
 
         <DockPanel>
-          <!-- ブランディングヘッダー + 閉じるボタン -->
+          <!-- ブランディングヘッダー -->
           <Border DockPanel.Dock="Top" Padding="16,14"
                   BorderBrush="#FFFFFF08" BorderThickness="0,0,0,1">
-            <Grid>
-              <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4">
-                <TextBlock Text="CR" FontWeight="Bold" FontSize="17" Foreground="#7C8FFF"
-                           LetterSpacing="1"/>
-                <TextBlock Text="DEBUGGER" FontWeight="SemiBold" FontSize="17" Foreground="#606080"
-                           LetterSpacing="1"/>
-              </StackPanel>
-              <!-- ピン + 閉じるボタン -->
-              <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="2">
-                <!-- ピン（常に前面に固定）ボタン -->
-                <Button x:Name="PinButton"
-                        Click="OnPinClick"
-                        Background="Transparent" BorderThickness="0"
-                        Padding="4" Cursor="Hand" ToolTip.Tip="常に前面に固定"
-                        Width="28" Height="28">
-                  <TextBlock x:Name="PinIcon" Text="📌" FontSize="13" Opacity="0.4"
-                             HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                </Button>
-                <!-- 閉じるボタン -->
-                <Button Click="OnCloseClick"
-                        Background="Transparent" BorderThickness="0"
-                        Padding="4" Cursor="Hand" ToolTip.Tip="閉じる"
-                        Width="28" Height="28">
-                  <TextBlock Text="✕" Foreground="#606080" FontSize="14"
-                             HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                </Button>
-              </StackPanel>
-            </Grid>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4">
+              <TextBlock Text="CR" FontWeight="Bold" FontSize="17" Foreground="#7C8FFF"
+                         LetterSpacing="1"/>
+              <TextBlock Text="DEBUGGER" FontWeight="SemiBold" FontSize="17" Foreground="#606080"
+                         LetterSpacing="1"/>
+            </StackPanel>
           </Border>
 
           <!-- タブボタン群 -->
@@ -252,7 +230,26 @@
       <!-- 右コンテンツエリア -->
       <!-- ═══════════════════════════════════ -->
       <Border Grid.Column="1" Classes="content-area">
-        <Panel Margin="0">
+        <Panel>
+          <!-- ピン + 閉じるボタン（コンテンツエリア右上） -->
+          <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top"
+                      Spacing="2" Margin="0,6,8,0" ZIndex="100">
+            <Button x:Name="PinButton"
+                    Click="OnPinClick"
+                    Background="Transparent" BorderThickness="0"
+                    Padding="4" Cursor="Hand" ToolTip.Tip="常に前面に固定"
+                    Width="30" Height="30">
+              <TextBlock x:Name="PinIcon" Text="📌" FontSize="13" Opacity="0.4"
+                         HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Button>
+            <Button Click="OnCloseClick"
+                    Background="Transparent" BorderThickness="0"
+                    Padding="4" Cursor="Hand" ToolTip.Tip="閉じる"
+                    Width="30" Height="30">
+              <TextBlock Text="✕" Foreground="#808095" FontSize="15"
+                         HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Button>
+          </StackPanel>
           <views:SystemInfoView DataContext="{Binding SystemInfo}"
                                 IsVisible="{Binding #root.((vm:DebuggerViewModel)DataContext).SelectedTab, Converter={StaticResource TabEquals}, ConverterParameter=System}"/>
           <views:ConsoleView DataContext="{Binding Console}"
