@@ -1,0 +1,114 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:CRDebugger.Core.ViewModels"
+             xmlns:conv="using:CRDebugger.Avalonia.Converters"
+             x:Class="CRDebugger.Avalonia.Views.OptionsView"
+             x:DataType="vm:OptionsViewModel">
+
+  <UserControl.Resources>
+    <conv:OptionKindEqualsConverter x:Key="KindEquals"/>
+  </UserControl.Resources>
+
+  <UserControl.Styles>
+    <Style Selector="TextBlock.header">
+      <Setter Property="FontSize" Value="20"/>
+      <Setter Property="FontWeight" Value="Bold"/>
+      <Setter Property="Foreground" Value="#E0E0E0"/>
+      <Setter Property="Margin" Value="0,0,0,16"/>
+    </Style>
+    <Style Selector="TextBlock.category-header">
+      <Setter Property="FontSize" Value="14"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="Foreground" Value="#6C9BF2"/>
+      <Setter Property="Margin" Value="0,12,0,6"/>
+    </Style>
+    <Style Selector="TextBlock.option-label">
+      <Setter Property="Foreground" Value="#CCCCCC"/>
+      <Setter Property="FontSize" Value="13"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+  </UserControl.Styles>
+
+  <DockPanel Margin="20">
+    <!-- ヘッダー -->
+    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+      <TextBlock Text="Options" Classes="header" DockPanel.Dock="Left"/>
+      <Button Content="Refresh" Command="{Binding RefreshCommand}"
+              HorizontalAlignment="Right"
+              Background="#353548" Foreground="#CCCCCC"
+              BorderThickness="0" Padding="16,6" CornerRadius="4" FontSize="12"/>
+    </DockPanel>
+
+    <!-- オプションカテゴリリスト -->
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+      <ItemsControl ItemsSource="{Binding Categories}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:OptionCategoryViewModel">
+            <StackPanel Margin="0,0,0,8">
+              <TextBlock Text="{Binding Name}" Classes="category-header"/>
+              <Border Background="#2A2A3C" CornerRadius="6" Padding="12,8">
+                <ItemsControl ItemsSource="{Binding Items}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:OptionItemViewModel">
+                      <Grid ColumnDefinitions="200,*" Margin="0,6" MinHeight="28">
+                        <TextBlock Grid.Column="0" Text="{Binding DisplayName}" Classes="option-label"/>
+
+                        <Panel Grid.Column="1">
+                          <!-- Boolean: ToggleSwitch -->
+                          <ToggleSwitch IsChecked="{Binding Value}"
+                                        IsEnabled="{Binding IsReadOnly, Converter={x:Static conv:InverseBoolConverter.Instance}}"
+                                        IsVisible="{Binding Kind, Converter={StaticResource KindEquals}, ConverterParameter=Boolean}"
+                                        OnContent="ON" OffContent="OFF"/>
+
+                          <!-- Integer: NumericUpDown -->
+                          <NumericUpDown Value="{Binding Value}"
+                                         Minimum="{Binding Min}" Maximum="{Binding Max}"
+                                         Increment="{Binding Step}"
+                                         IsReadOnly="{Binding IsReadOnly}"
+                                         IsVisible="{Binding Kind, Converter={StaticResource KindEquals}, ConverterParameter=Integer}"
+                                         Background="#353548" Foreground="#CCCCCC"
+                                         BorderBrush="#404060" Width="160" FontSize="12"/>
+
+                          <!-- Float: NumericUpDown (decimal) -->
+                          <NumericUpDown Value="{Binding Value}"
+                                         Minimum="{Binding Min}" Maximum="{Binding Max}"
+                                         Increment="{Binding Step}"
+                                         IsReadOnly="{Binding IsReadOnly}"
+                                         IsVisible="{Binding Kind, Converter={StaticResource KindEquals}, ConverterParameter=Float}"
+                                         Background="#353548" Foreground="#CCCCCC"
+                                         BorderBrush="#404060" Width="160" FontSize="12"
+                                         FormatString="F2"/>
+
+                          <!-- String: TextBox -->
+                          <TextBox Text="{Binding Value}"
+                                   IsReadOnly="{Binding IsReadOnly}"
+                                   IsVisible="{Binding Kind, Converter={StaticResource KindEquals}, ConverterParameter=String}"
+                                   Background="#353548" Foreground="#CCCCCC"
+                                   BorderBrush="#404060" MaxWidth="300" FontSize="12"
+                                   CornerRadius="4" Padding="8,4"/>
+
+                          <!-- Enum: ComboBox -->
+                          <ComboBox ItemsSource="{Binding EnumNames}"
+                                    SelectedItem="{Binding Value}"
+                                    IsVisible="{Binding Kind, Converter={StaticResource KindEquals}, ConverterParameter=Enum}"
+                                    Background="#353548" Foreground="#CCCCCC"
+                                    BorderBrush="#404060" MaxWidth="200" FontSize="12"/>
+
+                          <!-- ReadOnly: 表示のみ -->
+                          <TextBlock Text="{Binding Value}"
+                                     IsVisible="{Binding Kind, Converter={StaticResource KindEquals}, ConverterParameter=ReadOnly}"
+                                     Foreground="#888888" FontSize="12"
+                                     VerticalAlignment="Center"/>
+                        </Panel>
+                      </Grid>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </Border>
+            </StackPanel>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+  </DockPanel>
+</UserControl>

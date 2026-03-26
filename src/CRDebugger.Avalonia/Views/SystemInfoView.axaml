@@ -1,0 +1,68 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:CRDebugger.Core.ViewModels"
+             x:Class="CRDebugger.Avalonia.Views.SystemInfoView"
+             x:DataType="vm:SystemInfoViewModel">
+
+  <UserControl.Styles>
+    <Style Selector="TextBlock.header">
+      <Setter Property="FontSize" Value="20"/>
+      <Setter Property="FontWeight" Value="Bold"/>
+      <Setter Property="Foreground" Value="#E0E0E0"/>
+      <Setter Property="Margin" Value="0,0,0,16"/>
+    </Style>
+    <Style Selector="TextBlock.category-name">
+      <Setter Property="FontSize" Value="14"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="Foreground" Value="#6C9BF2"/>
+      <Setter Property="Margin" Value="0,12,0,6"/>
+    </Style>
+    <Style Selector="TextBlock.info-key">
+      <Setter Property="Foreground" Value="#888888"/>
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="MinWidth" Value="180"/>
+    </Style>
+    <Style Selector="TextBlock.info-value">
+      <Setter Property="Foreground" Value="#CCCCCC"/>
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="TextWrapping" Value="Wrap"/>
+    </Style>
+  </UserControl.Styles>
+
+  <DockPanel Margin="20">
+    <!-- ヘッダー -->
+    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+      <TextBlock Text="System Information" Classes="header" DockPanel.Dock="Left"/>
+      <Button Content="Refresh" Command="{Binding RefreshCommand}"
+              HorizontalAlignment="Right"
+              Background="#353548" Foreground="#CCCCCC"
+              BorderThickness="0" Padding="16,6" CornerRadius="4" FontSize="12"/>
+    </DockPanel>
+
+    <!-- システム情報リスト -->
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+      <ItemsControl ItemsSource="{Binding Groups}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:SystemInfoGroup">
+            <StackPanel Margin="0,0,0,8">
+              <!-- カテゴリ名 -->
+              <TextBlock Text="{Binding Category}" Classes="category-name"/>
+              <Border Background="#2A2A3C" CornerRadius="6" Padding="12,8">
+                <ItemsControl ItemsSource="{Binding Items}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:SystemInfoItem">
+                      <Grid ColumnDefinitions="180,*" Margin="0,3">
+                        <TextBlock Grid.Column="0" Text="{Binding Key}" Classes="info-key"/>
+                        <TextBlock Grid.Column="1" Text="{Binding Value}" Classes="info-value"/>
+                      </Grid>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </Border>
+            </StackPanel>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+  </DockPanel>
+</UserControl>

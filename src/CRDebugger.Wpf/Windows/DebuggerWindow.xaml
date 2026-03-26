@@ -1,0 +1,98 @@
+<Window x:Class="CRDebugger.Wpf.Windows.DebuggerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:views="clr-namespace:CRDebugger.Wpf.Views"
+        Title="CRDebugger"
+        Width="900" Height="600"
+        MinWidth="640" MinHeight="400"
+        WindowStyle="ToolWindow"
+        ShowInTaskbar="False"
+        Topmost="True"
+        ResizeMode="CanResizeWithGrip"
+        AllowsTransparency="False">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/CRDebugger.Wpf;component/Themes/Dark.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid Background="{DynamicResource BackgroundBrush}">
+        <Grid.ColumnDefinitions>
+            <!-- サイドバー -->
+            <ColumnDefinition Width="180" />
+            <!-- コンテンツ -->
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- サイドバー -->
+        <Border Grid.Column="0"
+                Background="{DynamicResource SidebarBackgroundBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="0,0,1,0">
+            <DockPanel>
+                <!-- ヘッダー -->
+                <Border DockPanel.Dock="Top"
+                        Padding="16,16,16,12"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="0,0,0,1">
+                    <StackPanel>
+                        <TextBlock Text="CRDebugger"
+                                   FontSize="18"
+                                   FontWeight="Bold"
+                                   Foreground="{DynamicResource PrimaryBrush}" />
+                        <TextBlock Text="Debug Panel"
+                                   FontSize="11"
+                                   Foreground="{DynamicResource OnSurfaceMutedBrush}"
+                                   Margin="0,2,0,0" />
+                    </StackPanel>
+                </Border>
+
+                <!-- タブボタン群 -->
+                <StackPanel Margin="0,8,0,0">
+                    <RadioButton x:Name="TabSystem"
+                                 Style="{DynamicResource SidebarButton}"
+                                 Tag="&#xF0B0;"
+                                 Content="System Info"
+                                 GroupName="Tabs"
+                                 Checked="OnTabChanged" />
+                    <RadioButton x:Name="TabConsole"
+                                 Style="{DynamicResource SidebarButton}"
+                                 Tag="&#xF108;"
+                                 Content="Console"
+                                 GroupName="Tabs"
+                                 Checked="OnTabChanged" />
+                    <RadioButton x:Name="TabOptions"
+                                 Style="{DynamicResource SidebarButton}"
+                                 Tag="&#x2699;"
+                                 Content="Options"
+                                 GroupName="Tabs"
+                                 Checked="OnTabChanged" />
+                    <RadioButton x:Name="TabProfiler"
+                                 Style="{DynamicResource SidebarButton}"
+                                 Tag="&#x26A1;"
+                                 Content="Profiler"
+                                 GroupName="Tabs"
+                                 Checked="OnTabChanged" />
+                    <RadioButton x:Name="TabBugReporter"
+                                 Style="{DynamicResource SidebarButton}"
+                                 Tag="&#x1F41E;"
+                                 Content="Bug Reporter"
+                                 GroupName="Tabs"
+                                 Checked="OnTabChanged" />
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- コンテンツエリア -->
+        <Grid Grid.Column="1">
+            <views:SystemInfoView x:Name="SystemInfoContent" Visibility="Collapsed" />
+            <views:ConsoleView x:Name="ConsoleContent" Visibility="Collapsed" />
+            <views:OptionsView x:Name="OptionsContent" Visibility="Collapsed" />
+            <views:ProfilerView x:Name="ProfilerContent" Visibility="Collapsed" />
+            <views:BugReporterView x:Name="BugReporterContent" Visibility="Collapsed" />
+        </Grid>
+    </Grid>
+</Window>

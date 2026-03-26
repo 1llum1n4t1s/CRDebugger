@@ -1,0 +1,116 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:CRDebugger.Core.ViewModels"
+             x:Class="CRDebugger.Avalonia.Views.ProfilerView"
+             x:DataType="vm:ProfilerViewModel">
+
+  <UserControl.Styles>
+    <Style Selector="TextBlock.header">
+      <Setter Property="FontSize" Value="20"/>
+      <Setter Property="FontWeight" Value="Bold"/>
+      <Setter Property="Foreground" Value="#E0E0E0"/>
+      <Setter Property="Margin" Value="0,0,0,16"/>
+    </Style>
+    <Style Selector="TextBlock.metric-label">
+      <Setter Property="Foreground" Value="#888888"/>
+      <Setter Property="FontSize" Value="12"/>
+    </Style>
+    <Style Selector="TextBlock.metric-value">
+      <Setter Property="Foreground" Value="#E0E0E0"/>
+      <Setter Property="FontSize" Value="24"/>
+      <Setter Property="FontWeight" Value="Bold"/>
+    </Style>
+    <Style Selector="TextBlock.metric-unit">
+      <Setter Property="Foreground" Value="#666666"/>
+      <Setter Property="FontSize" Value="12"/>
+    </Style>
+    <Style Selector="Border.metric-card">
+      <Setter Property="Background" Value="#2A2A3C"/>
+      <Setter Property="CornerRadius" Value="8"/>
+      <Setter Property="Padding" Value="16,12"/>
+    </Style>
+    <Style Selector="TextBlock.section-title">
+      <Setter Property="Foreground" Value="#6C9BF2"/>
+      <Setter Property="FontSize" Value="14"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="Margin" Value="0,20,0,8"/>
+    </Style>
+  </UserControl.Styles>
+
+  <DockPanel Margin="20">
+    <!-- ヘッダー -->
+    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+      <TextBlock Text="Profiler" Classes="header" DockPanel.Dock="Left"/>
+      <Button Content="GC Collect" Command="{Binding GcCollectCommand}"
+              HorizontalAlignment="Right"
+              Background="#E05252" Foreground="White"
+              BorderThickness="0" Padding="16,6" CornerRadius="4" FontSize="12"
+              FontWeight="SemiBold"/>
+    </DockPanel>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+      <StackPanel Spacing="0">
+        <!-- メモリメトリクスカード群 -->
+        <TextBlock Text="Memory" Classes="section-title"/>
+        <UniformGrid Columns="3" Margin="0,0,0,0">
+          <!-- Working Set -->
+          <Border Classes="metric-card" Margin="0,0,8,8">
+            <StackPanel>
+              <TextBlock Text="Working Set" Classes="metric-label"/>
+              <TextBlock Text="{Binding WorkingSet}" Classes="metric-value"/>
+            </StackPanel>
+          </Border>
+          <!-- Private Memory -->
+          <Border Classes="metric-card" Margin="4,0,4,8">
+            <StackPanel>
+              <TextBlock Text="Private Memory" Classes="metric-label"/>
+              <TextBlock Text="{Binding PrivateMemory}" Classes="metric-value"/>
+            </StackPanel>
+          </Border>
+          <!-- GC Memory -->
+          <Border Classes="metric-card" Margin="8,0,0,8">
+            <StackPanel>
+              <TextBlock Text="GC Memory" Classes="metric-label"/>
+              <TextBlock Text="{Binding GcMemory}" Classes="metric-value"/>
+            </StackPanel>
+          </Border>
+        </UniformGrid>
+
+        <!-- GC コレクション統計 -->
+        <TextBlock Text="GC Collections" Classes="section-title"/>
+        <UniformGrid Columns="3" Margin="0,0,0,0">
+          <Border Classes="metric-card" Margin="0,0,8,8">
+            <StackPanel>
+              <TextBlock Text="Gen 0" Classes="metric-label"/>
+              <TextBlock Text="{Binding Gen0}" Classes="metric-value" Foreground="#4CAF50"/>
+            </StackPanel>
+          </Border>
+          <Border Classes="metric-card" Margin="4,0,4,8">
+            <StackPanel>
+              <TextBlock Text="Gen 1" Classes="metric-label"/>
+              <TextBlock Text="{Binding Gen1}" Classes="metric-value" Foreground="#E8C44A"/>
+            </StackPanel>
+          </Border>
+          <Border Classes="metric-card" Margin="8,0,0,8">
+            <StackPanel>
+              <TextBlock Text="Gen 2" Classes="metric-label"/>
+              <TextBlock Text="{Binding Gen2}" Classes="metric-value" Foreground="#E05252"/>
+            </StackPanel>
+          </Border>
+        </UniformGrid>
+
+        <!-- FPS -->
+        <TextBlock Text="Performance" Classes="section-title"/>
+        <Border Classes="metric-card">
+          <StackPanel>
+            <TextBlock Text="FPS (estimated)" Classes="metric-label"/>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock Text="{Binding Fps, StringFormat='{}{0:F1}'}" Classes="metric-value" Foreground="#6C9BF2"/>
+              <TextBlock Text="fps" Classes="metric-unit" VerticalAlignment="Bottom" Margin="0,0,0,4"/>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+      </StackPanel>
+    </ScrollViewer>
+  </DockPanel>
+</UserControl>

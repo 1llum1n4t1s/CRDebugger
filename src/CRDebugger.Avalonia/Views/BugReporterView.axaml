@@ -1,0 +1,88 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:CRDebugger.Core.ViewModels"
+             xmlns:conv="using:CRDebugger.Avalonia.Converters"
+             x:Class="CRDebugger.Avalonia.Views.BugReporterView"
+             x:DataType="vm:BugReporterViewModel">
+
+  <UserControl.Resources>
+    <conv:InverseBoolConverter x:Key="InverseBool"/>
+    <conv:NotNullOrEmptyConverter x:Key="NotNullOrEmpty"/>
+  </UserControl.Resources>
+
+  <UserControl.Styles>
+    <Style Selector="TextBlock.header">
+      <Setter Property="FontSize" Value="20"/>
+      <Setter Property="FontWeight" Value="Bold"/>
+      <Setter Property="Foreground" Value="#E0E0E0"/>
+      <Setter Property="Margin" Value="0,0,0,16"/>
+    </Style>
+    <Style Selector="TextBlock.field-label">
+      <Setter Property="Foreground" Value="#CCCCCC"/>
+      <Setter Property="FontSize" Value="13"/>
+      <Setter Property="Margin" Value="0,0,0,6"/>
+    </Style>
+  </UserControl.Styles>
+
+  <DockPanel Margin="20">
+    <TextBlock Text="Bug Reporter" Classes="header" DockPanel.Dock="Top"/>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+      <StackPanel MaxWidth="500" HorizontalAlignment="Left" Spacing="4">
+        <!-- 説明テキスト -->
+        <TextBlock Text="バグの詳細を入力してレポートを送信してください。"
+                   Foreground="#888888" FontSize="12" Margin="0,0,0,16"
+                   TextWrapping="Wrap"/>
+
+        <!-- メールアドレス -->
+        <TextBlock Text="メールアドレス (任意)" Classes="field-label"/>
+        <TextBox Text="{Binding UserEmail}"
+                 Watermark="your@email.com"
+                 Background="#2A2A3C" Foreground="#CCCCCC"
+                 BorderBrush="#404060" BorderThickness="1"
+                 CornerRadius="4" Padding="10,8"
+                 FontSize="13" Margin="0,0,0,12"
+                 IsEnabled="{Binding IsSending, Converter={StaticResource InverseBool}}"/>
+
+        <!-- メッセージ -->
+        <TextBlock Text="バグの説明 *" Classes="field-label"/>
+        <TextBox Text="{Binding UserMessage}"
+                 Watermark="発生した問題を詳しく記述してください..."
+                 AcceptsReturn="True"
+                 TextWrapping="Wrap"
+                 Height="150"
+                 Background="#2A2A3C" Foreground="#CCCCCC"
+                 BorderBrush="#404060" BorderThickness="1"
+                 CornerRadius="4" Padding="10,8"
+                 FontSize="13" Margin="0,0,0,16"
+                 IsEnabled="{Binding IsSending, Converter={StaticResource InverseBool}}"/>
+
+        <!-- 送信ボタン -->
+        <Button Content="バグレポートを送信"
+                Command="{Binding SendCommand}"
+                IsEnabled="{Binding IsSending, Converter={StaticResource InverseBool}}"
+                Background="#6C9BF2" Foreground="White"
+                BorderThickness="0" Padding="20,10"
+                CornerRadius="4" FontSize="14" FontWeight="SemiBold"
+                HorizontalAlignment="Stretch"
+                HorizontalContentAlignment="Center"/>
+
+        <!-- ステータスメッセージ -->
+        <TextBlock Text="{Binding StatusMessage}"
+                   Foreground="#E8C44A" FontSize="12"
+                   Margin="0,12,0,0"
+                   TextWrapping="Wrap"
+                   IsVisible="{Binding StatusMessage, Converter={StaticResource NotNullOrEmpty}}"/>
+
+        <!-- 送信中インジケーター -->
+        <StackPanel Orientation="Horizontal" Spacing="8"
+                    Margin="0,8,0,0"
+                    IsVisible="{Binding IsSending}">
+          <ProgressBar IsIndeterminate="True" Width="100" Height="4"
+                       Foreground="#6C9BF2" Background="#353548"/>
+          <TextBlock Text="送信中..." Foreground="#888888" FontSize="12"/>
+        </StackPanel>
+      </StackPanel>
+    </ScrollViewer>
+  </DockPanel>
+</UserControl>

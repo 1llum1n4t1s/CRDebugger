@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>net6.0;net8.0</TargetFrameworks>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>12</LangVersion>
+    <RootNamespace>CRDebugger.Core</RootNamespace>
+    <IsPackable>true</IsPackable>
+    <PackageId>CRDebugger.Core</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>ゆろち</Authors>
+    <Description>CRDebugger Core - SRDebugger-like debug panel for .NET desktop apps</Description>
+    <PackageTags>debug;logging;devtools;diagnostics;profiler</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="CRDebugger.Wpf" />
+    <InternalsVisibleTo Include="CRDebugger.Avalonia" />
+    <InternalsVisibleTo Include="CRDebugger.WinForms" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.2" />
+  </ItemGroup>
+</Project>

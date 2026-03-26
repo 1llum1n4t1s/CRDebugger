@@ -1,0 +1,158 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:CRDebugger.Core.ViewModels"
+        xmlns:core="using:CRDebugger.Core"
+        xmlns:conv="using:CRDebugger.Avalonia.Converters"
+        xmlns:views="using:CRDebugger.Avalonia.Views"
+        x:Class="CRDebugger.Avalonia.Windows.DebuggerWindow"
+        x:DataType="vm:DebuggerViewModel"
+        x:Name="root"
+        Title="CRDEBUGGER"
+        Width="900" Height="600"
+        MinWidth="600" MinHeight="400"
+        Topmost="True"
+        WindowStartupLocation="CenterScreen"
+        CanResize="True"
+        SystemDecorations="Full"
+        Background="#1E1E2E">
+
+  <Window.Resources>
+    <conv:TabEqualsConverter x:Key="TabEquals"/>
+    <conv:CountToVisibilityConverter x:Key="CountToVis"/>
+  </Window.Resources>
+
+  <Window.Styles>
+    <!-- サイドバーボタン共通スタイル -->
+    <Style Selector="Button.sidebar-btn">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Foreground" Value="#AAAAAA"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="HorizontalAlignment" Value="Stretch"/>
+      <Setter Property="HorizontalContentAlignment" Value="Left"/>
+      <Setter Property="Padding" Value="16,12"/>
+      <Setter Property="CornerRadius" Value="0"/>
+      <Setter Property="FontSize" Value="13"/>
+    </Style>
+    <Style Selector="Button.sidebar-btn:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="#2A2A3C"/>
+    </Style>
+    <Style Selector="Button.sidebar-btn.active /template/ ContentPresenter">
+      <Setter Property="Background" Value="#2A2A3C"/>
+    </Style>
+    <Style Selector="Button.sidebar-btn.active">
+      <Setter Property="Foreground" Value="#6C9BF2"/>
+    </Style>
+
+    <!-- バッジ -->
+    <Style Selector="Border.badge">
+      <Setter Property="CornerRadius" Value="8"/>
+      <Setter Property="Padding" Value="5,1"/>
+      <Setter Property="MinWidth" Value="20"/>
+      <Setter Property="HorizontalAlignment" Value="Right"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+  </Window.Styles>
+
+  <Grid ColumnDefinitions="160,*">
+    <!-- 左サイドバー -->
+    <Border Grid.Column="0" Background="#16161E"
+            BorderBrush="#404060" BorderThickness="0,0,1,0">
+      <DockPanel>
+        <!-- ブランディングヘッダー -->
+        <Border DockPanel.Dock="Top" Padding="12,14" Background="#12121A"
+                BorderBrush="#404060" BorderThickness="0,0,0,1">
+          <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="6">
+            <TextBlock Text="CR" FontWeight="Bold" FontSize="16" Foreground="#6C9BF2"/>
+            <TextBlock Text="DEBUGGER" FontWeight="SemiBold" FontSize="16" Foreground="#888888"/>
+          </StackPanel>
+        </Border>
+
+        <!-- タブボタン群 -->
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <StackPanel Margin="0,4">
+            <!-- System タブ -->
+            <Button Classes="sidebar-btn"
+                    Classes.active="{Binding SelectedTab, Converter={StaticResource TabEquals}, ConverterParameter=System}"
+                    Click="OnTabClick" Tag="{x:Static core:CRTab.System}">
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <TextBlock Text="&#x2699;" FontSize="16" VerticalAlignment="Center"/>
+                <TextBlock Text="System" VerticalAlignment="Center"/>
+              </StackPanel>
+            </Button>
+
+            <!-- Console タブ -->
+            <Button Classes="sidebar-btn"
+                    Classes.active="{Binding SelectedTab, Converter={StaticResource TabEquals}, ConverterParameter=Console}"
+                    Click="OnTabClick" Tag="{x:Static core:CRTab.Console}">
+              <Grid>
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                  <TextBlock Text="&#x25B6;" FontSize="14" VerticalAlignment="Center"/>
+                  <TextBlock Text="Console" VerticalAlignment="Center"/>
+                </StackPanel>
+                <!-- エラー/警告カウントバッジ -->
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="3" VerticalAlignment="Center">
+                  <Border Classes="badge" Background="#E05252"
+                          IsVisible="{Binding Console.ErrorCount, Converter={StaticResource CountToVis}}">
+                    <TextBlock Text="{Binding Console.ErrorCount}" Foreground="White" FontSize="10"
+                               HorizontalAlignment="Center" FontWeight="Bold"/>
+                  </Border>
+                  <Border Classes="badge" Background="#E8C44A"
+                          IsVisible="{Binding Console.WarningCount, Converter={StaticResource CountToVis}}">
+                    <TextBlock Text="{Binding Console.WarningCount}" Foreground="#1E1E2E" FontSize="10"
+                               HorizontalAlignment="Center" FontWeight="Bold"/>
+                  </Border>
+                </StackPanel>
+              </Grid>
+            </Button>
+
+            <!-- Options タブ -->
+            <Button Classes="sidebar-btn"
+                    Classes.active="{Binding SelectedTab, Converter={StaticResource TabEquals}, ConverterParameter=Options}"
+                    Click="OnTabClick" Tag="{x:Static core:CRTab.Options}">
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <TextBlock Text="&#x2630;" FontSize="16" VerticalAlignment="Center"/>
+                <TextBlock Text="Options" VerticalAlignment="Center"/>
+              </StackPanel>
+            </Button>
+
+            <!-- Profiler タブ -->
+            <Button Classes="sidebar-btn"
+                    Classes.active="{Binding SelectedTab, Converter={StaticResource TabEquals}, ConverterParameter=Profiler}"
+                    Click="OnTabClick" Tag="{x:Static core:CRTab.Profiler}">
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <TextBlock Text="&#x26A1;" FontSize="16" VerticalAlignment="Center"/>
+                <TextBlock Text="Profiler" VerticalAlignment="Center"/>
+              </StackPanel>
+            </Button>
+
+            <!-- Bug Reporter タブ -->
+            <Button Classes="sidebar-btn"
+                    Classes.active="{Binding SelectedTab, Converter={StaticResource TabEquals}, ConverterParameter=BugReporter}"
+                    Click="OnTabClick" Tag="{x:Static core:CRTab.BugReporter}">
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <TextBlock Text="&#x1F41E;" FontSize="16" VerticalAlignment="Center"/>
+                <TextBlock Text="Bug Report" VerticalAlignment="Center"/>
+              </StackPanel>
+            </Button>
+          </StackPanel>
+        </ScrollViewer>
+      </DockPanel>
+    </Border>
+
+    <!-- 右コンテンツエリア -->
+    <Border Grid.Column="1" Background="#1E1E2E">
+      <Panel>
+        <views:SystemInfoView DataContext="{Binding SystemInfo}"
+                              IsVisible="{Binding #root.((vm:DebuggerViewModel)DataContext).SelectedTab, Converter={StaticResource TabEquals}, ConverterParameter=System}"/>
+        <views:ConsoleView DataContext="{Binding Console}"
+                           IsVisible="{Binding #root.((vm:DebuggerViewModel)DataContext).SelectedTab, Converter={StaticResource TabEquals}, ConverterParameter=Console}"/>
+        <views:OptionsView DataContext="{Binding Options}"
+                           IsVisible="{Binding #root.((vm:DebuggerViewModel)DataContext).SelectedTab, Converter={StaticResource TabEquals}, ConverterParameter=Options}"/>
+        <views:ProfilerView DataContext="{Binding Profiler}"
+                            IsVisible="{Binding #root.((vm:DebuggerViewModel)DataContext).SelectedTab, Converter={StaticResource TabEquals}, ConverterParameter=Profiler}"/>
+        <views:BugReporterView DataContext="{Binding BugReporter}"
+                               IsVisible="{Binding #root.((vm:DebuggerViewModel)DataContext).SelectedTab, Converter={StaticResource TabEquals}, ConverterParameter=BugReporter}"/>
+      </Panel>
+    </Border>
+  </Grid>
+</Window>

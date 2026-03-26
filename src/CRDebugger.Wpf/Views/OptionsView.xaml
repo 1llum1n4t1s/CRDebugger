@@ -1,0 +1,56 @@
+<UserControl x:Class="CRDebugger.Wpf.Views.OptionsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:CRDebugger.Core.ViewModels;assembly=CRDebugger.Core">
+
+    <DockPanel Margin="16">
+        <!-- ヘッダー -->
+        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+            <TextBlock Text="Options"
+                       FontSize="20"
+                       FontWeight="Bold"
+                       Foreground="{DynamicResource OnBackgroundBrush}"
+                       VerticalAlignment="Center" />
+            <Button Content="Refresh"
+                    Style="{DynamicResource CRButton}"
+                    Command="{Binding RefreshCommand}"
+                    HorizontalAlignment="Right"
+                    Padding="12,6" />
+        </DockPanel>
+
+        <!-- オプションカテゴリ一覧 -->
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <ItemsControl ItemsSource="{Binding Categories}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="{x:Type vm:OptionCategoryViewModel}">
+                        <Border Background="{DynamicResource SurfaceBrush}"
+                                CornerRadius="6"
+                                Margin="0,0,0,12"
+                                Padding="16,12">
+                            <StackPanel>
+                                <!-- カテゴリヘッダー -->
+                                <TextBlock Text="{Binding Name}"
+                                           FontSize="14"
+                                           FontWeight="SemiBold"
+                                           Foreground="{DynamicResource PrimaryBrush}"
+                                           Margin="0,0,0,8" />
+
+                                <!-- オプション項目（動的コントロール） -->
+                                <ItemsControl x:Name="OptionItems"
+                                              ItemsSource="{Binding Items}"
+                                              Loaded="OnOptionItemsLoaded">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <ContentPresenter Content="{Binding}"
+                                                              Loaded="OnOptionItemLoaded" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </DockPanel>
+</UserControl>

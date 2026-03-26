@@ -1,0 +1,16 @@
+<Solution>
+  <Folder Name="/samples/">
+    <Project Path="samples/Sample.Avalonia/Sample.Avalonia.csproj" />
+    <Project Path="samples/Sample.WinForms/Sample.WinForms.csproj" />
+    <Project Path="samples/Sample.Wpf/Sample.Wpf.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/CRDebugger.Avalonia/CRDebugger.Avalonia.csproj" />
+    <Project Path="src/CRDebugger.Core/CRDebugger.Core.csproj" />
+    <Project Path="src/CRDebugger.WinForms/CRDebugger.WinForms.csproj" />
+    <Project Path="src/CRDebugger.Wpf/CRDebugger.Wpf.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/CRDebugger.Core.Tests/CRDebugger.Core.Tests.csproj" />
+  </Folder>
+</Solution>

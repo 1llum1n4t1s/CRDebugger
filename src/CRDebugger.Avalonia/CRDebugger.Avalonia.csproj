@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>net6.0;net8.0</TargetFrameworks>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>12</LangVersion>
+    <RootNamespace>CRDebugger.Avalonia</RootNamespace>
+    <IsPackable>true</IsPackable>
+    <PackageId>CRDebugger.Avalonia</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>ゆろち</Authors>
+    <Description>CRDebugger Avalonia UI - SRDebugger-like debug panel for Avalonia apps</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\CRDebugger.Core\CRDebugger.Core.csproj" />
+    <PackageReference Include="Avalonia" Version="11.2.7" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.2.7" />
+  </ItemGroup>
+</Project>

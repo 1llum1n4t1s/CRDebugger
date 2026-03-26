@@ -1,0 +1,13 @@
+<Window x:Class="Sample.Wpf.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="CRDebugger WPF Sample" Height="400" Width="600">
+    <StackPanel Margin="20">
+        <TextBlock Text="CRDebugger WPF サンプル" FontSize="24" FontWeight="Bold" Margin="0,0,0,10"/>
+        <TextBlock Text="下のボタンでデバッガーを開きます" Margin="0,0,0,10"/>
+        <Button Content="CRDebugger を開く (F12)" Click="OnOpenDebugger" Margin="0,0,0,5" Padding="10,5"/>
+        <Button Content="ログを追加" Click="OnAddLog" Margin="0,0,0,5" Padding="10,5"/>
+        <Button Content="警告を追加" Click="OnAddWarning" Margin="0,0,0,5" Padding="10,5"/>
+        <Button Content="エラーを追加" Click="OnAddError" Margin="0,0,0,5" Padding="10,5"/>
+    </StackPanel>
+</Window>

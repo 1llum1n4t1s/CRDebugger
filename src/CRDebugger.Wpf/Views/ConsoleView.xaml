@@ -1,0 +1,223 @@
+<UserControl x:Class="CRDebugger.Wpf.Views.ConsoleView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:logging="clr-namespace:CRDebugger.Core.Logging;assembly=CRDebugger.Core">
+
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <!-- ヘッダー＋フィルター -->
+            <RowDefinition Height="Auto" />
+            <!-- 検索バー -->
+            <RowDefinition Height="Auto" />
+            <!-- ログリスト -->
+            <RowDefinition Height="*" />
+            <!-- スタックトレース詳細 -->
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- ヘッダーとフィルター -->
+        <DockPanel Grid.Row="0" Margin="0,0,0,8">
+            <TextBlock Text="Console"
+                       FontSize="20"
+                       FontWeight="Bold"
+                       Foreground="{DynamicResource OnBackgroundBrush}"
+                       VerticalAlignment="Center"
+                       DockPanel.Dock="Left" />
+
+            <Button Content="Clear"
+                    Style="{DynamicResource CRButton}"
+                    Command="{Binding ClearCommand}"
+                    HorizontalAlignment="Right"
+                    DockPanel.Dock="Right"
+                    Padding="12,6"
+                    Background="{DynamicResource SurfaceAltBrush}"
+                    Foreground="{DynamicResource OnSurfaceBrush}" />
+
+            <!-- ログレベルフィルターボタン -->
+            <StackPanel Orientation="Horizontal"
+                        HorizontalAlignment="Right"
+                        Margin="0,0,8,0"
+                        DockPanel.Dock="Right">
+                <ToggleButton Style="{DynamicResource CRFilterToggle}"
+                              IsChecked="{Binding ShowDebug}"
+                              Margin="0,0,4,0">
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse Width="8" Height="8" Fill="{DynamicResource LogDebugBrush}" Margin="0,0,4,0" />
+                        <TextBlock>
+                            <Run Text="DBG " /><Run Text="{Binding DebugCount, Mode=OneWay}" />
+                        </TextBlock>
+                    </StackPanel>
+                </ToggleButton>
+                <ToggleButton Style="{DynamicResource CRFilterToggle}"
+                              IsChecked="{Binding ShowInfo}"
+                              Margin="0,0,4,0">
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse Width="8" Height="8" Fill="{DynamicResource LogInfoBrush}" Margin="0,0,4,0" />
+                        <TextBlock>
+                            <Run Text="INF " /><Run Text="{Binding InfoCount, Mode=OneWay}" />
+                        </TextBlock>
+                    </StackPanel>
+                </ToggleButton>
+                <ToggleButton Style="{DynamicResource CRFilterToggle}"
+                              IsChecked="{Binding ShowWarning}"
+                              Margin="0,0,4,0">
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse Width="8" Height="8" Fill="{DynamicResource LogWarningBrush}" Margin="0,0,4,0" />
+                        <TextBlock>
+                            <Run Text="WRN " /><Run Text="{Binding WarningCount, Mode=OneWay}" />
+                        </TextBlock>
+                    </StackPanel>
+                </ToggleButton>
+                <ToggleButton Style="{DynamicResource CRFilterToggle}"
+                              IsChecked="{Binding ShowError}">
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse Width="8" Height="8" Fill="{DynamicResource LogErrorBrush}" Margin="0,0,4,0" />
+                        <TextBlock>
+                            <Run Text="ERR " /><Run Text="{Binding ErrorCount, Mode=OneWay}" />
+                        </TextBlock>
+                    </StackPanel>
+                </ToggleButton>
+            </StackPanel>
+        </DockPanel>
+
+        <!-- 検索バー -->
+        <TextBox Grid.Row="1"
+                 Style="{DynamicResource CRTextBox}"
+                 Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                 Margin="0,0,0,8">
+            <TextBox.Template>
+                <ControlTemplate TargetType="TextBox">
+                    <Border Background="{DynamicResource SurfaceAltBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="4"
+                            Padding="8,6">
+                        <Grid>
+                            <TextBlock Text="Search logs..."
+                                       Foreground="{DynamicResource OnSurfaceMutedBrush}"
+                                       VerticalAlignment="Center"
+                                       Visibility="{Binding Text.Length, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource ZeroToVisibleConverter}}"
+                                       IsHitTestVisible="False" />
+                            <ScrollViewer x:Name="PART_ContentHost"
+                                          VerticalAlignment="Center" />
+                        </Grid>
+                    </Border>
+                </ControlTemplate>
+            </TextBox.Template>
+        </TextBox>
+
+        <!-- ログリスト -->
+        <Border Grid.Row="2"
+                Background="{DynamicResource SurfaceBrush}"
+                CornerRadius="6"
+                ClipToBounds="True">
+            <ListView ItemsSource="{Binding DisplayEntries}"
+                      SelectedItem="{Binding SelectedEntry}"
+                      Background="Transparent"
+                      BorderThickness="0"
+                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                      VirtualizingPanel.IsVirtualizing="True"
+                      VirtualizingPanel.VirtualizationMode="Recycling">
+                <ListView.ItemTemplate>
+                    <DataTemplate DataType="{x:Type logging:LogEntry}">
+                        <DockPanel Margin="8,4,8,4">
+                            <!-- タイムスタンプ -->
+                            <TextBlock Text="{Binding Timestamp, StringFormat='HH:mm:ss.fff'}"
+                                       Foreground="{DynamicResource OnSurfaceMutedBrush}"
+                                       FontSize="11"
+                                       FontFamily="Consolas"
+                                       Width="85"
+                                       DockPanel.Dock="Left"
+                                       VerticalAlignment="Top" />
+
+                            <!-- レベルバッジ -->
+                            <Border DockPanel.Dock="Left"
+                                    CornerRadius="3"
+                                    Padding="6,1,6,1"
+                                    Margin="4,0,8,0"
+                                    Width="38"
+                                    VerticalAlignment="Top">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Level}" Value="Debug">
+                                                <Setter Property="Background" Value="{DynamicResource LogDebugBrush}" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Level}" Value="Info">
+                                                <Setter Property="Background" Value="{DynamicResource LogInfoBrush}" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Level}" Value="Warning">
+                                                <Setter Property="Background" Value="{DynamicResource LogWarningBrush}" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Level}" Value="Error">
+                                                <Setter Property="Background" Value="{DynamicResource LogErrorBrush}" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <TextBlock Text="{Binding Level}"
+                                           Foreground="White"
+                                           FontSize="10"
+                                           FontWeight="SemiBold"
+                                           HorizontalAlignment="Center" />
+                            </Border>
+
+                            <!-- チャンネル -->
+                            <TextBlock Text="{Binding Channel, StringFormat='[{0}]'}"
+                                       Foreground="{DynamicResource OnSurfaceMutedBrush}"
+                                       FontSize="11"
+                                       FontFamily="Consolas"
+                                       DockPanel.Dock="Left"
+                                       VerticalAlignment="Top"
+                                       Margin="0,0,8,0" />
+
+                            <!-- メッセージ -->
+                            <TextBlock Text="{Binding Message}"
+                                       Foreground="{DynamicResource OnSurfaceBrush}"
+                                       FontSize="12"
+                                       FontFamily="Consolas"
+                                       TextWrapping="Wrap"
+                                       TextTrimming="CharacterEllipsis"
+                                       MaxHeight="60"
+                                       VerticalAlignment="Top" />
+                        </DockPanel>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+                <ListView.ItemContainerStyle>
+                    <Style TargetType="ListViewItem">
+                        <Setter Property="Background" Value="Transparent" />
+                        <Setter Property="BorderThickness" Value="0,0,0,1" />
+                        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+                        <Setter Property="Padding" Value="0" />
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                        <Style.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource SurfaceAltBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource SurfaceAltBrush}" />
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </ListView.ItemContainerStyle>
+            </ListView>
+        </Border>
+
+        <!-- スタックトレース詳細パネル -->
+        <Border Grid.Row="3"
+                Background="{DynamicResource SurfaceBrush}"
+                CornerRadius="6"
+                Margin="0,8,0,0"
+                Padding="12,8"
+                MaxHeight="150"
+                Visibility="{Binding SelectedEntry.StackTrace, Converter={StaticResource NullToCollapsedConverter}, FallbackValue=Collapsed}">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <TextBlock Text="{Binding SelectedEntry.StackTrace}"
+                           Foreground="{DynamicResource LogErrorBrush}"
+                           FontFamily="Consolas"
+                           FontSize="11"
+                           TextWrapping="Wrap" />
+            </ScrollViewer>
+        </Border>
+    </Grid>
+</UserControl>
