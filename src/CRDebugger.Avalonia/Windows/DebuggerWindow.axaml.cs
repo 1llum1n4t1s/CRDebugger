@@ -27,6 +27,19 @@ public partial class DebuggerWindow : Window
     }
 
     /// <summary>
+    /// ピンボタンクリック → 常に前面に固定/解除を切り替える
+    /// </summary>
+    private void OnPinClick(object? sender, RoutedEventArgs e)
+    {
+        Topmost = !Topmost;
+        var icon = this.FindControl<global::Avalonia.Controls.TextBlock>("PinIcon");
+        if (icon != null)
+        {
+            icon.Opacity = Topmost ? 1.0 : 0.4;
+        }
+    }
+
+    /// <summary>
     /// 閉じるボタンクリック → ウィンドウを非表示にする
     /// </summary>
     private void OnCloseClick(object? sender, RoutedEventArgs e)

@@ -21,6 +21,7 @@ public sealed class DebuggerForm : Form
 
     // コンテンツパネル
     private readonly Panel _contentPanel;
+    private Button? _pinButton;
     private readonly SystemInfoPanel _systemInfoPanel;
     private readonly ConsolePanel _consolePanel;
     private readonly OptionsPanel _optionsPanel;
@@ -55,7 +56,7 @@ public sealed class DebuggerForm : Form
         Location = new Point(
             Screen.PrimaryScreen!.WorkingArea.Right - 920,
             Screen.PrimaryScreen.WorkingArea.Top + 20);
-        TopMost = true;
+        TopMost = false;
         FormBorderStyle = FormBorderStyle.Sizable;
         ShowInTaskbar = true;
         DoubleBuffered = true;
@@ -91,6 +92,9 @@ public sealed class DebuggerForm : Form
             panel.Visible = false;
             _contentPanel.Controls.Add(panel);
         }
+
+        // ヘッダーにピン＋閉じるボタン
+        CreateHeaderButtons();
 
         // サイドバーボタンを生成
         CreateSidebarButtons();
@@ -136,6 +140,53 @@ public sealed class DebuggerForm : Form
 
         _sidebarPanel.Invalidate();
         Invalidate(true);
+    }
+
+    private void CreateHeaderButtons()
+    {
+        // 閉じるボタン
+        var closeBtn = new Button
+        {
+            Text = "✕",
+            FlatStyle = FlatStyle.Flat,
+            Size = new Size(28, 28),
+            Font = new Font("Segoe UI", 10),
+            ForeColor = Color.FromArgb(96, 96, 117),
+            BackColor = Color.Transparent,
+            Cursor = Cursors.Hand,
+            Anchor = AnchorStyles.Top | AnchorStyles.Right,
+        };
+        closeBtn.FlatAppearance.BorderSize = 0;
+        closeBtn.FlatAppearance.MouseOverBackColor = Color.FromArgb(30, 255, 255, 255);
+        closeBtn.Location = new Point(_contentPanel.Width - 34, 6);
+        closeBtn.Click += (_, _) => Hide();
+        _contentPanel.Controls.Add(closeBtn);
+        closeBtn.BringToFront();
+
+        // ピンボタン
+        _pinButton = new Button
+        {
+            Text = "📌",
+            FlatStyle = FlatStyle.Flat,
+            Size = new Size(28, 28),
+            Font = new Font("Segoe UI", 9),
+            ForeColor = Color.FromArgb(96, 96, 117),
+            BackColor = Color.Transparent,
+            Cursor = Cursors.Hand,
+            Anchor = AnchorStyles.Top | AnchorStyles.Right,
+        };
+        _pinButton.FlatAppearance.BorderSize = 0;
+        _pinButton.FlatAppearance.MouseOverBackColor = Color.FromArgb(30, 255, 255, 255);
+        _pinButton.Location = new Point(_contentPanel.Width - 64, 6);
+        _pinButton.Click += (_, _) =>
+        {
+            TopMost = !TopMost;
+            _pinButton.ForeColor = TopMost
+                ? Color.FromArgb(124, 143, 255)
+                : Color.FromArgb(96, 96, 117);
+        };
+        _contentPanel.Controls.Add(_pinButton);
+        _pinButton.BringToFront();
     }
 
     private void CreateSidebarButtons()

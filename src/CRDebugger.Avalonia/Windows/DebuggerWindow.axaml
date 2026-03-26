@@ -10,7 +10,7 @@
         Title="CRDEBUGGER"
         Width="900" Height="600"
         MinWidth="600" MinHeight="400"
-        Topmost="True"
+        Topmost="False"
         WindowStartupLocation="CenterScreen"
         CanResize="True"
         SystemDecorations="Full"
@@ -136,15 +136,26 @@
                 <TextBlock Text="DEBUGGER" FontWeight="SemiBold" FontSize="17" Foreground="#606080"
                            LetterSpacing="1"/>
               </StackPanel>
-              <!-- 閉じるボタン -->
-              <Button HorizontalAlignment="Right" VerticalAlignment="Top"
-                      Click="OnCloseClick"
-                      Background="Transparent" BorderThickness="0"
-                      Padding="4" Cursor="Hand" ToolTip.Tip="閉じる"
-                      Width="28" Height="28">
-                <TextBlock Text="✕" Foreground="#606080" FontSize="14"
-                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
-              </Button>
+              <!-- ピン + 閉じるボタン -->
+              <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="2">
+                <!-- ピン（常に前面に固定）ボタン -->
+                <Button x:Name="PinButton"
+                        Click="OnPinClick"
+                        Background="Transparent" BorderThickness="0"
+                        Padding="4" Cursor="Hand" ToolTip.Tip="常に前面に固定"
+                        Width="28" Height="28">
+                  <TextBlock x:Name="PinIcon" Text="📌" FontSize="13" Opacity="0.4"
+                             HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Button>
+                <!-- 閉じるボタン -->
+                <Button Click="OnCloseClick"
+                        Background="Transparent" BorderThickness="0"
+                        Padding="4" Cursor="Hand" ToolTip.Tip="閉じる"
+                        Width="28" Height="28">
+                  <TextBlock Text="✕" Foreground="#606080" FontSize="14"
+                             HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Button>
+              </StackPanel>
             </Grid>
           </Border>
 

@@ -18,6 +18,9 @@ public sealed class CRDebuggerOptions
     public double WindowWidth { get; set; } = 900;
     public double WindowHeight { get; set; } = 600;
 
+    /// <summary>ウィンドウを常に前面に表示するか（デフォルト: false、画面上のピンボタンで切替可能）</summary>
+    public bool Topmost { get; set; } = false;
+
     /// <summary>連続する同一ログを折りたたむ</summary>
     public bool CollapseDuplicateLogs { get; set; } = true;
 

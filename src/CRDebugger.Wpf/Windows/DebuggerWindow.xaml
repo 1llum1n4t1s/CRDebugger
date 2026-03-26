@@ -7,7 +7,7 @@
         MinWidth="640" MinHeight="400"
         WindowStyle="ToolWindow"
         ShowInTaskbar="False"
-        Topmost="True"
+        Topmost="False"
         ResizeMode="CanResizeWithGrip"
         AllowsTransparency="False">
 
@@ -35,19 +35,31 @@
             <DockPanel>
                 <!-- ヘッダー -->
                 <Border DockPanel.Dock="Top"
-                        Padding="20,20,20,16"
+                        Padding="20,14,20,14"
                         BorderBrush="{DynamicResource BorderBrush}"
                         BorderThickness="0,0,0,1">
-                    <StackPanel>
-                        <TextBlock FontSize="20" FontWeight="Bold" Margin="0,0,0,2">
-                            <Run Text="CR" Foreground="{DynamicResource PrimaryBrush}" />
-                            <Run Text="DEBUGGER" Foreground="{DynamicResource MutedTextBrush}" FontSize="14" />
-                        </TextBlock>
-                        <TextBlock Text="Debug Panel"
-                                   FontSize="11"
-                                   Foreground="{DynamicResource OnSurfaceMutedBrush}"
-                                   Margin="0,2,0,0" />
-                    </StackPanel>
+                    <Grid>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock FontSize="20" FontWeight="Bold" Margin="0,0,0,2">
+                                <Run Text="CR" Foreground="{DynamicResource PrimaryBrush}" />
+                                <Run Text="DEBUGGER" Foreground="{DynamicResource MutedTextBrush}" FontSize="14" />
+                            </TextBlock>
+                        </StackPanel>
+                        <!-- ピン + 閉じるボタン -->
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
+                            <Button x:Name="PinButton" Click="OnPinClick"
+                                    Content="📌" FontSize="13" Opacity="0.4"
+                                    Background="Transparent" BorderThickness="0"
+                                    Padding="4" Cursor="Hand" ToolTip="常に前面に固定"
+                                    Width="28" Height="28"/>
+                            <Button Click="OnCloseClick"
+                                    Content="✕" FontSize="14"
+                                    Background="Transparent" BorderThickness="0"
+                                    Foreground="{DynamicResource OnSurfaceMutedBrush}"
+                                    Padding="4" Cursor="Hand" ToolTip="閉じる"
+                                    Width="28" Height="28"/>
+                        </StackPanel>
+                    </Grid>
                 </Border>
 
                 <!-- タブボタン群 -->

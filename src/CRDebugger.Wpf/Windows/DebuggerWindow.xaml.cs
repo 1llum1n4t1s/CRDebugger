@@ -68,6 +68,17 @@ public partial class DebuggerWindow : Window
         ShowContent(tab);
     }
 
+    private void OnPinClick(object sender, RoutedEventArgs e)
+    {
+        Topmost = !Topmost;
+        PinButton.Opacity = Topmost ? 1.0 : 0.4;
+    }
+
+    private void OnCloseClick(object sender, RoutedEventArgs e)
+    {
+        Hide();
+    }
+
     private void OnTabChanged(object sender, RoutedEventArgs e)
     {
         if (sender is RadioButton rb)
