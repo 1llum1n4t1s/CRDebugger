@@ -35,6 +35,7 @@ public sealed class OptionCategoryViewModel : ViewModelBase
 {
     public string Name { get; }
     public ObservableCollection<OptionItemViewModel> Items { get; } = new();
+    public ObservableCollection<ActionItemViewModel> Actions { get; } = new();
 
     public OptionCategoryViewModel(OptionCategory category)
     {
@@ -42,7 +43,7 @@ public sealed class OptionCategoryViewModel : ViewModelBase
         foreach (var opt in category.Options)
             Items.Add(new OptionItemViewModel(opt));
         foreach (var act in category.Actions)
-            Items.Add(new ActionItemViewModel(act));
+            Actions.Add(new ActionItemViewModel(act));
     }
 }
 

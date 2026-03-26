@@ -126,15 +126,26 @@
         </ExperimentalAcrylicBorder>
 
         <DockPanel>
-          <!-- ブランディングヘッダー -->
-          <Border DockPanel.Dock="Top" Padding="16,18"
+          <!-- ブランディングヘッダー + 閉じるボタン -->
+          <Border DockPanel.Dock="Top" Padding="16,14"
                   BorderBrush="#FFFFFF08" BorderThickness="0,0,0,1">
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4">
-              <TextBlock Text="CR" FontWeight="Bold" FontSize="17" Foreground="#7C8FFF"
-                         LetterSpacing="1"/>
-              <TextBlock Text="DEBUGGER" FontWeight="SemiBold" FontSize="17" Foreground="#606080"
-                         LetterSpacing="1"/>
-            </StackPanel>
+            <Grid>
+              <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4">
+                <TextBlock Text="CR" FontWeight="Bold" FontSize="17" Foreground="#7C8FFF"
+                           LetterSpacing="1"/>
+                <TextBlock Text="DEBUGGER" FontWeight="SemiBold" FontSize="17" Foreground="#606080"
+                           LetterSpacing="1"/>
+              </StackPanel>
+              <!-- 閉じるボタン -->
+              <Button HorizontalAlignment="Right" VerticalAlignment="Top"
+                      Click="OnCloseClick"
+                      Background="Transparent" BorderThickness="0"
+                      Padding="4" Cursor="Hand" ToolTip.Tip="閉じる"
+                      Width="28" Height="28">
+                <TextBlock Text="✕" Foreground="#606080" FontSize="14"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+              </Button>
+            </Grid>
           </Border>
 
           <!-- タブボタン群 -->

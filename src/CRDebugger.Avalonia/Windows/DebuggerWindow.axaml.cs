@@ -27,6 +27,14 @@ public partial class DebuggerWindow : Window
     }
 
     /// <summary>
+    /// 閉じるボタンクリック → ウィンドウを非表示にする
+    /// </summary>
+    private void OnCloseClick(object? sender, RoutedEventArgs e)
+    {
+        Hide();
+    }
+
+    /// <summary>
     /// ウィンドウを閉じるのではなく非表示にする
     /// </summary>
     protected override void OnClosing(WindowClosingEventArgs e)

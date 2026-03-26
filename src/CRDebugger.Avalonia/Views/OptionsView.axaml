@@ -80,61 +80,80 @@
           <DataTemplate x:DataType="vm:OptionCategoryViewModel">
             <StackPanel Margin="0,0,0,8">
               <TextBlock Text="{Binding Name}" Classes="category-header"/>
+              <!-- アクションボタン群 -->
+              <ItemsControl ItemsSource="{Binding Actions}" Margin="0,0,0,4">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:ActionItemViewModel">
+                    <Button Content="{Binding Label}"
+                            Command="{Binding ExecuteCommand}"
+                            Background="#FFFFFF08" Foreground="#C0C0D5"
+                            BorderThickness="1" BorderBrush="#FFFFFF10"
+                            Padding="16,8" CornerRadius="8" FontSize="12"
+                            Cursor="Hand" Margin="0,3"
+                            HorizontalAlignment="Left"/>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+
+              <!-- オプション -->
               <Border Classes="option-card">
                 <ItemsControl ItemsSource="{Binding Items}">
                   <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:OptionItemViewModel">
-                      <Grid ColumnDefinitions="200,*" Margin="0,6" MinHeight="28">
-                        <TextBlock Grid.Column="0" Text="{Binding DisplayName}" Classes="option-label"/>
+                      <Panel>
+                        <!-- オプション表示 (Action以外のKindのみ表示) -->
+                        <Grid ColumnDefinitions="200,*" Margin="0,6" MinHeight="28">
+                          <TextBlock Grid.Column="0" Text="{Binding DisplayName}" Classes="option-label"/>
 
-                        <Panel Grid.Column="1">
-                          <!-- Boolean: ToggleSwitch -->
-                          <ToggleSwitch IsChecked="{Binding Value}"
-                                        IsEnabled="{Binding IsReadOnly, Converter={x:Static conv:InverseBoolConverter.Instance}}"
-                                        IsVisible="{Binding Kind, Converter={StaticResource KindEquals}, ConverterParameter=Boolean}"
-                                        OnContent="ON" OffContent="OFF"/>
+                          <Panel Grid.Column="1">
+                            <!-- Boolean: ToggleSwitch -->
+                            <ToggleSwitch IsChecked="{Binding Value}"
+                                          IsEnabled="{Binding IsReadOnly, Converter={x:Static conv:InverseBoolConverter.Instance}}"
+                                          IsVisible="{Binding Kind, Converter={StaticResource KindEquals}, ConverterParameter=Boolean}"
+                                          OnContent="ON" OffContent="OFF"/>
 
-                          <!-- Integer: NumericUpDown -->
-                          <NumericUpDown Value="{Binding Value}"
-                                         Minimum="{Binding Min}" Maximum="{Binding Max}"
-                                         Increment="{Binding Step}"
-                                         IsReadOnly="{Binding IsReadOnly}"
-                                         IsVisible="{Binding Kind, Converter={StaticResource KindEquals}, ConverterParameter=Integer}"
-                                         Background="#FFFFFF06" Foreground="#C0C0D5"
-                                         BorderBrush="#FFFFFF08" Width="160" FontSize="12"/>
+                            <!-- Integer: NumericUpDown -->
+                            <NumericUpDown Value="{Binding Value}"
+                                           Minimum="{Binding Min}" Maximum="{Binding Max}"
+                                           Increment="{Binding Step}"
+                                           IsReadOnly="{Binding IsReadOnly}"
+                                           IsVisible="{Binding Kind, Converter={StaticResource KindEquals}, ConverterParameter=Integer}"
+                                           Background="#FFFFFF06" Foreground="#C0C0D5"
+                                           BorderBrush="#FFFFFF08" Width="160" FontSize="12"/>
 
-                          <!-- Float: NumericUpDown (decimal) -->
-                          <NumericUpDown Value="{Binding Value}"
-                                         Minimum="{Binding Min}" Maximum="{Binding Max}"
-                                         Increment="{Binding Step}"
-                                         IsReadOnly="{Binding IsReadOnly}"
-                                         IsVisible="{Binding Kind, Converter={StaticResource KindEquals}, ConverterParameter=Float}"
-                                         Background="#FFFFFF06" Foreground="#C0C0D5"
-                                         BorderBrush="#FFFFFF08" Width="160" FontSize="12"
-                                         FormatString="F2"/>
+                            <!-- Float: NumericUpDown (decimal) -->
+                            <NumericUpDown Value="{Binding Value}"
+                                           Minimum="{Binding Min}" Maximum="{Binding Max}"
+                                           Increment="{Binding Step}"
+                                           IsReadOnly="{Binding IsReadOnly}"
+                                           IsVisible="{Binding Kind, Converter={StaticResource KindEquals}, ConverterParameter=Float}"
+                                           Background="#FFFFFF06" Foreground="#C0C0D5"
+                                           BorderBrush="#FFFFFF08" Width="160" FontSize="12"
+                                           FormatString="F2"/>
 
-                          <!-- String: TextBox -->
-                          <TextBox Text="{Binding Value}"
-                                   IsReadOnly="{Binding IsReadOnly}"
-                                   IsVisible="{Binding Kind, Converter={StaticResource KindEquals}, ConverterParameter=String}"
-                                   Background="#FFFFFF06" Foreground="#C0C0D5"
-                                   BorderBrush="#FFFFFF08" MaxWidth="300" FontSize="12"
-                                   CornerRadius="8" Padding="10,6"/>
+                            <!-- String: TextBox -->
+                            <TextBox Text="{Binding Value}"
+                                     IsReadOnly="{Binding IsReadOnly}"
+                                     IsVisible="{Binding Kind, Converter={StaticResource KindEquals}, ConverterParameter=String}"
+                                     Background="#FFFFFF06" Foreground="#C0C0D5"
+                                     BorderBrush="#FFFFFF08" MaxWidth="300" FontSize="12"
+                                     CornerRadius="8" Padding="10,6"/>
 
-                          <!-- Enum: ComboBox -->
-                          <ComboBox ItemsSource="{Binding EnumNames}"
-                                    SelectedItem="{Binding Value}"
-                                    IsVisible="{Binding Kind, Converter={StaticResource KindEquals}, ConverterParameter=Enum}"
-                                    Background="#FFFFFF06" Foreground="#C0C0D5"
-                                    BorderBrush="#FFFFFF08" MaxWidth="200" FontSize="12"/>
+                            <!-- Enum: ComboBox -->
+                            <ComboBox ItemsSource="{Binding EnumNames}"
+                                      SelectedItem="{Binding Value}"
+                                      IsVisible="{Binding Kind, Converter={StaticResource KindEquals}, ConverterParameter=Enum}"
+                                      Background="#FFFFFF06" Foreground="#C0C0D5"
+                                      BorderBrush="#FFFFFF08" MaxWidth="200" FontSize="12"/>
 
-                          <!-- ReadOnly: 表示のみ -->
-                          <TextBlock Text="{Binding Value}"
-                                     IsVisible="{Binding Kind, Converter={StaticResource KindEquals}, ConverterParameter=ReadOnly}"
-                                     Foreground="#606075" FontSize="12"
-                                     VerticalAlignment="Center"/>
-                        </Panel>
-                      </Grid>
+                            <!-- ReadOnly: 表示のみ -->
+                            <TextBlock Text="{Binding Value}"
+                                       IsVisible="{Binding Kind, Converter={StaticResource KindEquals}, ConverterParameter=ReadOnly}"
+                                       Foreground="#606075" FontSize="12"
+                                       VerticalAlignment="Center"/>
+                          </Panel>
+                        </Grid>
+                      </Panel>
                     </DataTemplate>
                   </ItemsControl.ItemTemplate>
                 </ItemsControl>

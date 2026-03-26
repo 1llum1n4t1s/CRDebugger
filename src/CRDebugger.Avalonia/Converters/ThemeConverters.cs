@@ -4,6 +4,7 @@ using Avalonia.Media;
 using CRDebugger.Core;
 using CRDebugger.Core.Logging;
 using CRDebugger.Core.Options;
+using CRDebugger.Core.ViewModels;
 
 namespace CRDebugger.Avalonia.Converters;
 
@@ -171,6 +172,34 @@ public sealed class CountToVisibilityConverter : IValueConverter
     {
         return value is int count && count > 0;
     }
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
+/// <summary>
+/// ActionItemViewModelかどうか判定するコンバーター
+/// </summary>
+public sealed class IsActionItemConverter : IValueConverter
+{
+    public static IsActionItemConverter Instance { get; } = new();
+
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => value is ActionItemViewModel;
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
+/// <summary>
+/// ActionItemViewModelでないか判定するコンバーター
+/// </summary>
+public sealed class IsNotActionItemConverter : IValueConverter
+{
+    public static IsNotActionItemConverter Instance { get; } = new();
+
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => value is not ActionItemViewModel;
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
         => throw new NotSupportedException();
