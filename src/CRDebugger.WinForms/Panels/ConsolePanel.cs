@@ -10,6 +10,7 @@ namespace CRDebugger.WinForms.Panels;
 /// <summary>
 /// コンソールログパネル
 /// ログレベルフィルター、検索、スタックトレース表示を備えたListView
+/// モダンデザイン: 改善されたスペーシング、フォント、カラーリング
 /// </summary>
 public sealed class ConsolePanel : Panel
 {
@@ -31,21 +32,22 @@ public sealed class ConsolePanel : Panel
     {
         _viewModel = viewModel;
         _colors = colors;
+        DoubleBuffered = true;
 
         // ヘッダーパネル（タイトル + フィルター）
         var headerPanel = new Panel
         {
             Dock = DockStyle.Top,
-            Height = 72,
-            Padding = new Padding(8, 4, 8, 4),
+            Height = 80,
+            Padding = new Padding(12, 8, 12, 8),
         };
 
         // タイトル行
         _titleLabel = new Label
         {
             Text = "\u25B6 Console",
-            Font = new Font("Segoe UI", 12, FontStyle.Bold),
-            Location = new Point(12, 6),
+            Font = new Font("Segoe UI", 13, FontStyle.Bold),
+            Location = new Point(16, 8),
             AutoSize = true,
         };
         headerPanel.Controls.Add(_titleLabel);
@@ -54,22 +56,23 @@ public sealed class ConsolePanel : Panel
         {
             Text = "Clear",
             FlatStyle = FlatStyle.Flat,
-            Size = new Size(60, 24),
-            Location = new Point(headerPanel.Width - 80, 6),
+            Size = new Size(70, 28),
+            Location = new Point(headerPanel.Width - 90, 8),
             Anchor = AnchorStyles.Top | AnchorStyles.Right,
             Cursor = Cursors.Hand,
+            Font = new Font("Segoe UI", 9),
         };
         _clearButton.FlatAppearance.BorderSize = 1;
         _clearButton.Click += (_, _) => _viewModel.ClearCommand.Execute(null);
         headerPanel.Controls.Add(_clearButton);
 
         // フィルター行
-        var filterY = 34;
+        var filterY = 42;
 
-        _chkDebug = CreateFilterCheckBox("DBG", filterY, 12, true);
-        _chkInfo = CreateFilterCheckBox("INF", filterY, 72, true);
-        _chkWarning = CreateFilterCheckBox("WRN", filterY, 132, true);
-        _chkError = CreateFilterCheckBox("ERR", filterY, 192, true);
+        _chkDebug = CreateFilterCheckBox("DBG", filterY, 16, true);
+        _chkInfo = CreateFilterCheckBox("INF", filterY, 80, true);
+        _chkWarning = CreateFilterCheckBox("WRN", filterY, 144, true);
+        _chkError = CreateFilterCheckBox("ERR", filterY, 208, true);
 
         headerPanel.Controls.Add(_chkDebug);
         headerPanel.Controls.Add(_chkInfo);
@@ -78,11 +81,12 @@ public sealed class ConsolePanel : Panel
 
         _searchBox = new TextBox
         {
-            PlaceholderText = "Search logs...",
-            Location = new Point(260, filterY),
-            Size = new Size(200, 24),
+            PlaceholderText = "\uD83D\uDD0D Search logs...",
+            Location = new Point(280, filterY),
+            Size = new Size(200, 26),
             Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
             BorderStyle = BorderStyle.FixedSingle,
+            Font = new Font("Segoe UI", 9.5f),
         };
         _searchBox.TextChanged += (_, _) =>
         {
@@ -113,14 +117,14 @@ public sealed class ConsolePanel : Panel
             HeaderStyle = ColumnHeaderStyle.Nonclickable,
             BorderStyle = BorderStyle.None,
             VirtualMode = false,
-            Font = new Font("Consolas", 9),
+            Font = new Font("Consolas", 9.5f),
             OwnerDraw = true,
         };
 
-        _logListView.Columns.Add("#", 40);
-        _logListView.Columns.Add("Time", 80);
-        _logListView.Columns.Add("Lvl", 45);
-        _logListView.Columns.Add("Channel", 90);
+        _logListView.Columns.Add("#", 44);
+        _logListView.Columns.Add("Time", 90);
+        _logListView.Columns.Add("Lvl", 50);
+        _logListView.Columns.Add("Channel", 100);
         _logListView.Columns.Add("Message", 500);
 
         _logListView.DrawColumnHeader += OnDrawColumnHeader;
@@ -133,11 +137,11 @@ public sealed class ConsolePanel : Panel
         // スタックトレース表示
         var stackLabel = new Label
         {
-            Text = "Stack Trace:",
+            Text = "  Stack Trace:",
             Dock = DockStyle.Top,
-            Height = 20,
-            Font = new Font("Segoe UI", 8, FontStyle.Bold),
-            Padding = new Padding(4, 2, 0, 0),
+            Height = 24,
+            Font = new Font("Segoe UI", 8.5f, FontStyle.Bold),
+            Padding = new Padding(8, 4, 0, 0),
         };
         _splitContainer.Panel2.Controls.Add(stackLabel);
 
@@ -148,7 +152,7 @@ public sealed class ConsolePanel : Panel
             ReadOnly = true,
             ScrollBars = ScrollBars.Both,
             WordWrap = false,
-            Font = new Font("Consolas", 8.5f),
+            Font = new Font("Consolas", 9),
             BorderStyle = BorderStyle.None,
         };
         _splitContainer.Panel2.Controls.Add(_stackTraceBox);
@@ -237,7 +241,7 @@ public sealed class ConsolePanel : Panel
             Checked = isChecked,
             Location = new Point(x, y),
             AutoSize = true,
-            Font = new Font("Segoe UI", 8, FontStyle.Bold),
+            Font = new Font("Segoe UI", 8.5f, FontStyle.Bold),
             FlatStyle = FlatStyle.Flat,
         };
     }
@@ -356,9 +360,9 @@ public sealed class ConsolePanel : Panel
         using var bgBrush = new SolidBrush(OptionControlFactory.ArgbToColor(_colors.SurfaceAlt));
         e.Graphics.FillRectangle(bgBrush, e.Bounds);
 
-        using var font = new Font("Segoe UI", 8, FontStyle.Bold);
+        using var font = new Font("Segoe UI", 8.5f, FontStyle.Bold);
         using var textBrush = new SolidBrush(OptionControlFactory.ArgbToColor(_colors.OnSurfaceMuted));
-        var textRect = new Rectangle(e.Bounds.X + 4, e.Bounds.Y + 2, e.Bounds.Width - 8, e.Bounds.Height - 4);
+        var textRect = new Rectangle(e.Bounds.X + 6, e.Bounds.Y + 2, e.Bounds.Width - 12, e.Bounds.Height - 4);
         e.Graphics.DrawString(e.Header!.Text, font, textBrush, textRect, StringFormat.GenericDefault);
     }
 
@@ -374,7 +378,7 @@ public sealed class ConsolePanel : Panel
         // 背景色（交互色 + 選択色）
         Color bgColor;
         if (e.Item.Selected)
-            bgColor = Color.FromArgb(40, OptionControlFactory.ArgbToColor(_colors.Primary));
+            bgColor = Color.FromArgb(30, OptionControlFactory.ArgbToColor(_colors.Primary));
         else if (e.ItemIndex % 2 == 0)
             bgColor = OptionControlFactory.ArgbToColor(_colors.Surface);
         else
@@ -400,7 +404,7 @@ public sealed class ConsolePanel : Panel
 
         using var textBrush = new SolidBrush(textColor);
         var font = e.SubItem!.Font ?? _logListView.Font;
-        var textRect = new Rectangle(e.Bounds.X + 4, e.Bounds.Y + 1, e.Bounds.Width - 8, e.Bounds.Height - 2);
+        var textRect = new Rectangle(e.Bounds.X + 6, e.Bounds.Y + 1, e.Bounds.Width - 12, e.Bounds.Height - 2);
 
         using var sf = new StringFormat
         {

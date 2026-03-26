@@ -10,6 +10,7 @@ namespace CRDebugger.WinForms.Panels;
 /// プロファイラーパネル
 /// メモリ使用量、GC情報、FPSをリアルタイム表示する
 /// メモリ履歴の簡易グラフ描画も含む
+/// モダンデザイン: 改善されたスペーシング、フォント、グラフ描画
 /// </summary>
 public sealed class ProfilerPanel : Panel
 {
@@ -30,19 +31,20 @@ public sealed class ProfilerPanel : Panel
     {
         _viewModel = viewModel;
         _colors = colors;
+        DoubleBuffered = true;
 
         // ヘッダー
         var headerPanel = new Panel
         {
             Dock = DockStyle.Top,
-            Height = 40,
-            Padding = new Padding(12, 8, 12, 4),
+            Height = 48,
+            Padding = new Padding(16, 12, 16, 8),
         };
 
         _titleLabel = new Label
         {
             Text = "\u2261 Profiler",
-            Font = new Font("Segoe UI", 12, FontStyle.Bold),
+            Font = new Font("Segoe UI", 13, FontStyle.Bold),
             AutoSize = true,
             Dock = DockStyle.Left,
         };
@@ -51,9 +53,10 @@ public sealed class ProfilerPanel : Panel
         {
             Text = "Force GC",
             FlatStyle = FlatStyle.Flat,
-            Size = new Size(90, 28),
+            Size = new Size(100, 30),
             Dock = DockStyle.Right,
             Cursor = Cursors.Hand,
+            Font = new Font("Segoe UI", 9),
         };
         _gcButton.FlatAppearance.BorderSize = 1;
         _gcButton.Click += (_, _) => _viewModel.GcCollectCommand.Execute(null);
@@ -66,17 +69,17 @@ public sealed class ProfilerPanel : Panel
         var metricsPanel = new TableLayoutPanel
         {
             Dock = DockStyle.Top,
-            Height = 160,
+            Height = 180,
             ColumnCount = 2,
             RowCount = 7,
-            Padding = new Padding(16, 8, 16, 8),
+            Padding = new Padding(20, 12, 20, 12),
             CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
         };
 
-        metricsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 160));
+        metricsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 170));
         metricsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
-        var rowHeight = new RowStyle(SizeType.Absolute, 22);
+        var rowHeight = new RowStyle(SizeType.Absolute, 24);
         for (var i = 0; i < 7; i++)
             metricsPanel.RowStyles.Add(rowHeight);
 
@@ -105,8 +108,8 @@ public sealed class ProfilerPanel : Panel
         {
             Text = "  Memory History (MB)",
             Dock = DockStyle.Top,
-            Height = 24,
-            Font = new Font("Segoe UI", 9, FontStyle.Bold),
+            Height = 28,
+            Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
             TextAlign = ContentAlignment.MiddleLeft,
         };
         Controls.Add(graphLabel);
@@ -114,7 +117,7 @@ public sealed class ProfilerPanel : Panel
         _graphPanel = new Panel
         {
             Dock = DockStyle.Fill,
-            Padding = new Padding(16, 8, 16, 16),
+            Padding = new Padding(20, 10, 20, 20),
         };
         _graphPanel.Paint += PaintMemoryGraph;
         Controls.Add(_graphPanel);
@@ -182,7 +185,7 @@ public sealed class ProfilerPanel : Panel
             AutoSize = false,
             Dock = DockStyle.Fill,
             TextAlign = ContentAlignment.MiddleLeft,
-            Font = new Font("Segoe UI", 9),
+            Font = new Font("Segoe UI", 9.5f),
             Tag = "key",
         };
         table.Controls.Add(keyLabel, 0, row);
@@ -193,7 +196,7 @@ public sealed class ProfilerPanel : Panel
             AutoSize = false,
             Dock = DockStyle.Fill,
             TextAlign = ContentAlignment.MiddleLeft,
-            Font = new Font("Segoe UI", 9, FontStyle.Bold),
+            Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
         };
         table.Controls.Add(valueLabel, 1, row);
     }
@@ -247,16 +250,16 @@ public sealed class ProfilerPanel : Panel
 
         if (graphRect.Width <= 0 || graphRect.Height <= 0) return;
 
-        // 背景
+        // 背景（角丸）
         using var bgBrush = new SolidBrush(OptionControlFactory.ArgbToColor(_colors.SurfaceAlt));
         g.FillRectangle(bgBrush, graphRect);
 
         // 枠線
-        using var borderPen = new Pen(OptionControlFactory.ArgbToColor(_colors.Border), 1);
+        using var borderPen = new Pen(Color.FromArgb(20, 255, 255, 255), 1);
         g.DrawRectangle(borderPen, graphRect);
 
         // グリッド線
-        using var gridPen = new Pen(Color.FromArgb(30, OptionControlFactory.ArgbToColor(_colors.OnSurface)), 1);
+        using var gridPen = new Pen(Color.FromArgb(15, 255, 255, 255), 1);
         for (var i = 1; i < 4; i++)
         {
             var y = graphRect.Y + graphRect.Height * i / 4;
@@ -281,14 +284,14 @@ public sealed class ProfilerPanel : Panel
             points[i] = new PointF(x, y);
         }
 
-        // 塗りつぶし
+        // 塗りつぶし（グラデーション効果）
         var fillPoints = new PointF[points.Length + 2];
         points.CopyTo(fillPoints, 0);
         fillPoints[points.Length] = new PointF(graphRect.Right, graphRect.Bottom);
         fillPoints[points.Length + 1] = new PointF(graphRect.X, graphRect.Bottom);
 
         using var fillBrush = new SolidBrush(
-            Color.FromArgb(30, OptionControlFactory.ArgbToColor(_colors.Primary)));
+            Color.FromArgb(25, OptionControlFactory.ArgbToColor(_colors.Primary)));
         g.FillPolygon(fillBrush, fillPoints);
 
         // ライン
@@ -296,11 +299,11 @@ public sealed class ProfilerPanel : Panel
         g.DrawLines(linePen, points);
 
         // 最新値を表示
-        using var valFont = new Font("Segoe UI", 8);
+        using var valFont = new Font("Segoe UI", 8.5f, FontStyle.Bold);
         using var valBrush = new SolidBrush(OptionControlFactory.ArgbToColor(_colors.OnBackground));
         var latestVal = data[^1];
         g.DrawString($"{latestVal:F1} MB", valFont, valBrush,
-            graphRect.Right - 60, graphRect.Y + 4);
+            graphRect.Right - 65, graphRect.Y + 6);
     }
 
     protected override void Dispose(bool disposing)

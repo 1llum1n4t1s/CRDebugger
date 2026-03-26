@@ -14,7 +14,11 @@
         WindowStartupLocation="CenterScreen"
         CanResize="True"
         SystemDecorations="Full"
-        Background="#1E1E2E">
+        TransparencyLevelHint="AcrylicBlur"
+        Background="Transparent"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaChromeHints="PreferSystemChrome"
+        ExtendClientAreaTitleBarHeightHint="-1">
 
   <Window.Resources>
     <conv:TabEqualsConverter x:Key="TabEquals"/>
@@ -22,137 +26,223 @@
   </Window.Resources>
 
   <Window.Styles>
-    <!-- サイドバーボタン共通スタイル -->
+    <!-- ═══════════════════════════════════ -->
+    <!-- サイドバーボタン - モダンスタイル -->
+    <!-- ═══════════════════════════════════ -->
     <Style Selector="Button.sidebar-btn">
       <Setter Property="Background" Value="Transparent"/>
-      <Setter Property="Foreground" Value="#AAAAAA"/>
+      <Setter Property="Foreground" Value="#9090A5"/>
       <Setter Property="BorderThickness" Value="0"/>
       <Setter Property="HorizontalAlignment" Value="Stretch"/>
-      <Setter Property="HorizontalContentAlignment" Value="Left"/>
-      <Setter Property="Padding" Value="16,12"/>
+      <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+      <Setter Property="Padding" Value="0"/>
       <Setter Property="CornerRadius" Value="0"/>
       <Setter Property="FontSize" Value="13"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Foreground" Duration="0:0:0.15"/>
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Button.sidebar-btn /template/ ContentPresenter">
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Background" Duration="0:0:0.15"/>
+        </Transitions>
+      </Setter>
     </Style>
     <Style Selector="Button.sidebar-btn:pointerover /template/ ContentPresenter">
-      <Setter Property="Background" Value="#2A2A3C"/>
+      <Setter Property="Background" Value="#FFFFFF08"/>
+    </Style>
+    <Style Selector="Button.sidebar-btn:pointerover">
+      <Setter Property="Foreground" Value="#C0C0D0"/>
     </Style>
     <Style Selector="Button.sidebar-btn.active /template/ ContentPresenter">
-      <Setter Property="Background" Value="#2A2A3C"/>
+      <Setter Property="Background" Value="#FFFFFF0C"/>
     </Style>
     <Style Selector="Button.sidebar-btn.active">
-      <Setter Property="Foreground" Value="#6C9BF2"/>
+      <Setter Property="Foreground" Value="#7C8FFF"/>
     </Style>
 
-    <!-- バッジ -->
+    <!-- アクティブインジケーター（左端の縦バー） -->
+    <Style Selector="Button.sidebar-btn Border.active-indicator">
+      <Setter Property="Width" Value="3"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="CornerRadius" Value="0,2,2,0"/>
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Background" Duration="0:0:0.2"/>
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Button.sidebar-btn.active Border.active-indicator">
+      <Setter Property="Background" Value="#7C8FFF"/>
+    </Style>
+
+    <!-- バッジ - モダン -->
     <Style Selector="Border.badge">
-      <Setter Property="CornerRadius" Value="8"/>
-      <Setter Property="Padding" Value="5,1"/>
-      <Setter Property="MinWidth" Value="20"/>
+      <Setter Property="CornerRadius" Value="10"/>
+      <Setter Property="Padding" Value="6,2"/>
+      <Setter Property="MinWidth" Value="22"/>
       <Setter Property="HorizontalAlignment" Value="Right"/>
       <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
+
+    <!-- コンテンツエリア共通 - 薄いボーダー -->
+    <Style Selector="Border.content-area">
+      <Setter Property="Background" Value="#1A1A2E"/>
+      <Setter Property="CornerRadius" Value="12,0,0,0"/>
+    </Style>
   </Window.Styles>
 
-  <Grid ColumnDefinitions="160,*">
-    <!-- 左サイドバー -->
-    <Border Grid.Column="0" Background="#16161E"
-            BorderBrush="#404060" BorderThickness="0,0,1,0">
-      <DockPanel>
-        <!-- ブランディングヘッダー -->
-        <Border DockPanel.Dock="Top" Padding="12,14" Background="#12121A"
-                BorderBrush="#404060" BorderThickness="0,0,0,1">
-          <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="6">
-            <TextBlock Text="CR" FontWeight="Bold" FontSize="16" Foreground="#6C9BF2"/>
-            <TextBlock Text="DEBUGGER" FontWeight="SemiBold" FontSize="16" Foreground="#888888"/>
-          </StackPanel>
-        </Border>
+  <!-- ルートパネル（アクリル背景） -->
+  <Panel>
+    <!-- アクリル背景レイヤー -->
+    <ExperimentalAcrylicBorder IsHitTestVisible="False">
+      <ExperimentalAcrylicBorder.Material>
+        <ExperimentalAcrylicMaterial
+          BackgroundSource="Digger"
+          TintColor="#12121C"
+          TintOpacity="0.92"
+          MaterialOpacity="0.4"/>
+      </ExperimentalAcrylicBorder.Material>
+    </ExperimentalAcrylicBorder>
 
-        <!-- タブボタン群 -->
-        <ScrollViewer VerticalScrollBarVisibility="Auto">
-          <StackPanel Margin="0,4">
-            <!-- System タブ -->
-            <Button Classes="sidebar-btn"
-                    Classes.active="{Binding SelectedTab, Converter={StaticResource TabEquals}, ConverterParameter=System}"
-                    Click="OnTabClick" Tag="{x:Static core:CRTab.System}">
-              <StackPanel Orientation="Horizontal" Spacing="10">
-                <TextBlock Text="&#x2699;" FontSize="16" VerticalAlignment="Center"/>
-                <TextBlock Text="System" VerticalAlignment="Center"/>
-              </StackPanel>
-            </Button>
+    <Grid ColumnDefinitions="170,*">
+      <!-- ═══════════════════════════════════ -->
+      <!-- 左サイドバー（アクリル半透明） -->
+      <!-- ═══════════════════════════════════ -->
+      <Panel Grid.Column="0">
+        <!-- サイドバーアクリル背景 -->
+        <ExperimentalAcrylicBorder IsHitTestVisible="False">
+          <ExperimentalAcrylicBorder.Material>
+            <ExperimentalAcrylicMaterial
+              BackgroundSource="Digger"
+              TintColor="#0E0E18"
+              TintOpacity="0.88"
+              MaterialOpacity="0.3"/>
+          </ExperimentalAcrylicBorder.Material>
+        </ExperimentalAcrylicBorder>
 
-            <!-- Console タブ -->
-            <Button Classes="sidebar-btn"
-                    Classes.active="{Binding SelectedTab, Converter={StaticResource TabEquals}, ConverterParameter=Console}"
-                    Click="OnTabClick" Tag="{x:Static core:CRTab.Console}">
-              <Grid>
-                <StackPanel Orientation="Horizontal" Spacing="10">
-                  <TextBlock Text="&#x25B6;" FontSize="14" VerticalAlignment="Center"/>
-                  <TextBlock Text="Console" VerticalAlignment="Center"/>
-                </StackPanel>
-                <!-- エラー/警告カウントバッジ -->
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="3" VerticalAlignment="Center">
-                  <Border Classes="badge" Background="#E05252"
-                          IsVisible="{Binding Console.ErrorCount, Converter={StaticResource CountToVis}}">
-                    <TextBlock Text="{Binding Console.ErrorCount}" Foreground="White" FontSize="10"
-                               HorizontalAlignment="Center" FontWeight="Bold"/>
-                  </Border>
-                  <Border Classes="badge" Background="#E8C44A"
-                          IsVisible="{Binding Console.WarningCount, Converter={StaticResource CountToVis}}">
-                    <TextBlock Text="{Binding Console.WarningCount}" Foreground="#1E1E2E" FontSize="10"
-                               HorizontalAlignment="Center" FontWeight="Bold"/>
-                  </Border>
-                </StackPanel>
-              </Grid>
-            </Button>
+        <DockPanel>
+          <!-- ブランディングヘッダー -->
+          <Border DockPanel.Dock="Top" Padding="16,18"
+                  BorderBrush="#FFFFFF08" BorderThickness="0,0,0,1">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4">
+              <TextBlock Text="CR" FontWeight="Bold" FontSize="17" Foreground="#7C8FFF"
+                         LetterSpacing="1"/>
+              <TextBlock Text="DEBUGGER" FontWeight="SemiBold" FontSize="17" Foreground="#606080"
+                         LetterSpacing="1"/>
+            </StackPanel>
+          </Border>
 
-            <!-- Options タブ -->
-            <Button Classes="sidebar-btn"
-                    Classes.active="{Binding SelectedTab, Converter={StaticResource TabEquals}, ConverterParameter=Options}"
-                    Click="OnTabClick" Tag="{x:Static core:CRTab.Options}">
-              <StackPanel Orientation="Horizontal" Spacing="10">
-                <TextBlock Text="&#x2630;" FontSize="16" VerticalAlignment="Center"/>
-                <TextBlock Text="Options" VerticalAlignment="Center"/>
-              </StackPanel>
-            </Button>
+          <!-- タブボタン群 -->
+          <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="0,8">
+              <!-- System タブ -->
+              <Button Classes="sidebar-btn"
+                      Classes.active="{Binding SelectedTab, Converter={StaticResource TabEquals}, ConverterParameter=System}"
+                      Click="OnTabClick" Tag="{x:Static core:CRTab.System}">
+                <Grid ColumnDefinitions="3,*">
+                  <Border Grid.Column="0" Classes="active-indicator"/>
+                  <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" Margin="14,13">
+                    <TextBlock Text="&#x2699;" FontSize="16" VerticalAlignment="Center" Opacity="0.8"/>
+                    <TextBlock Text="System" VerticalAlignment="Center" FontWeight="Medium"/>
+                  </StackPanel>
+                </Grid>
+              </Button>
 
-            <!-- Profiler タブ -->
-            <Button Classes="sidebar-btn"
-                    Classes.active="{Binding SelectedTab, Converter={StaticResource TabEquals}, ConverterParameter=Profiler}"
-                    Click="OnTabClick" Tag="{x:Static core:CRTab.Profiler}">
-              <StackPanel Orientation="Horizontal" Spacing="10">
-                <TextBlock Text="&#x26A1;" FontSize="16" VerticalAlignment="Center"/>
-                <TextBlock Text="Profiler" VerticalAlignment="Center"/>
-              </StackPanel>
-            </Button>
+              <!-- Console タブ -->
+              <Button Classes="sidebar-btn"
+                      Classes.active="{Binding SelectedTab, Converter={StaticResource TabEquals}, ConverterParameter=Console}"
+                      Click="OnTabClick" Tag="{x:Static core:CRTab.Console}">
+                <Grid ColumnDefinitions="3,*">
+                  <Border Grid.Column="0" Classes="active-indicator"/>
+                  <Grid Grid.Column="1" Margin="14,13">
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                      <TextBlock Text="&#x25B6;" FontSize="14" VerticalAlignment="Center" Opacity="0.8"/>
+                      <TextBlock Text="Console" VerticalAlignment="Center" FontWeight="Medium"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="4" VerticalAlignment="Center">
+                      <Border Classes="badge" Background="#E05252"
+                              IsVisible="{Binding Console.ErrorCount, Converter={StaticResource CountToVis}}">
+                        <TextBlock Text="{Binding Console.ErrorCount}" Foreground="White" FontSize="10"
+                                   HorizontalAlignment="Center" FontWeight="Bold"/>
+                      </Border>
+                      <Border Classes="badge" Background="#E8C44A"
+                              IsVisible="{Binding Console.WarningCount, Converter={StaticResource CountToVis}}">
+                        <TextBlock Text="{Binding Console.WarningCount}" Foreground="#1A1A2E" FontSize="10"
+                                   HorizontalAlignment="Center" FontWeight="Bold"/>
+                      </Border>
+                    </StackPanel>
+                  </Grid>
+                </Grid>
+              </Button>
 
-            <!-- Bug Reporter タブ -->
-            <Button Classes="sidebar-btn"
-                    Classes.active="{Binding SelectedTab, Converter={StaticResource TabEquals}, ConverterParameter=BugReporter}"
-                    Click="OnTabClick" Tag="{x:Static core:CRTab.BugReporter}">
-              <StackPanel Orientation="Horizontal" Spacing="10">
-                <TextBlock Text="&#x1F41E;" FontSize="16" VerticalAlignment="Center"/>
-                <TextBlock Text="Bug Report" VerticalAlignment="Center"/>
-              </StackPanel>
-            </Button>
-          </StackPanel>
-        </ScrollViewer>
-      </DockPanel>
-    </Border>
+              <!-- Options タブ -->
+              <Button Classes="sidebar-btn"
+                      Classes.active="{Binding SelectedTab, Converter={StaticResource TabEquals}, ConverterParameter=Options}"
+                      Click="OnTabClick" Tag="{x:Static core:CRTab.Options}">
+                <Grid ColumnDefinitions="3,*">
+                  <Border Grid.Column="0" Classes="active-indicator"/>
+                  <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" Margin="14,13">
+                    <TextBlock Text="&#x2630;" FontSize="16" VerticalAlignment="Center" Opacity="0.8"/>
+                    <TextBlock Text="Options" VerticalAlignment="Center" FontWeight="Medium"/>
+                  </StackPanel>
+                </Grid>
+              </Button>
 
-    <!-- 右コンテンツエリア -->
-    <Border Grid.Column="1" Background="#1E1E2E">
-      <Panel>
-        <views:SystemInfoView DataContext="{Binding SystemInfo}"
-                              IsVisible="{Binding #root.((vm:DebuggerViewModel)DataContext).SelectedTab, Converter={StaticResource TabEquals}, ConverterParameter=System}"/>
-        <views:ConsoleView DataContext="{Binding Console}"
-                           IsVisible="{Binding #root.((vm:DebuggerViewModel)DataContext).SelectedTab, Converter={StaticResource TabEquals}, ConverterParameter=Console}"/>
-        <views:OptionsView DataContext="{Binding Options}"
-                           IsVisible="{Binding #root.((vm:DebuggerViewModel)DataContext).SelectedTab, Converter={StaticResource TabEquals}, ConverterParameter=Options}"/>
-        <views:ProfilerView DataContext="{Binding Profiler}"
-                            IsVisible="{Binding #root.((vm:DebuggerViewModel)DataContext).SelectedTab, Converter={StaticResource TabEquals}, ConverterParameter=Profiler}"/>
-        <views:BugReporterView DataContext="{Binding BugReporter}"
-                               IsVisible="{Binding #root.((vm:DebuggerViewModel)DataContext).SelectedTab, Converter={StaticResource TabEquals}, ConverterParameter=BugReporter}"/>
+              <!-- Profiler タブ -->
+              <Button Classes="sidebar-btn"
+                      Classes.active="{Binding SelectedTab, Converter={StaticResource TabEquals}, ConverterParameter=Profiler}"
+                      Click="OnTabClick" Tag="{x:Static core:CRTab.Profiler}">
+                <Grid ColumnDefinitions="3,*">
+                  <Border Grid.Column="0" Classes="active-indicator"/>
+                  <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" Margin="14,13">
+                    <TextBlock Text="&#x26A1;" FontSize="16" VerticalAlignment="Center" Opacity="0.8"/>
+                    <TextBlock Text="Profiler" VerticalAlignment="Center" FontWeight="Medium"/>
+                  </StackPanel>
+                </Grid>
+              </Button>
+
+              <!-- Bug Reporter タブ -->
+              <Button Classes="sidebar-btn"
+                      Classes.active="{Binding SelectedTab, Converter={StaticResource TabEquals}, ConverterParameter=BugReporter}"
+                      Click="OnTabClick" Tag="{x:Static core:CRTab.BugReporter}">
+                <Grid ColumnDefinitions="3,*">
+                  <Border Grid.Column="0" Classes="active-indicator"/>
+                  <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" Margin="14,13">
+                    <TextBlock Text="&#x1F41E;" FontSize="16" VerticalAlignment="Center" Opacity="0.8"/>
+                    <TextBlock Text="Bug Report" VerticalAlignment="Center" FontWeight="Medium"/>
+                  </StackPanel>
+                </Grid>
+              </Button>
+            </StackPanel>
+          </ScrollViewer>
+        </DockPanel>
+
+        <!-- サイドバー右端の薄いボーダー -->
+        <Border HorizontalAlignment="Right" Width="1" Background="#FFFFFF08"/>
       </Panel>
-    </Border>
-  </Grid>
+
+      <!-- ═══════════════════════════════════ -->
+      <!-- 右コンテンツエリア -->
+      <!-- ═══════════════════════════════════ -->
+      <Border Grid.Column="1" Classes="content-area">
+        <Panel Margin="0">
+          <views:SystemInfoView DataContext="{Binding SystemInfo}"
+                                IsVisible="{Binding #root.((vm:DebuggerViewModel)DataContext).SelectedTab, Converter={StaticResource TabEquals}, ConverterParameter=System}"/>
+          <views:ConsoleView DataContext="{Binding Console}"
+                             IsVisible="{Binding #root.((vm:DebuggerViewModel)DataContext).SelectedTab, Converter={StaticResource TabEquals}, ConverterParameter=Console}"/>
+          <views:OptionsView DataContext="{Binding Options}"
+                             IsVisible="{Binding #root.((vm:DebuggerViewModel)DataContext).SelectedTab, Converter={StaticResource TabEquals}, ConverterParameter=Options}"/>
+          <views:ProfilerView DataContext="{Binding Profiler}"
+                              IsVisible="{Binding #root.((vm:DebuggerViewModel)DataContext).SelectedTab, Converter={StaticResource TabEquals}, ConverterParameter=Profiler}"/>
+          <views:BugReporterView DataContext="{Binding BugReporter}"
+                                 IsVisible="{Binding #root.((vm:DebuggerViewModel)DataContext).SelectedTab, Converter={StaticResource TabEquals}, ConverterParameter=BugReporter}"/>
+        </Panel>
+      </Border>
+    </Grid>
+  </Panel>
 </Window>

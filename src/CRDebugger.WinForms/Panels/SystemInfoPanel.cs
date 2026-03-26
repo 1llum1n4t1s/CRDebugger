@@ -9,6 +9,7 @@ namespace CRDebugger.WinForms.Panels;
 /// <summary>
 /// システム情報パネル
 /// カテゴリごとにグループ化された情報をListView形式で表示する
+/// モダンデザイン: 改善されたスペーシングとフォント
 /// </summary>
 public sealed class SystemInfoPanel : Panel
 {
@@ -22,19 +23,20 @@ public sealed class SystemInfoPanel : Panel
     {
         _viewModel = viewModel;
         _colors = colors;
+        DoubleBuffered = true;
 
         // タイトルバー
         var headerPanel = new Panel
         {
             Dock = DockStyle.Top,
-            Height = 40,
-            Padding = new Padding(12, 8, 12, 4),
+            Height = 48,
+            Padding = new Padding(16, 12, 16, 8),
         };
 
         _titleLabel = new Label
         {
             Text = "\u2139 System Information",
-            Font = new Font("Segoe UI", 12, FontStyle.Bold),
+            Font = new Font("Segoe UI", 13, FontStyle.Bold),
             AutoSize = true,
             Dock = DockStyle.Left,
         };
@@ -43,9 +45,10 @@ public sealed class SystemInfoPanel : Panel
         {
             Text = "\u21BB Refresh",
             FlatStyle = FlatStyle.Flat,
-            Size = new Size(90, 28),
+            Size = new Size(100, 30),
             Dock = DockStyle.Right,
             Cursor = Cursors.Hand,
+            Font = new Font("Segoe UI", 9),
         };
         _refreshButton.FlatAppearance.BorderSize = 1;
         _refreshButton.Click += (_, _) => _viewModel.RefreshCommand.Execute(null);
@@ -64,7 +67,7 @@ public sealed class SystemInfoPanel : Panel
             HeaderStyle = ColumnHeaderStyle.Nonclickable,
             BorderStyle = BorderStyle.None,
             ShowGroups = true,
-            Font = new Font("Segoe UI", 9),
+            Font = new Font("Segoe UI", 9.5f),
         };
 
         _listView.Columns.Add("Key", 220);

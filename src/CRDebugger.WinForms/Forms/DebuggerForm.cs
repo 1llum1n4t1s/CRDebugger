@@ -8,8 +8,8 @@ using CRDebugger.WinForms.Panels;
 namespace CRDebugger.WinForms.Forms;
 
 /// <summary>
-/// SRDebugger風のメインデバッガーフォーム
-/// 左サイドバー + 右コンテンツパネルのレイアウト
+/// モダンデザインのメインデバッガーフォーム
+/// 左サイドバー（ヘッダー + タブ） + 右コンテンツパネルのレイアウト
 /// </summary>
 public sealed class DebuggerForm : Form
 {
@@ -39,7 +39,8 @@ public sealed class DebuggerForm : Form
         (CRTab.BugReporter, "\u2709", "Bug Report"), // ✉
     };
 
-    private const int SidebarWidth = 72;
+    private const int SidebarWidth = 76;
+    private const int HeaderHeight = 52;
 
     public DebuggerForm(DebuggerViewModel viewModel)
     {
@@ -57,6 +58,8 @@ public sealed class DebuggerForm : Form
         TopMost = true;
         FormBorderStyle = FormBorderStyle.Sizable;
         ShowInTaskbar = true;
+        DoubleBuffered = true;
+        Font = new Font("Segoe UI", 9);
 
         // サイドバーパネル
         _sidebarPanel = new Panel
@@ -137,13 +140,14 @@ public sealed class DebuggerForm : Form
 
     private void CreateSidebarButtons()
     {
-        var y = 8;
+        // ヘッダー領域の下からボタンを配置
+        var y = HeaderHeight + 8;
         foreach (var (tab, icon, label) in TabDefs)
         {
             var btn = new SidebarButton(tab, icon, label, _colors)
             {
-                Location = new Point(4, y),
-                Size = new Size(SidebarWidth - 8, 56),
+                Location = new Point(0, y),
+                Size = new Size(SidebarWidth, 60),
                 IsSelected = tab == _viewModel.SelectedTab,
             };
 
@@ -154,7 +158,7 @@ public sealed class DebuggerForm : Form
 
             _sidebarPanel.Controls.Add(btn);
             _sidebarButtons.Add(btn);
-            y += 60;
+            y += 62;
         }
     }
 
@@ -230,9 +234,35 @@ public sealed class DebuggerForm : Form
 
     private void PaintSidebar(object? sender, PaintEventArgs e)
     {
+        var g = e.Graphics;
+        g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+        g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+
+        // ヘッダー: "CR" をアクセント色 + "DEBUGGER" をミュート色で描画
+        using var accentFont = new Font("Segoe UI", 13, FontStyle.Bold);
+        using var mutedFont = new Font("Segoe UI", 7.5f, FontStyle.Bold);
+        using var accentBrush = new SolidBrush(OptionControlFactory.ArgbToColor(_colors.SelectedTab));
+        using var mutedBrush = new SolidBrush(OptionControlFactory.ArgbToColor(_colors.OnSurfaceMuted));
+
+        // "CR" を中央に描画
+        var crText = "CR";
+        var crSize = g.MeasureString(crText, accentFont);
+        var crX = (_sidebarPanel.Width - crSize.Width) / 2;
+        g.DrawString(crText, accentFont, accentBrush, crX, 10);
+
+        // "DEBUGGER" をその下に描画
+        var dbgText = "DEBUGGER";
+        var dbgSize = g.MeasureString(dbgText, mutedFont);
+        var dbgX = (_sidebarPanel.Width - dbgSize.Width) / 2;
+        g.DrawString(dbgText, mutedFont, mutedBrush, dbgX, 30);
+
+        // ヘッダー下に区切り線
+        using var separatorPen = new Pen(Color.FromArgb(20, 255, 255, 255), 1);
+        g.DrawLine(separatorPen, 12, HeaderHeight, _sidebarPanel.Width - 12, HeaderHeight);
+
         // サイドバーの右端に区切り線を描画
-        using var pen = new Pen(OptionControlFactory.ArgbToColor(_colors.Border), 1);
-        e.Graphics.DrawLine(pen,
+        using var borderPen = new Pen(Color.FromArgb(12, 255, 255, 255), 1);
+        g.DrawLine(borderPen,
             _sidebarPanel.Width - 1, 0,
             _sidebarPanel.Width - 1, _sidebarPanel.Height);
     }
@@ -270,6 +300,7 @@ public sealed class DebuggerForm : Form
 /// <summary>
 /// サイドバーのカスタムボタンコントロール
 /// テキストシンボルアイコン + ラベル + バッジ表示
+/// 選択時は左端に3pxアクセントバーを描画
 /// </summary>
 internal sealed class SidebarButton : Control
 {
@@ -306,6 +337,7 @@ internal sealed class SidebarButton : Control
             | ControlStyles.OptimizedDoubleBuffer
             | ControlStyles.SupportsTransparentBackColor, true);
 
+        DoubleBuffered = true;
         Cursor = Cursors.Hand;
         BackColor = Color.Transparent;
     }
@@ -346,48 +378,55 @@ internal sealed class SidebarButton : Control
         // 背景
         Color bgColor;
         if (_isSelected)
-            bgColor = Color.FromArgb(40, OptionControlFactory.ArgbToColor(_colors.SelectedTab));
+            bgColor = Color.FromArgb(25, OptionControlFactory.ArgbToColor(_colors.SelectedTab));
         else if (_isHovered)
-            bgColor = Color.FromArgb(20, 255, 255, 255);
+            bgColor = Color.FromArgb(15, 255, 255, 255);
         else
             bgColor = Color.Transparent;
 
         if (bgColor != Color.Transparent)
         {
             using var bgBrush = new SolidBrush(bgColor);
-            var rect = new Rectangle(2, 2, Width - 4, Height - 4);
-            var radius = 6;
+            var rect = new Rectangle(4, 2, Width - 8, Height - 4);
+            var radius = 8;
             using var path = CreateRoundedRectPath(rect, radius);
             g.FillPath(bgBrush, path);
         }
 
-        // 選択インジケーター（左の縦線）
+        // 選択インジケーター（左端に3pxアクセントバー）
         if (_isSelected)
         {
             using var indicatorBrush = new SolidBrush(OptionControlFactory.ArgbToColor(_colors.SelectedTab));
-            g.FillRectangle(indicatorBrush, 0, 8, 3, Height - 16);
+            var barRect = new Rectangle(0, 10, 3, Height - 20);
+            using var barPath = CreateRoundedRectPath(barRect, 2);
+            g.FillPath(indicatorBrush, barPath);
         }
 
         // アイコン
         var iconColor = _isSelected
             ? OptionControlFactory.ArgbToColor(_colors.SelectedTab)
-            : OptionControlFactory.ArgbToColor(_colors.SidebarText);
+            : (_isHovered
+                ? OptionControlFactory.ArgbToColor(_colors.OnBackground)
+                : OptionControlFactory.ArgbToColor(_colors.SidebarText));
 
         using var iconFont = new Font("Segoe UI Symbol", 16, FontStyle.Regular);
         using var iconBrush = new SolidBrush(iconColor);
         var iconSize = g.MeasureString(_icon, iconFont);
         var iconX = (Width - iconSize.Width) / 2;
-        g.DrawString(_icon, iconFont, iconBrush, iconX, 6);
+        g.DrawString(_icon, iconFont, iconBrush, iconX, 8);
 
         // ラベル
-        using var labelFont = new Font("Segoe UI", 7.5f, FontStyle.Regular);
-        using var labelBrush = new SolidBrush(
-            _isSelected
-                ? OptionControlFactory.ArgbToColor(_colors.OnBackground)
+        var labelColor = _isSelected
+            ? OptionControlFactory.ArgbToColor(_colors.OnBackground)
+            : (_isHovered
+                ? OptionControlFactory.ArgbToColor(_colors.OnSurface)
                 : OptionControlFactory.ArgbToColor(_colors.SidebarText));
+
+        using var labelFont = new Font("Segoe UI", 7.5f, FontStyle.Regular);
+        using var labelBrush = new SolidBrush(labelColor);
         var labelSize = g.MeasureString(_label, labelFont);
         var labelX = (Width - labelSize.Width) / 2;
-        g.DrawString(_label, labelFont, labelBrush, labelX, 32);
+        g.DrawString(_label, labelFont, labelBrush, labelX, 34);
 
         // バッジ表示
         DrawBadges(g);
@@ -398,7 +437,7 @@ internal sealed class SidebarButton : Control
         if (_errorBadge <= 0 && _warnBadge <= 0) return;
 
         using var badgeFont = new Font("Segoe UI", 6.5f, FontStyle.Bold);
-        var x = Width - 6;
+        var x = Width - 4;
 
         if (_errorBadge > 0)
         {

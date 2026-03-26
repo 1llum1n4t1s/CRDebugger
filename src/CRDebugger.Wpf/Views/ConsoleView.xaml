@@ -3,7 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:logging="clr-namespace:CRDebugger.Core.Logging;assembly=CRDebugger.Core">
 
-    <Grid Margin="16">
+    <Grid Margin="20">
         <Grid.RowDefinitions>
             <!-- ヘッダー＋フィルター -->
             <RowDefinition Height="Auto" />
@@ -16,7 +16,7 @@
         </Grid.RowDefinitions>
 
         <!-- ヘッダーとフィルター -->
-        <DockPanel Grid.Row="0" Margin="0,0,0,8">
+        <DockPanel Grid.Row="0" Margin="0,0,0,12">
             <TextBlock Text="Console"
                        FontSize="20"
                        FontWeight="Bold"
@@ -29,14 +29,14 @@
                     Command="{Binding ClearCommand}"
                     HorizontalAlignment="Right"
                     DockPanel.Dock="Right"
-                    Padding="12,6"
+                    Padding="14,7"
                     Background="{DynamicResource SurfaceAltBrush}"
                     Foreground="{DynamicResource OnSurfaceBrush}" />
 
             <!-- ログレベルフィルターボタン -->
             <StackPanel Orientation="Horizontal"
                         HorizontalAlignment="Right"
-                        Margin="0,0,8,0"
+                        Margin="0,0,10,0"
                         DockPanel.Dock="Right">
                 <ToggleButton Style="{DynamicResource CRFilterToggle}"
                               IsChecked="{Binding ShowDebug}"
@@ -84,14 +84,14 @@
         <TextBox Grid.Row="1"
                  Style="{DynamicResource CRTextBox}"
                  Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
-                 Margin="0,0,0,8">
+                 Margin="0,0,0,12">
             <TextBox.Template>
                 <ControlTemplate TargetType="TextBox">
                     <Border Background="{DynamicResource SurfaceAltBrush}"
                             BorderBrush="{DynamicResource BorderBrush}"
                             BorderThickness="1"
-                            CornerRadius="4"
-                            Padding="8,6">
+                            CornerRadius="8"
+                            Padding="12,8">
                         <Grid>
                             <TextBlock Text="Search logs..."
                                        Foreground="{DynamicResource OnSurfaceMutedBrush}"
@@ -109,7 +109,7 @@
         <!-- ログリスト -->
         <Border Grid.Row="2"
                 Background="{DynamicResource SurfaceBrush}"
-                CornerRadius="6"
+                CornerRadius="8"
                 ClipToBounds="True">
             <ListView ItemsSource="{Binding DisplayEntries}"
                       SelectedItem="{Binding SelectedEntry}"
@@ -120,7 +120,7 @@
                       VirtualizingPanel.VirtualizationMode="Recycling">
                 <ListView.ItemTemplate>
                     <DataTemplate DataType="{x:Type logging:LogEntry}">
-                        <DockPanel Margin="8,4,8,4">
+                        <DockPanel Margin="10,6,10,6">
                             <!-- タイムスタンプ -->
                             <TextBlock Text="{Binding Timestamp, StringFormat='HH:mm:ss.fff'}"
                                        Foreground="{DynamicResource OnSurfaceMutedBrush}"
@@ -132,8 +132,8 @@
 
                             <!-- レベルバッジ -->
                             <Border DockPanel.Dock="Left"
-                                    CornerRadius="3"
-                                    Padding="6,1,6,1"
+                                    CornerRadius="4"
+                                    Padding="6,2,6,2"
                                     Margin="4,0,8,0"
                                     Width="38"
                                     VerticalAlignment="Top">
@@ -206,9 +206,9 @@
         <!-- スタックトレース詳細パネル -->
         <Border Grid.Row="3"
                 Background="{DynamicResource SurfaceBrush}"
-                CornerRadius="6"
-                Margin="0,8,0,0"
-                Padding="12,8"
+                CornerRadius="8"
+                Margin="0,10,0,0"
+                Padding="14,10"
                 MaxHeight="150"
                 Visibility="{Binding SelectedEntry.StackTrace, Converter={StaticResource NullToCollapsedConverter}, FallbackValue=Collapsed}">
             <ScrollViewer VerticalScrollBarVisibility="Auto">

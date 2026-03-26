@@ -13,19 +13,54 @@
     <Style Selector="TextBlock.header">
       <Setter Property="FontSize" Value="20"/>
       <Setter Property="FontWeight" Value="Bold"/>
-      <Setter Property="Foreground" Value="#E0E0E0"/>
+      <Setter Property="Foreground" Value="#C0C0D5"/>
       <Setter Property="Margin" Value="0,0,0,16"/>
     </Style>
     <Style Selector="TextBlock.category-header">
       <Setter Property="FontSize" Value="14"/>
       <Setter Property="FontWeight" Value="SemiBold"/>
-      <Setter Property="Foreground" Value="#6C9BF2"/>
-      <Setter Property="Margin" Value="0,12,0,6"/>
+      <Setter Property="Foreground" Value="#7C8FFF"/>
+      <Setter Property="Margin" Value="0,12,0,8"/>
     </Style>
     <Style Selector="TextBlock.option-label">
-      <Setter Property="Foreground" Value="#CCCCCC"/>
+      <Setter Property="Foreground" Value="#C0C0D5"/>
       <Setter Property="FontSize" Value="13"/>
       <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+    <!-- Refreshボタン -->
+    <Style Selector="Button.refresh-btn">
+      <Setter Property="Background" Value="#FFFFFF08"/>
+      <Setter Property="Foreground" Value="#C0C0D5"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="BorderBrush" Value="#FFFFFF08"/>
+      <Setter Property="Padding" Value="18,7"/>
+      <Setter Property="CornerRadius" Value="8"/>
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Background" Duration="0:0:0.15"/>
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Button.refresh-btn:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="#FFFFFF10"/>
+    </Style>
+    <!-- カテゴリカード -->
+    <Style Selector="Border.option-card">
+      <Setter Property="Background" Value="#FFFFFF06"/>
+      <Setter Property="BorderBrush" Value="#FFFFFF08"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="8"/>
+      <Setter Property="Padding" Value="14,10"/>
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Background" Duration="0:0:0.15"/>
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Border.option-card:pointerover">
+      <Setter Property="Background" Value="#FFFFFF0A"/>
     </Style>
   </UserControl.Styles>
 
@@ -34,9 +69,8 @@
     <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
       <TextBlock Text="Options" Classes="header" DockPanel.Dock="Left"/>
       <Button Content="Refresh" Command="{Binding RefreshCommand}"
-              HorizontalAlignment="Right"
-              Background="#353548" Foreground="#CCCCCC"
-              BorderThickness="0" Padding="16,6" CornerRadius="4" FontSize="12"/>
+              Classes="refresh-btn"
+              HorizontalAlignment="Right"/>
     </DockPanel>
 
     <!-- オプションカテゴリリスト -->
@@ -46,7 +80,7 @@
           <DataTemplate x:DataType="vm:OptionCategoryViewModel">
             <StackPanel Margin="0,0,0,8">
               <TextBlock Text="{Binding Name}" Classes="category-header"/>
-              <Border Background="#2A2A3C" CornerRadius="6" Padding="12,8">
+              <Border Classes="option-card">
                 <ItemsControl ItemsSource="{Binding Items}">
                   <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:OptionItemViewModel">
@@ -66,8 +100,8 @@
                                          Increment="{Binding Step}"
                                          IsReadOnly="{Binding IsReadOnly}"
                                          IsVisible="{Binding Kind, Converter={StaticResource KindEquals}, ConverterParameter=Integer}"
-                                         Background="#353548" Foreground="#CCCCCC"
-                                         BorderBrush="#404060" Width="160" FontSize="12"/>
+                                         Background="#FFFFFF06" Foreground="#C0C0D5"
+                                         BorderBrush="#FFFFFF08" Width="160" FontSize="12"/>
 
                           <!-- Float: NumericUpDown (decimal) -->
                           <NumericUpDown Value="{Binding Value}"
@@ -75,29 +109,29 @@
                                          Increment="{Binding Step}"
                                          IsReadOnly="{Binding IsReadOnly}"
                                          IsVisible="{Binding Kind, Converter={StaticResource KindEquals}, ConverterParameter=Float}"
-                                         Background="#353548" Foreground="#CCCCCC"
-                                         BorderBrush="#404060" Width="160" FontSize="12"
+                                         Background="#FFFFFF06" Foreground="#C0C0D5"
+                                         BorderBrush="#FFFFFF08" Width="160" FontSize="12"
                                          FormatString="F2"/>
 
                           <!-- String: TextBox -->
                           <TextBox Text="{Binding Value}"
                                    IsReadOnly="{Binding IsReadOnly}"
                                    IsVisible="{Binding Kind, Converter={StaticResource KindEquals}, ConverterParameter=String}"
-                                   Background="#353548" Foreground="#CCCCCC"
-                                   BorderBrush="#404060" MaxWidth="300" FontSize="12"
-                                   CornerRadius="4" Padding="8,4"/>
+                                   Background="#FFFFFF06" Foreground="#C0C0D5"
+                                   BorderBrush="#FFFFFF08" MaxWidth="300" FontSize="12"
+                                   CornerRadius="8" Padding="10,6"/>
 
                           <!-- Enum: ComboBox -->
                           <ComboBox ItemsSource="{Binding EnumNames}"
                                     SelectedItem="{Binding Value}"
                                     IsVisible="{Binding Kind, Converter={StaticResource KindEquals}, ConverterParameter=Enum}"
-                                    Background="#353548" Foreground="#CCCCCC"
-                                    BorderBrush="#404060" MaxWidth="200" FontSize="12"/>
+                                    Background="#FFFFFF06" Foreground="#C0C0D5"
+                                    BorderBrush="#FFFFFF08" MaxWidth="200" FontSize="12"/>
 
                           <!-- ReadOnly: 表示のみ -->
                           <TextBlock Text="{Binding Value}"
                                      IsVisible="{Binding Kind, Converter={StaticResource KindEquals}, ConverterParameter=ReadOnly}"
-                                     Foreground="#888888" FontSize="12"
+                                     Foreground="#606075" FontSize="12"
                                      VerticalAlignment="Center"/>
                         </Panel>
                       </Grid>

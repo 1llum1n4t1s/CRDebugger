@@ -14,13 +14,55 @@
     <Style Selector="TextBlock.header">
       <Setter Property="FontSize" Value="20"/>
       <Setter Property="FontWeight" Value="Bold"/>
-      <Setter Property="Foreground" Value="#E0E0E0"/>
+      <Setter Property="Foreground" Value="#C0C0D5"/>
       <Setter Property="Margin" Value="0,0,0,16"/>
     </Style>
     <Style Selector="TextBlock.field-label">
-      <Setter Property="Foreground" Value="#CCCCCC"/>
+      <Setter Property="Foreground" Value="#C0C0D5"/>
       <Setter Property="FontSize" Value="13"/>
       <Setter Property="Margin" Value="0,0,0,6"/>
+    </Style>
+    <!-- 送信ボタン -->
+    <Style Selector="Button.send-btn">
+      <Setter Property="Background" Value="#7C8FFF"/>
+      <Setter Property="Foreground" Value="White"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Padding" Value="22,11"/>
+      <Setter Property="CornerRadius" Value="8"/>
+      <Setter Property="FontSize" Value="14"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="HorizontalAlignment" Value="Stretch"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Background" Duration="0:0:0.15"/>
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Button.send-btn:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="#8E9FFF"/>
+    </Style>
+    <Style Selector="Button.send-btn:disabled /template/ ContentPresenter">
+      <Setter Property="Background" Value="#FFFFFF10"/>
+    </Style>
+    <!-- テキスト入力 -->
+    <Style Selector="TextBox.form-input">
+      <Setter Property="Background" Value="#FFFFFF06"/>
+      <Setter Property="Foreground" Value="#C0C0D5"/>
+      <Setter Property="BorderBrush" Value="#FFFFFF08"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="8"/>
+      <Setter Property="Padding" Value="12,9"/>
+      <Setter Property="FontSize" Value="13"/>
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="BorderBrush" Duration="0:0:0.15"/>
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="TextBox.form-input:focus">
+      <Setter Property="BorderBrush" Value="#7C8FFF40"/>
     </Style>
   </UserControl.Styles>
 
@@ -31,17 +73,15 @@
       <StackPanel MaxWidth="500" HorizontalAlignment="Left" Spacing="4">
         <!-- 説明テキスト -->
         <TextBlock Text="バグの詳細を入力してレポートを送信してください。"
-                   Foreground="#888888" FontSize="12" Margin="0,0,0,16"
+                   Foreground="#606075" FontSize="12" Margin="0,0,0,16"
                    TextWrapping="Wrap"/>
 
         <!-- メールアドレス -->
         <TextBlock Text="メールアドレス (任意)" Classes="field-label"/>
         <TextBox Text="{Binding UserEmail}"
                  Watermark="your@email.com"
-                 Background="#2A2A3C" Foreground="#CCCCCC"
-                 BorderBrush="#404060" BorderThickness="1"
-                 CornerRadius="4" Padding="10,8"
-                 FontSize="13" Margin="0,0,0,12"
+                 Classes="form-input"
+                 Margin="0,0,0,14"
                  IsEnabled="{Binding IsSending, Converter={StaticResource InverseBool}}"/>
 
         <!-- メッセージ -->
@@ -51,36 +91,30 @@
                  AcceptsReturn="True"
                  TextWrapping="Wrap"
                  Height="150"
-                 Background="#2A2A3C" Foreground="#CCCCCC"
-                 BorderBrush="#404060" BorderThickness="1"
-                 CornerRadius="4" Padding="10,8"
-                 FontSize="13" Margin="0,0,0,16"
+                 Classes="form-input"
+                 Margin="0,0,0,18"
                  IsEnabled="{Binding IsSending, Converter={StaticResource InverseBool}}"/>
 
         <!-- 送信ボタン -->
         <Button Content="バグレポートを送信"
                 Command="{Binding SendCommand}"
                 IsEnabled="{Binding IsSending, Converter={StaticResource InverseBool}}"
-                Background="#6C9BF2" Foreground="White"
-                BorderThickness="0" Padding="20,10"
-                CornerRadius="4" FontSize="14" FontWeight="SemiBold"
-                HorizontalAlignment="Stretch"
-                HorizontalContentAlignment="Center"/>
+                Classes="send-btn"/>
 
         <!-- ステータスメッセージ -->
         <TextBlock Text="{Binding StatusMessage}"
                    Foreground="#E8C44A" FontSize="12"
-                   Margin="0,12,0,0"
+                   Margin="0,14,0,0"
                    TextWrapping="Wrap"
                    IsVisible="{Binding StatusMessage, Converter={StaticResource NotNullOrEmpty}}"/>
 
         <!-- 送信中インジケーター -->
         <StackPanel Orientation="Horizontal" Spacing="8"
-                    Margin="0,8,0,0"
+                    Margin="0,10,0,0"
                     IsVisible="{Binding IsSending}">
           <ProgressBar IsIndeterminate="True" Width="100" Height="4"
-                       Foreground="#6C9BF2" Background="#353548"/>
-          <TextBlock Text="送信中..." Foreground="#888888" FontSize="12"/>
+                       Foreground="#7C8FFF" Background="#FFFFFF08"/>
+          <TextBlock Text="送信中..." Foreground="#606075" FontSize="12"/>
         </StackPanel>
       </StackPanel>
     </ScrollViewer>

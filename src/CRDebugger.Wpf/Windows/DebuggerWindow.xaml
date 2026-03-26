@@ -22,7 +22,7 @@
     <Grid Background="{DynamicResource BackgroundBrush}">
         <Grid.ColumnDefinitions>
             <!-- サイドバー -->
-            <ColumnDefinition Width="180" />
+            <ColumnDefinition Width="200" />
             <!-- コンテンツ -->
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
@@ -35,14 +35,14 @@
             <DockPanel>
                 <!-- ヘッダー -->
                 <Border DockPanel.Dock="Top"
-                        Padding="16,16,16,12"
+                        Padding="20,20,20,16"
                         BorderBrush="{DynamicResource BorderBrush}"
                         BorderThickness="0,0,0,1">
                     <StackPanel>
-                        <TextBlock Text="CRDebugger"
-                                   FontSize="18"
-                                   FontWeight="Bold"
-                                   Foreground="{DynamicResource PrimaryBrush}" />
+                        <TextBlock FontSize="20" FontWeight="Bold" Margin="0,0,0,2">
+                            <Run Text="CR" Foreground="{DynamicResource PrimaryBrush}" />
+                            <Run Text="DEBUGGER" Foreground="{DynamicResource MutedTextBrush}" FontSize="14" />
+                        </TextBlock>
                         <TextBlock Text="Debug Panel"
                                    FontSize="11"
                                    Foreground="{DynamicResource OnSurfaceMutedBrush}"
@@ -51,7 +51,7 @@
                 </Border>
 
                 <!-- タブボタン群 -->
-                <StackPanel Margin="0,8,0,0">
+                <StackPanel Margin="0,10,0,0">
                     <RadioButton x:Name="TabSystem"
                                  Style="{DynamicResource SidebarButton}"
                                  Tag="&#xF0B0;"

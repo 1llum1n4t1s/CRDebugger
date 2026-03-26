@@ -3,9 +3,9 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:CRDebugger.Core.ViewModels;assembly=CRDebugger.Core">
 
-    <DockPanel Margin="16">
+    <DockPanel Margin="20">
         <!-- ヘッダー -->
-        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,16">
             <TextBlock Text="System Information"
                        FontSize="20"
                        FontWeight="Bold"
@@ -15,7 +15,7 @@
                     Style="{DynamicResource CRButton}"
                     Command="{Binding RefreshCommand}"
                     HorizontalAlignment="Right"
-                    Padding="12,6" />
+                    Padding="14,7" />
         </DockPanel>
 
         <!-- システム情報リスト -->
@@ -24,22 +24,22 @@
                 <ItemsControl.ItemTemplate>
                     <DataTemplate DataType="{x:Type vm:SystemInfoGroup}">
                         <Border Background="{DynamicResource SurfaceBrush}"
-                                CornerRadius="6"
-                                Margin="0,0,0,12"
-                                Padding="16,12">
+                                CornerRadius="8"
+                                Margin="0,0,0,14"
+                                Padding="18,14">
                             <!-- カテゴリヘッダー -->
                             <StackPanel>
                                 <TextBlock Text="{Binding Category}"
                                            FontSize="14"
                                            FontWeight="SemiBold"
                                            Foreground="{DynamicResource PrimaryBrush}"
-                                           Margin="0,0,0,8" />
+                                           Margin="0,0,0,10" />
 
                                 <!-- キーバリュー一覧 -->
                                 <ItemsControl ItemsSource="{Binding Items}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate DataType="{x:Type vm:SystemInfoItem}">
-                                            <DockPanel Margin="0,3,0,3">
+                                            <DockPanel Margin="0,4,0,4">
                                                 <TextBlock Text="{Binding Key}"
                                                            Foreground="{DynamicResource OnSurfaceMutedBrush}"
                                                            FontSize="12"

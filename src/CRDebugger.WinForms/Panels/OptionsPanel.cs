@@ -8,6 +8,7 @@ namespace CRDebugger.WinForms.Panels;
 /// <summary>
 /// オプションパネル
 /// OptionKindに基づいてコントロールを動的生成し、カテゴリごとにグループ表示する
+/// モダンデザイン: 改善されたスペーシングとフォント
 /// </summary>
 public sealed class OptionsPanel : Panel
 {
@@ -21,19 +22,20 @@ public sealed class OptionsPanel : Panel
     {
         _viewModel = viewModel;
         _colors = colors;
+        DoubleBuffered = true;
 
         // ヘッダー
         var headerPanel = new Panel
         {
             Dock = DockStyle.Top,
-            Height = 40,
-            Padding = new Padding(12, 8, 12, 4),
+            Height = 48,
+            Padding = new Padding(16, 12, 16, 8),
         };
 
         _titleLabel = new Label
         {
             Text = "\u2699 Options",
-            Font = new Font("Segoe UI", 12, FontStyle.Bold),
+            Font = new Font("Segoe UI", 13, FontStyle.Bold),
             AutoSize = true,
             Dock = DockStyle.Left,
         };
@@ -42,9 +44,10 @@ public sealed class OptionsPanel : Panel
         {
             Text = "\u21BB Refresh",
             FlatStyle = FlatStyle.Flat,
-            Size = new Size(90, 28),
+            Size = new Size(100, 30),
             Dock = DockStyle.Right,
             Cursor = Cursors.Hand,
+            Font = new Font("Segoe UI", 9),
         };
         _refreshButton.FlatAppearance.BorderSize = 1;
         _refreshButton.Click += (_, _) => _viewModel.RefreshCommand.Execute(null);
@@ -58,7 +61,7 @@ public sealed class OptionsPanel : Panel
         {
             Dock = DockStyle.Fill,
             AutoScroll = true,
-            Padding = new Padding(8),
+            Padding = new Padding(12),
         };
         Controls.Add(_scrollPanel);
 
@@ -131,13 +134,13 @@ public sealed class OptionsPanel : Panel
                 {
                     Text = category.Name,
                     Dock = DockStyle.Top,
-                    Height = 28,
-                    Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                    Height = 32,
+                    Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
                     ForeColor = OptionControlFactory.ArgbToColor(_colors.Primary),
                     BackColor = OptionControlFactory.ArgbToColor(_colors.SurfaceAlt),
                     TextAlign = ContentAlignment.MiddleLeft,
-                    Padding = new Padding(12, 0, 0, 0),
-                    Margin = new Padding(0, 8, 0, 4),
+                    Padding = new Padding(14, 0, 0, 0),
+                    Margin = new Padding(0, 10, 0, 4),
                 };
                 _scrollPanel.Controls.Add(categoryHeader);
             }

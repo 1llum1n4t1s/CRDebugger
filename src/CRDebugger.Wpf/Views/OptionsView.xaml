@@ -3,9 +3,9 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:CRDebugger.Core.ViewModels;assembly=CRDebugger.Core">
 
-    <DockPanel Margin="16">
+    <DockPanel Margin="20">
         <!-- ヘッダー -->
-        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,16">
             <TextBlock Text="Options"
                        FontSize="20"
                        FontWeight="Bold"
@@ -15,7 +15,7 @@
                     Style="{DynamicResource CRButton}"
                     Command="{Binding RefreshCommand}"
                     HorizontalAlignment="Right"
-                    Padding="12,6" />
+                    Padding="14,7" />
         </DockPanel>
 
         <!-- オプションカテゴリ一覧 -->
@@ -24,16 +24,16 @@
                 <ItemsControl.ItemTemplate>
                     <DataTemplate DataType="{x:Type vm:OptionCategoryViewModel}">
                         <Border Background="{DynamicResource SurfaceBrush}"
-                                CornerRadius="6"
-                                Margin="0,0,0,12"
-                                Padding="16,12">
+                                CornerRadius="8"
+                                Margin="0,0,0,14"
+                                Padding="18,14">
                             <StackPanel>
                                 <!-- カテゴリヘッダー -->
                                 <TextBlock Text="{Binding Name}"
                                            FontSize="14"
                                            FontWeight="SemiBold"
                                            Foreground="{DynamicResource PrimaryBrush}"
-                                           Margin="0,0,0,8" />
+                                           Margin="0,0,0,10" />
 
                                 <!-- オプション項目（動的コントロール） -->
                                 <ItemsControl x:Name="OptionItems"

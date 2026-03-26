@@ -22,45 +22,45 @@ public readonly struct ThemeColors
     public uint SidebarText { get; init; }
     public uint SelectedTab { get; init; }
 
-    /// <summary>SRDebugger風ダークテーマ</summary>
+    /// <summary>モダンダークテーマ（アクリル効果対応）</summary>
     public static ThemeColors Dark { get; } = new()
     {
-        Background = 0xFF1E1E2E,
-        Surface = 0xFF2A2A3C,
-        SurfaceAlt = 0xFF353548,
-        Primary = 0xFF6C9BF2,
-        OnBackground = 0xFFE0E0E0,
-        OnSurface = 0xFFCCCCCC,
-        OnSurfaceMuted = 0xFF888888,
-        Border = 0xFF404060,
+        Background = 0xFF1A1A2E,
+        Surface = 0xFF232338,
+        SurfaceAlt = 0xFF2D2D45,
+        Primary = 0xFF7C8FFF,
+        OnBackground = 0xFFF0F0F5,
+        OnSurface = 0xFFC0C0D5,
+        OnSurfaceMuted = 0xFF9090A5,
+        Border = 0x10FFFFFF,
         LogDebug = 0xFF6CAEDD,
-        LogInfo = 0xFFB0B0B0,
+        LogInfo = 0xFFB0B0C0,
         LogWarning = 0xFFE8C44A,
         LogError = 0xFFE05252,
         Success = 0xFF4CAF50,
-        SidebarBackground = 0xFF16161E,
-        SidebarText = 0xFFAAAAAA,
-        SelectedTab = 0xFF6C9BF2,
+        SidebarBackground = 0xFF12121C,
+        SidebarText = 0xFF9090A5,
+        SelectedTab = 0xFF7C8FFF,
     };
 
-    /// <summary>ライトテーマ</summary>
+    /// <summary>モダンライトテーマ</summary>
     public static ThemeColors Light { get; } = new()
     {
-        Background = 0xFFF5F5F5,
+        Background = 0xFFF5F5FA,
         Surface = 0xFFFFFFFF,
-        SurfaceAlt = 0xFFEEEEEE,
-        Primary = 0xFF1976D2,
-        OnBackground = 0xFF212121,
-        OnSurface = 0xFF333333,
-        OnSurfaceMuted = 0xFF757575,
-        Border = 0xFFDDDDDD,
+        SurfaceAlt = 0xFFF0F0F5,
+        Primary = 0xFF4A6CF7,
+        OnBackground = 0xFF1A1A2E,
+        OnSurface = 0xFF333344,
+        OnSurfaceMuted = 0xFF707085,
+        Border = 0x10000000,
         LogDebug = 0xFF1565C0,
-        LogInfo = 0xFF555555,
+        LogInfo = 0xFF555566,
         LogWarning = 0xFFE65100,
         LogError = 0xFFB71C1C,
         Success = 0xFF2E7D32,
-        SidebarBackground = 0xFFE8E8E8,
-        SidebarText = 0xFF555555,
-        SelectedTab = 0xFF1976D2,
+        SidebarBackground = 0xFFE8E8F0,
+        SidebarText = 0xFF505068,
+        SelectedTab = 0xFF4A6CF7,
     };
 }

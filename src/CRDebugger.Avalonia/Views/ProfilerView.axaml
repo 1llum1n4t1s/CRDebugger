@@ -8,32 +8,62 @@
     <Style Selector="TextBlock.header">
       <Setter Property="FontSize" Value="20"/>
       <Setter Property="FontWeight" Value="Bold"/>
-      <Setter Property="Foreground" Value="#E0E0E0"/>
+      <Setter Property="Foreground" Value="#C0C0D5"/>
       <Setter Property="Margin" Value="0,0,0,16"/>
     </Style>
     <Style Selector="TextBlock.metric-label">
-      <Setter Property="Foreground" Value="#888888"/>
+      <Setter Property="Foreground" Value="#9090A5"/>
       <Setter Property="FontSize" Value="12"/>
     </Style>
     <Style Selector="TextBlock.metric-value">
-      <Setter Property="Foreground" Value="#E0E0E0"/>
+      <Setter Property="Foreground" Value="#C0C0D5"/>
       <Setter Property="FontSize" Value="24"/>
       <Setter Property="FontWeight" Value="Bold"/>
     </Style>
     <Style Selector="TextBlock.metric-unit">
-      <Setter Property="Foreground" Value="#666666"/>
+      <Setter Property="Foreground" Value="#606075"/>
       <Setter Property="FontSize" Value="12"/>
     </Style>
     <Style Selector="Border.metric-card">
-      <Setter Property="Background" Value="#2A2A3C"/>
+      <Setter Property="Background" Value="#FFFFFF06"/>
+      <Setter Property="BorderBrush" Value="#FFFFFF08"/>
+      <Setter Property="BorderThickness" Value="1"/>
       <Setter Property="CornerRadius" Value="8"/>
-      <Setter Property="Padding" Value="16,12"/>
+      <Setter Property="Padding" Value="18,14"/>
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Background" Duration="0:0:0.15"/>
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Border.metric-card:pointerover">
+      <Setter Property="Background" Value="#FFFFFF0A"/>
     </Style>
     <Style Selector="TextBlock.section-title">
-      <Setter Property="Foreground" Value="#6C9BF2"/>
+      <Setter Property="Foreground" Value="#7C8FFF"/>
       <Setter Property="FontSize" Value="14"/>
       <Setter Property="FontWeight" Value="SemiBold"/>
-      <Setter Property="Margin" Value="0,20,0,8"/>
+      <Setter Property="Margin" Value="0,20,0,10"/>
+    </Style>
+    <!-- GC Collectボタン -->
+    <Style Selector="Button.gc-btn">
+      <Setter Property="Background" Value="#E0525220"/>
+      <Setter Property="Foreground" Value="#E05252"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="BorderBrush" Value="#E0525230"/>
+      <Setter Property="Padding" Value="18,7"/>
+      <Setter Property="CornerRadius" Value="8"/>
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Background" Duration="0:0:0.15"/>
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Button.gc-btn:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="#E0525235"/>
     </Style>
   </UserControl.Styles>
 
@@ -42,10 +72,8 @@
     <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
       <TextBlock Text="Profiler" Classes="header" DockPanel.Dock="Left"/>
       <Button Content="GC Collect" Command="{Binding GcCollectCommand}"
-              HorizontalAlignment="Right"
-              Background="#E05252" Foreground="White"
-              BorderThickness="0" Padding="16,6" CornerRadius="4" FontSize="12"
-              FontWeight="SemiBold"/>
+              Classes="gc-btn"
+              HorizontalAlignment="Right"/>
     </DockPanel>
 
     <ScrollViewer VerticalScrollBarVisibility="Auto">
@@ -105,7 +133,7 @@
           <StackPanel>
             <TextBlock Text="FPS (estimated)" Classes="metric-label"/>
             <StackPanel Orientation="Horizontal" Spacing="6">
-              <TextBlock Text="{Binding Fps, StringFormat='{}{0:F1}'}" Classes="metric-value" Foreground="#6C9BF2"/>
+              <TextBlock Text="{Binding Fps, StringFormat='{}{0:F1}'}" Classes="metric-value" Foreground="#7C8FFF"/>
               <TextBlock Text="fps" Classes="metric-unit" VerticalAlignment="Bottom" Margin="0,0,0,4"/>
             </StackPanel>
           </StackPanel>

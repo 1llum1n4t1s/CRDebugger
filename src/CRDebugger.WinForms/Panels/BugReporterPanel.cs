@@ -8,6 +8,7 @@ namespace CRDebugger.WinForms.Panels;
 /// <summary>
 /// バグレポートパネル
 /// ユーザーメッセージ、メールアドレスの入力フォームと送信ボタン
+/// モダンデザイン: 改善されたスペーシング、フォント、ボタンスタイル
 /// </summary>
 public sealed class BugReporterPanel : Panel
 {
@@ -23,19 +24,20 @@ public sealed class BugReporterPanel : Panel
     {
         _viewModel = viewModel;
         _colors = colors;
+        DoubleBuffered = true;
 
         // ヘッダー
         var headerPanel = new Panel
         {
             Dock = DockStyle.Top,
-            Height = 40,
-            Padding = new Padding(12, 8, 12, 4),
+            Height = 48,
+            Padding = new Padding(16, 12, 16, 8),
         };
 
         _titleLabel = new Label
         {
             Text = "\u2709 Bug Reporter",
-            Font = new Font("Segoe UI", 12, FontStyle.Bold),
+            Font = new Font("Segoe UI", 13, FontStyle.Bold),
             AutoSize = true,
             Dock = DockStyle.Left,
         };
@@ -46,7 +48,7 @@ public sealed class BugReporterPanel : Panel
         var formPanel = new Panel
         {
             Dock = DockStyle.Fill,
-            Padding = new Padding(16, 8, 16, 16),
+            Padding = new Padding(20, 12, 20, 20),
         };
 
         // ステータスラベル（下部）
@@ -54,8 +56,8 @@ public sealed class BugReporterPanel : Panel
         {
             Text = string.Empty,
             Dock = DockStyle.Bottom,
-            Height = 30,
-            Font = new Font("Segoe UI", 9),
+            Height = 32,
+            Font = new Font("Segoe UI", 9.5f),
             TextAlign = ContentAlignment.MiddleLeft,
             Padding = new Padding(4, 0, 0, 0),
         };
@@ -65,18 +67,18 @@ public sealed class BugReporterPanel : Panel
         var buttonPanel = new Panel
         {
             Dock = DockStyle.Bottom,
-            Height = 44,
-            Padding = new Padding(0, 8, 0, 0),
+            Height = 50,
+            Padding = new Padding(0, 10, 0, 0),
         };
 
         _sendButton = new Button
         {
             Text = "\u2709 Send Bug Report",
             FlatStyle = FlatStyle.Flat,
-            Height = 36,
+            Height = 40,
             Dock = DockStyle.Fill,
             Cursor = Cursors.Hand,
-            Font = new Font("Segoe UI", 10, FontStyle.Bold),
+            Font = new Font("Segoe UI", 10.5f, FontStyle.Bold),
         };
         _sendButton.FlatAppearance.BorderSize = 0;
         _sendButton.Click += async (_, _) =>
@@ -90,16 +92,16 @@ public sealed class BugReporterPanel : Panel
         var emailPanel = new Panel
         {
             Dock = DockStyle.Bottom,
-            Height = 52,
-            Padding = new Padding(0, 4, 0, 4),
+            Height = 58,
+            Padding = new Padding(0, 6, 0, 6),
         };
 
         var emailLabel = new Label
         {
             Text = "Email (optional):",
             Dock = DockStyle.Top,
-            Height = 20,
-            Font = new Font("Segoe UI", 8.5f),
+            Height = 22,
+            Font = new Font("Segoe UI", 9),
         };
 
         _emailBox = new TextBox
@@ -107,7 +109,7 @@ public sealed class BugReporterPanel : Panel
             PlaceholderText = "your@email.com",
             Dock = DockStyle.Fill,
             BorderStyle = BorderStyle.FixedSingle,
-            Font = new Font("Segoe UI", 9.5f),
+            Font = new Font("Segoe UI", 10),
         };
         _emailBox.TextChanged += (_, _) => _viewModel.UserEmail = _emailBox.Text;
 
@@ -120,9 +122,9 @@ public sealed class BugReporterPanel : Panel
         {
             Text = "Describe the bug:",
             Dock = DockStyle.Top,
-            Height = 20,
-            Font = new Font("Segoe UI", 8.5f),
-            Padding = new Padding(0, 4, 0, 0),
+            Height = 24,
+            Font = new Font("Segoe UI", 9),
+            Padding = new Padding(0, 6, 0, 0),
         };
         formPanel.Controls.Add(msgLabel);
 
@@ -133,7 +135,7 @@ public sealed class BugReporterPanel : Panel
             ScrollBars = ScrollBars.Vertical,
             Dock = DockStyle.Fill,
             BorderStyle = BorderStyle.FixedSingle,
-            Font = new Font("Segoe UI", 9.5f),
+            Font = new Font("Segoe UI", 10),
             AcceptsReturn = true,
         };
         _messageBox.TextChanged += (_, _) => _viewModel.UserMessage = _messageBox.Text;

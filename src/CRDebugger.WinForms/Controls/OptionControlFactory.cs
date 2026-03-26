@@ -6,6 +6,7 @@ namespace CRDebugger.WinForms.Controls;
 
 /// <summary>
 /// OptionKindに応じたWinFormsコントロールを動的に生成するファクトリ
+/// モダンデザイン: 改善されたスペーシング、フォント、FlatStyleボタン
 /// </summary>
 public static class OptionControlFactory
 {
@@ -41,9 +42,10 @@ public static class OptionControlFactory
             Enabled = !item.IsReadOnly,
             AutoSize = true,
             ForeColor = ArgbToColor(colors.OnSurface),
+            Font = new Font("Segoe UI", 9.5f),
             FlatStyle = FlatStyle.Flat,
             Dock = DockStyle.Fill,
-            Padding = new Padding(4, 2, 4, 2),
+            Padding = new Padding(6, 2, 6, 2),
         };
 
         checkBox.CheckedChanged += (_, _) =>
@@ -87,10 +89,11 @@ public static class OptionControlFactory
             {
                 Text = (item.Value ?? 0).ToString(),
                 ForeColor = ArgbToColor(colors.Primary),
+                Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
                 AutoSize = true,
                 Dock = DockStyle.Right,
                 TextAlign = ContentAlignment.MiddleRight,
-                Padding = new Padding(4, 0, 4, 0),
+                Padding = new Padding(6, 0, 6, 0),
             };
 
             trackBar.ValueChanged += (_, _) =>
@@ -116,6 +119,7 @@ public static class OptionControlFactory
                 Dock = DockStyle.Fill,
                 BackColor = ArgbToColor(colors.SurfaceAlt),
                 ForeColor = ArgbToColor(colors.OnSurface),
+                Font = new Font("Segoe UI", 9.5f),
             };
 
             numericUpDown.ValueChanged += (_, _) =>
@@ -148,6 +152,7 @@ public static class OptionControlFactory
             Dock = DockStyle.Fill,
             BackColor = ArgbToColor(colors.SurfaceAlt),
             ForeColor = ArgbToColor(colors.OnSurface),
+            Font = new Font("Segoe UI", 9.5f),
         };
 
         numericUpDown.ValueChanged += (_, _) =>
@@ -173,7 +178,8 @@ public static class OptionControlFactory
             BackColor = ArgbToColor(colors.SurfaceAlt),
             ForeColor = ArgbToColor(colors.OnSurface),
             BorderStyle = BorderStyle.FixedSingle,
-            Padding = new Padding(4, 2, 4, 2),
+            Font = new Font("Segoe UI", 9.5f),
+            Padding = new Padding(6, 2, 6, 2),
         };
 
         textBox.TextChanged += (_, _) =>
@@ -205,6 +211,7 @@ public static class OptionControlFactory
             BackColor = ArgbToColor(colors.SurfaceAlt),
             ForeColor = ArgbToColor(colors.OnSurface),
             FlatStyle = FlatStyle.Flat,
+            Font = new Font("Segoe UI", 9.5f),
         };
 
         if (item.EnumNames != null)
@@ -235,10 +242,11 @@ public static class OptionControlFactory
         {
             Text = item.Value?.ToString() ?? "(null)",
             ForeColor = ArgbToColor(colors.OnSurfaceMuted),
+            Font = new Font("Segoe UI", 9.5f),
             AutoSize = false,
             Dock = DockStyle.Fill,
             TextAlign = ContentAlignment.MiddleLeft,
-            Padding = new Padding(4, 0, 4, 0),
+            Padding = new Padding(6, 0, 6, 0),
         };
 
         item.PropertyChanged += (_, e) =>
@@ -257,12 +265,13 @@ public static class OptionControlFactory
         {
             Text = action.Label,
             Dock = DockStyle.Top,
-            Height = 36,
+            Height = 40,
             FlatStyle = FlatStyle.Flat,
             BackColor = ArgbToColor(colors.Primary),
             ForeColor = Color.White,
             Cursor = Cursors.Hand,
-            Margin = new Padding(4, 4, 4, 4),
+            Font = new Font("Segoe UI", 10, FontStyle.Bold),
+            Margin = new Padding(6, 6, 6, 6),
         };
 
         button.FlatAppearance.BorderSize = 0;
@@ -276,9 +285,9 @@ public static class OptionControlFactory
         return new Panel
         {
             Dock = DockStyle.Top,
-            Height = 36,
+            Height = 40,
             BackColor = ArgbToColor(colors.Surface),
-            Padding = new Padding(8, 2, 8, 2),
+            Padding = new Padding(10, 4, 10, 4),
         };
     }
 
@@ -288,8 +297,9 @@ public static class OptionControlFactory
         {
             Text = text,
             ForeColor = ArgbToColor(colors.OnSurface),
+            Font = new Font("Segoe UI", 9.5f),
             AutoSize = false,
-            Width = 160,
+            Width = 170,
             Dock = DockStyle.Left,
             TextAlign = ContentAlignment.MiddleLeft,
         };
