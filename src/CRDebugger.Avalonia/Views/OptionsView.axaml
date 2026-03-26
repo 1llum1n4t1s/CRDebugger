@@ -7,86 +7,10 @@
 
   <UserControl.Resources>
     <conv:OptionKindEqualsConverter x:Key="KindEquals"/>
+    <conv:CountToVisibilityConverter x:Key="CountToVis"/>
   </UserControl.Resources>
 
-  <UserControl.Styles>
-    <Style Selector="TextBlock.header">
-      <Setter Property="FontSize" Value="20"/>
-      <Setter Property="FontWeight" Value="Bold"/>
-      <Setter Property="Foreground" Value="#C0C0D5"/>
-      <Setter Property="Margin" Value="0,0,0,16"/>
-    </Style>
-    <Style Selector="TextBlock.category-header">
-      <Setter Property="FontSize" Value="14"/>
-      <Setter Property="FontWeight" Value="SemiBold"/>
-      <Setter Property="Foreground" Value="#7C8FFF"/>
-      <Setter Property="Margin" Value="0,12,0,8"/>
-    </Style>
-    <Style Selector="TextBlock.option-label">
-      <Setter Property="Foreground" Value="#C0C0D5"/>
-      <Setter Property="FontSize" Value="13"/>
-      <Setter Property="VerticalAlignment" Value="Center"/>
-    </Style>
-    <!-- Refreshボタン -->
-    <Style Selector="Button.refresh-btn">
-      <Setter Property="Background" Value="#FFFFFF08"/>
-      <Setter Property="Foreground" Value="#C0C0D5"/>
-      <Setter Property="BorderThickness" Value="1"/>
-      <Setter Property="BorderBrush" Value="#FFFFFF08"/>
-      <Setter Property="Padding" Value="18,7"/>
-      <Setter Property="CornerRadius" Value="8"/>
-      <Setter Property="FontSize" Value="12"/>
-      <Setter Property="Cursor" Value="Hand"/>
-      <Setter Property="Transitions">
-        <Transitions>
-          <BrushTransition Property="Background" Duration="0:0:0.15"/>
-        </Transitions>
-      </Setter>
-    </Style>
-    <Style Selector="Button.refresh-btn:pointerover /template/ ContentPresenter">
-      <Setter Property="Background" Value="#FFFFFF10"/>
-    </Style>
-    <!-- カテゴリカード -->
-    <Style Selector="Border.option-card">
-      <Setter Property="Background" Value="#FFFFFF06"/>
-      <Setter Property="BorderBrush" Value="#FFFFFF08"/>
-      <Setter Property="BorderThickness" Value="1"/>
-      <Setter Property="CornerRadius" Value="8"/>
-      <Setter Property="Padding" Value="14,10"/>
-      <Setter Property="Transitions">
-        <Transitions>
-          <BrushTransition Property="Background" Duration="0:0:0.15"/>
-        </Transitions>
-      </Setter>
-    </Style>
-    <Style Selector="Border.option-card:pointerover">
-      <Setter Property="Background" Value="#FFFFFF0A"/>
-    </Style>
-    <!-- アクションボタン -->
-    <Style Selector="Button.action-btn">
-      <Setter Property="Background" Value="#FFFFFF08"/>
-      <Setter Property="Foreground" Value="#C0C0D5"/>
-      <Setter Property="BorderThickness" Value="1"/>
-      <Setter Property="BorderBrush" Value="#FFFFFF10"/>
-      <Setter Property="Padding" Value="16,8"/>
-      <Setter Property="CornerRadius" Value="8"/>
-      <Setter Property="FontSize" Value="12"/>
-      <Setter Property="Cursor" Value="Hand"/>
-      <Setter Property="HorizontalAlignment" Value="Left"/>
-      <Setter Property="Margin" Value="0,3"/>
-    </Style>
-    <Style Selector="Button.action-btn /template/ ContentPresenter">
-      <Setter Property="Background" Value="#FFFFFF08"/>
-      <Setter Property="Transitions">
-        <Transitions>
-          <BrushTransition Property="Background" Duration="0:0:0.15"/>
-        </Transitions>
-      </Setter>
-    </Style>
-    <Style Selector="Button.action-btn:pointerover /template/ ContentPresenter">
-      <Setter Property="Background" Value="#FFFFFF14"/>
-    </Style>
-  </UserControl.Styles>
+  <!-- スタイルはSharedStyles.axamlで定義済み -->
 
   <DockPanel Margin="20">
     <!-- ヘッダー -->
@@ -116,8 +40,8 @@
               </ItemsControl>
 
               <!-- オプション（Items が空なら非表示） -->
-              <Border Classes="option-card"
-                      IsVisible="{Binding Items.Count}">
+              <Border Classes="cr-card"
+                      IsVisible="{Binding Items.Count, Converter={StaticResource CountToVis}}">
                 <ItemsControl ItemsSource="{Binding Items}">
                   <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:OptionItemViewModel">

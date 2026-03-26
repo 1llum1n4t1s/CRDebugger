@@ -1,0 +1,118 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!-- ═══════════════════════════════════ -->
+  <!-- 共通カラーリソース -->
+  <!-- ═══════════════════════════════════ -->
+  <Styles.Resources>
+    <SolidColorBrush x:Key="CRSurfaceBrush">#FFFFFF06</SolidColorBrush>
+    <SolidColorBrush x:Key="CRSurfaceHoverBrush">#FFFFFF0A</SolidColorBrush>
+    <SolidColorBrush x:Key="CRBorderBrush">#FFFFFF08</SolidColorBrush>
+    <SolidColorBrush x:Key="CRBorderStrongBrush">#FFFFFF10</SolidColorBrush>
+    <SolidColorBrush x:Key="CRTextPrimaryBrush">#C0C0D5</SolidColorBrush>
+    <SolidColorBrush x:Key="CRTextSecondaryBrush">#9090A5</SolidColorBrush>
+    <SolidColorBrush x:Key="CRTextMutedBrush">#606075</SolidColorBrush>
+    <SolidColorBrush x:Key="CRAccentBrush">#7C8FFF</SolidColorBrush>
+  </Styles.Resources>
+
+  <!-- ═══════════════════════════════════ -->
+  <!-- ページヘッダー -->
+  <!-- ═══════════════════════════════════ -->
+  <Style Selector="TextBlock.header">
+    <Setter Property="FontSize" Value="20"/>
+    <Setter Property="FontWeight" Value="Bold"/>
+    <Setter Property="Foreground" Value="{DynamicResource CRTextPrimaryBrush}"/>
+    <Setter Property="Margin" Value="0,0,0,16"/>
+  </Style>
+
+  <!-- ═══════════════════════════════════ -->
+  <!-- カテゴリヘッダー -->
+  <!-- ═══════════════════════════════════ -->
+  <Style Selector="TextBlock.category-header">
+    <Setter Property="FontSize" Value="14"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Foreground" Value="{DynamicResource CRAccentBrush}"/>
+    <Setter Property="Margin" Value="0,12,0,8"/>
+  </Style>
+
+  <!-- ═══════════════════════════════════ -->
+  <!-- 汎用カード（category-card / option-card / metric-card 統合） -->
+  <!-- ═══════════════════════════════════ -->
+  <Style Selector="Border.cr-card">
+    <Setter Property="Background" Value="{DynamicResource CRSurfaceBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource CRBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="8"/>
+    <Setter Property="Padding" Value="14,10"/>
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="0:0:0.15"/>
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Border.cr-card:pointerover">
+    <Setter Property="Background" Value="{DynamicResource CRSurfaceHoverBrush}"/>
+  </Style>
+
+  <!-- ═══════════════════════════════════ -->
+  <!-- Refreshボタン -->
+  <!-- ═══════════════════════════════════ -->
+  <Style Selector="Button.refresh-btn">
+    <Setter Property="Background" Value="{DynamicResource CRSurfaceBrush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource CRTextPrimaryBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource CRBorderBrush}"/>
+    <Setter Property="Padding" Value="18,7"/>
+    <Setter Property="CornerRadius" Value="8"/>
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="0:0:0.15"/>
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Button.refresh-btn /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource CRSurfaceBrush}"/>
+  </Style>
+  <Style Selector="Button.refresh-btn:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource CRBorderStrongBrush}"/>
+  </Style>
+
+  <!-- ═══════════════════════════════════ -->
+  <!-- アクションボタン -->
+  <!-- ═══════════════════════════════════ -->
+  <Style Selector="Button.action-btn">
+    <Setter Property="Background" Value="{DynamicResource CRSurfaceBrush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource CRTextPrimaryBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource CRBorderStrongBrush}"/>
+    <Setter Property="Padding" Value="16,8"/>
+    <Setter Property="CornerRadius" Value="8"/>
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="HorizontalAlignment" Value="Left"/>
+    <Setter Property="Margin" Value="0,3"/>
+  </Style>
+  <Style Selector="Button.action-btn /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource CRSurfaceBrush}"/>
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="0:0:0.15"/>
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Button.action-btn:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="#FFFFFF14"/>
+  </Style>
+
+  <!-- ═══════════════════════════════════ -->
+  <!-- オプションラベル -->
+  <!-- ═══════════════════════════════════ -->
+  <Style Selector="TextBlock.option-label">
+    <Setter Property="Foreground" Value="{DynamicResource CRTextPrimaryBrush}"/>
+    <Setter Property="FontSize" Value="13"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+
+</Styles>

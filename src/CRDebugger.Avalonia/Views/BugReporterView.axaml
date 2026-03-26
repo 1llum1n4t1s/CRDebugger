@@ -11,14 +11,9 @@
   </UserControl.Resources>
 
   <UserControl.Styles>
-    <Style Selector="TextBlock.header">
-      <Setter Property="FontSize" Value="20"/>
-      <Setter Property="FontWeight" Value="Bold"/>
-      <Setter Property="Foreground" Value="#C0C0D5"/>
-      <Setter Property="Margin" Value="0,0,0,16"/>
-    </Style>
+    <!-- フィールドラベル（BugReporter固有） -->
     <Style Selector="TextBlock.field-label">
-      <Setter Property="Foreground" Value="#C0C0D5"/>
+      <Setter Property="Foreground" Value="{DynamicResource CRTextPrimaryBrush}"/>
       <Setter Property="FontSize" Value="13"/>
       <Setter Property="Margin" Value="0,0,0,6"/>
     </Style>

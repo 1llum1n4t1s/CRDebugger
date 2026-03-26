@@ -5,47 +5,21 @@
              x:DataType="vm:ProfilerViewModel">
 
   <UserControl.Styles>
-    <Style Selector="TextBlock.header">
-      <Setter Property="FontSize" Value="20"/>
-      <Setter Property="FontWeight" Value="Bold"/>
-      <Setter Property="Foreground" Value="#C0C0D5"/>
-      <Setter Property="Margin" Value="0,0,0,16"/>
-    </Style>
+    <!-- メトリクスラベル（Profiler固有） -->
     <Style Selector="TextBlock.metric-label">
-      <Setter Property="Foreground" Value="#9090A5"/>
+      <Setter Property="Foreground" Value="{DynamicResource CRTextSecondaryBrush}"/>
       <Setter Property="FontSize" Value="12"/>
     </Style>
     <Style Selector="TextBlock.metric-value">
-      <Setter Property="Foreground" Value="#C0C0D5"/>
+      <Setter Property="Foreground" Value="{DynamicResource CRTextPrimaryBrush}"/>
       <Setter Property="FontSize" Value="24"/>
       <Setter Property="FontWeight" Value="Bold"/>
     </Style>
     <Style Selector="TextBlock.metric-unit">
-      <Setter Property="Foreground" Value="#606075"/>
+      <Setter Property="Foreground" Value="{DynamicResource CRTextMutedBrush}"/>
       <Setter Property="FontSize" Value="12"/>
     </Style>
-    <Style Selector="Border.metric-card">
-      <Setter Property="Background" Value="#FFFFFF06"/>
-      <Setter Property="BorderBrush" Value="#FFFFFF08"/>
-      <Setter Property="BorderThickness" Value="1"/>
-      <Setter Property="CornerRadius" Value="8"/>
-      <Setter Property="Padding" Value="18,14"/>
-      <Setter Property="Transitions">
-        <Transitions>
-          <BrushTransition Property="Background" Duration="0:0:0.15"/>
-        </Transitions>
-      </Setter>
-    </Style>
-    <Style Selector="Border.metric-card:pointerover">
-      <Setter Property="Background" Value="#FFFFFF0A"/>
-    </Style>
-    <Style Selector="TextBlock.section-title">
-      <Setter Property="Foreground" Value="#7C8FFF"/>
-      <Setter Property="FontSize" Value="14"/>
-      <Setter Property="FontWeight" Value="SemiBold"/>
-      <Setter Property="Margin" Value="0,20,0,10"/>
-    </Style>
-    <!-- GC Collectボタン -->
+    <!-- GC Collectボタン（Profiler固有） -->
     <Style Selector="Button.gc-btn">
       <Setter Property="Background" Value="#E0525220"/>
       <Setter Property="Foreground" Value="#E05252"/>
@@ -79,24 +53,24 @@
     <ScrollViewer VerticalScrollBarVisibility="Auto">
       <StackPanel Spacing="0">
         <!-- メモリメトリクスカード群 -->
-        <TextBlock Text="Memory" Classes="section-title"/>
+        <TextBlock Text="Memory" Classes="category-header"/>
         <UniformGrid Columns="3" Margin="0,0,0,0">
           <!-- Working Set -->
-          <Border Classes="metric-card" Margin="0,0,8,8">
+          <Border Classes="cr-card" Margin="0,0,8,8">
             <StackPanel>
               <TextBlock Text="Working Set" Classes="metric-label"/>
               <TextBlock Text="{Binding WorkingSet}" Classes="metric-value"/>
             </StackPanel>
           </Border>
           <!-- Private Memory -->
-          <Border Classes="metric-card" Margin="4,0,4,8">
+          <Border Classes="cr-card" Margin="4,0,4,8">
             <StackPanel>
               <TextBlock Text="Private Memory" Classes="metric-label"/>
               <TextBlock Text="{Binding PrivateMemory}" Classes="metric-value"/>
             </StackPanel>
           </Border>
           <!-- GC Memory -->
-          <Border Classes="metric-card" Margin="8,0,0,8">
+          <Border Classes="cr-card" Margin="8,0,0,8">
             <StackPanel>
               <TextBlock Text="GC Memory" Classes="metric-label"/>
               <TextBlock Text="{Binding GcMemory}" Classes="metric-value"/>
@@ -105,21 +79,21 @@
         </UniformGrid>
 
         <!-- GC コレクション統計 -->
-        <TextBlock Text="GC Collections" Classes="section-title"/>
+        <TextBlock Text="GC Collections" Classes="category-header"/>
         <UniformGrid Columns="3" Margin="0,0,0,0">
-          <Border Classes="metric-card" Margin="0,0,8,8">
+          <Border Classes="cr-card" Margin="0,0,8,8">
             <StackPanel>
               <TextBlock Text="Gen 0" Classes="metric-label"/>
               <TextBlock Text="{Binding Gen0}" Classes="metric-value" Foreground="#4CAF50"/>
             </StackPanel>
           </Border>
-          <Border Classes="metric-card" Margin="4,0,4,8">
+          <Border Classes="cr-card" Margin="4,0,4,8">
             <StackPanel>
               <TextBlock Text="Gen 1" Classes="metric-label"/>
               <TextBlock Text="{Binding Gen1}" Classes="metric-value" Foreground="#E8C44A"/>
             </StackPanel>
           </Border>
-          <Border Classes="metric-card" Margin="8,0,0,8">
+          <Border Classes="cr-card" Margin="8,0,0,8">
             <StackPanel>
               <TextBlock Text="Gen 2" Classes="metric-label"/>
               <TextBlock Text="{Binding Gen2}" Classes="metric-value" Foreground="#E05252"/>
@@ -128,8 +102,8 @@
         </UniformGrid>
 
         <!-- FPS -->
-        <TextBlock Text="Performance" Classes="section-title"/>
-        <Border Classes="metric-card">
+        <TextBlock Text="Performance" Classes="category-header"/>
+        <Border Classes="cr-card">
           <StackPanel>
             <TextBlock Text="FPS (estimated)" Classes="metric-label"/>
             <StackPanel Orientation="Horizontal" Spacing="6">

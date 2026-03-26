@@ -5,18 +5,7 @@
              x:DataType="vm:SystemInfoViewModel">
 
   <UserControl.Styles>
-    <Style Selector="TextBlock.header">
-      <Setter Property="FontSize" Value="20"/>
-      <Setter Property="FontWeight" Value="Bold"/>
-      <Setter Property="Foreground" Value="#C0C0D5"/>
-      <Setter Property="Margin" Value="0,0,0,16"/>
-    </Style>
-    <Style Selector="TextBlock.category-name">
-      <Setter Property="FontSize" Value="14"/>
-      <Setter Property="FontWeight" Value="SemiBold"/>
-      <Setter Property="Foreground" Value="#7C8FFF"/>
-      <Setter Property="Margin" Value="0,12,0,8"/>
-    </Style>
+    <!-- info-key / info-value はSystemInfo固有 -->
     <Style Selector="TextBlock.info-key">
       <Setter Property="Foreground" Value="#9090A5"/>
       <Setter Property="FontSize" Value="12"/>
@@ -26,41 +15,6 @@
       <Setter Property="Foreground" Value="#C0C0D5"/>
       <Setter Property="FontSize" Value="12"/>
       <Setter Property="TextWrapping" Value="Wrap"/>
-    </Style>
-    <!-- Refreshボタン -->
-    <Style Selector="Button.refresh-btn">
-      <Setter Property="Background" Value="#FFFFFF08"/>
-      <Setter Property="Foreground" Value="#C0C0D5"/>
-      <Setter Property="BorderThickness" Value="1"/>
-      <Setter Property="BorderBrush" Value="#FFFFFF08"/>
-      <Setter Property="Padding" Value="18,7"/>
-      <Setter Property="CornerRadius" Value="8"/>
-      <Setter Property="FontSize" Value="12"/>
-      <Setter Property="Cursor" Value="Hand"/>
-      <Setter Property="Transitions">
-        <Transitions>
-          <BrushTransition Property="Background" Duration="0:0:0.15"/>
-        </Transitions>
-      </Setter>
-    </Style>
-    <Style Selector="Button.refresh-btn:pointerover /template/ ContentPresenter">
-      <Setter Property="Background" Value="#FFFFFF10"/>
-    </Style>
-    <!-- カテゴリカード -->
-    <Style Selector="Border.category-card">
-      <Setter Property="Background" Value="#FFFFFF06"/>
-      <Setter Property="BorderBrush" Value="#FFFFFF08"/>
-      <Setter Property="BorderThickness" Value="1"/>
-      <Setter Property="CornerRadius" Value="8"/>
-      <Setter Property="Padding" Value="14,10"/>
-      <Setter Property="Transitions">
-        <Transitions>
-          <BrushTransition Property="Background" Duration="0:0:0.15"/>
-        </Transitions>
-      </Setter>
-    </Style>
-    <Style Selector="Border.category-card:pointerover">
-      <Setter Property="Background" Value="#FFFFFF0A"/>
     </Style>
   </UserControl.Styles>
 
@@ -80,8 +34,8 @@
           <DataTemplate x:DataType="vm:SystemInfoGroup">
             <StackPanel Margin="0,0,0,8">
               <!-- カテゴリ名 -->
-              <TextBlock Text="{Binding Category}" Classes="category-name"/>
-              <Border Classes="category-card">
+              <TextBlock Text="{Binding Category}" Classes="category-header"/>
+              <Border Classes="cr-card">
                 <ItemsControl ItemsSource="{Binding Items}">
                   <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:SystemInfoItem">
