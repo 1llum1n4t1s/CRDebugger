@@ -5,7 +5,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>12</LangVersion>
     <RootNamespace>CRDebugger.Core</RootNamespace>
-    <IsPackable>false</IsPackable>
+    <IsPackable>true</IsPackable>
+    <PackageId>CRDebugger.Core</PackageId>
+    <Description>CRDebugger Core - SRDebugger-like debug panel for .NET desktop apps. Platform-agnostic logic (internal dependency, install platform-specific package instead).</Description>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
   <ItemGroup>

@@ -6,7 +6,6 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\CRDebugger.Core\CRDebugger.Core.csproj" />
     <ProjectReference Include="..\..\src\CRDebugger.Avalonia\CRDebugger.Avalonia.csproj" />
     <PackageReference Include="Avalonia.Desktop" Version="11.3.12" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.12" />

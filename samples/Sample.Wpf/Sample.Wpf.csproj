@@ -7,7 +7,6 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\CRDebugger.Core\CRDebugger.Core.csproj" />
     <ProjectReference Include="..\..\src\CRDebugger.Wpf\CRDebugger.Wpf.csproj" />
   </ItemGroup>
 </Project>
