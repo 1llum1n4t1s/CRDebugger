@@ -5,6 +5,7 @@
              x:DataType="vm:SystemInfoViewModel">
 
   <UserControl.Styles>
+    <StyleInclude Source="avares://CRDebugger.Avalonia/Styles/SharedStyles.axaml"/>
     <!-- info-key / info-value はSystemInfo固有 -->
     <Style Selector="TextBlock.info-key">
       <Setter Property="Foreground" Value="#9090A5"/>

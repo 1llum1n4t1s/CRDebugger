@@ -11,6 +11,7 @@
   </UserControl.Resources>
 
   <UserControl.Styles>
+    <StyleInclude Source="avares://CRDebugger.Avalonia/Styles/SharedStyles.axaml"/>
     <!-- フィールドラベル（BugReporter固有） -->
     <Style Selector="TextBlock.field-label">
       <Setter Property="Foreground" Value="{DynamicResource CRTextPrimaryBrush}"/>

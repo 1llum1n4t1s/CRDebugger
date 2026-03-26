@@ -5,6 +5,7 @@
              x:DataType="vm:ProfilerViewModel">
 
   <UserControl.Styles>
+    <StyleInclude Source="avares://CRDebugger.Avalonia/Styles/SharedStyles.axaml"/>
     <!-- メトリクスラベル（Profiler固有） -->
     <Style Selector="TextBlock.metric-label">
       <Setter Property="Foreground" Value="{DynamicResource CRTextSecondaryBrush}"/>

@@ -15,6 +15,7 @@
   </UserControl.Resources>
 
   <UserControl.Styles>
+    <StyleInclude Source="avares://CRDebugger.Avalonia/Styles/SharedStyles.axaml"/>
     <!-- フィルタートグルボタン - モダン -->
     <Style Selector="ToggleButton.filter-btn">
       <Setter Property="Background" Value="#FFFFFF06"/>

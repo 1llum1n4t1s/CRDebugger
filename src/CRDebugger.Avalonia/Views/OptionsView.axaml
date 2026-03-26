@@ -10,7 +10,9 @@
     <conv:CountToVisibilityConverter x:Key="CountToVis"/>
   </UserControl.Resources>
 
-  <!-- スタイルはSharedStyles.axamlで定義済み -->
+  <UserControl.Styles>
+    <StyleInclude Source="avares://CRDebugger.Avalonia/Styles/SharedStyles.axaml"/>
+  </UserControl.Styles>
 
   <DockPanel Margin="20">
     <!-- ヘッダー -->
