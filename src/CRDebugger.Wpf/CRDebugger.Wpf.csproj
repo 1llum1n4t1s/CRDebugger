@@ -9,12 +9,7 @@
     <IsPackable>true</IsPackable>
     <PackageId>CRDebugger.Wpf</PackageId>
     <Description>CRDebugger WPF UI - SRDebugger-like debug panel for WPF apps. Add runtime debugging, logging console, options editor, and profiler to any WPF application.</Description>
-    <ApplicationIcon>..\..\icon\app.ico</ApplicationIcon>
-    <PackageIcon>icon.png</PackageIcon>
   </PropertyGroup>
-  <ItemGroup>
-    <None Include="..\..\icon\app_icon.png" Pack="true" PackagePath="icon.png" Visible="false" />
-  </ItemGroup>
   <ItemGroup>
     <!-- Coreのソースファイルを直接コンパイル（NuGet依存なし） -->
     <Compile Include="..\CRDebugger.Core\**\*.cs" Link="Core\%(RecursiveDir)%(Filename)%(Extension)" Exclude="..\CRDebugger.Core\obj\**;..\CRDebugger.Core\bin\**" />

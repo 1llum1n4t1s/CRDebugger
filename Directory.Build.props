@@ -15,7 +15,7 @@
     <ApplicationIcon>$(MSBuildThisFileDirectory)icon\app.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup Condition="'$(IsPackable)' == 'true'">
-    <None Include="$(MSBuildThisFileDirectory)icon/icon.png" Pack="true" PackagePath="icon.png" Visible="false" />
+    <None Include="$(MSBuildThisFileDirectory)icon/app_icon.png" Pack="true" PackagePath="icon.png" Visible="false" />
     <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 </Project>

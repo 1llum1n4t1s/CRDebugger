@@ -9,12 +9,7 @@
     <PackageId>CRDebugger.Avalonia</PackageId>
     <Description>CRDebugger Avalonia UI - SRDebugger-like debug panel for Avalonia apps. Add runtime debugging, logging console, options editor, and profiler to any Avalonia application.</Description>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
-    <ApplicationIcon>..\..\icon\app.ico</ApplicationIcon>
-    <PackageIcon>icon.png</PackageIcon>
   </PropertyGroup>
-  <ItemGroup>
-    <None Include="..\..\icon\app_icon.png" Pack="true" PackagePath="icon.png" Visible="false" />
-  </ItemGroup>
   <ItemGroup>
     <!-- Coreのソースファイルを直接コンパイル（NuGet依存なし） -->
     <Compile Include="..\CRDebugger.Core\**\*.cs" Link="Core\%(RecursiveDir)%(Filename)%(Extension)" Exclude="..\CRDebugger.Core\obj\**;..\CRDebugger.Core\bin\**" />
