@@ -33,6 +33,12 @@ public sealed class ProfilerEngine : IDisposable
     /// <summary>最後に計算されたFPS推定値</summary>
     private double _lastFps;
 
+    /// <summary>前回のCPU時間（CPU使用率計算用）</summary>
+    private TimeSpan _previousCpuTime;
+
+    /// <summary>前回のCPU時間タイムスタンプ（CPU使用率計算用）</summary>
+    private DateTimeOffset _previousCpuTimestamp;
+
     /// <summary>スナップショット履歴の最大保持件数</summary>
     public const int MaxHistorySize = 120;
 
@@ -62,6 +68,15 @@ public sealed class ProfilerEngine : IDisposable
         // FPS計測用ストップウォッチを起動
         _fpsStopwatch.Start();
 
+        // CPU使用率計算の基準値を初期化
+        try
+        {
+            using var process = System.Diagnostics.Process.GetCurrentProcess();
+            _previousCpuTime = process.TotalProcessorTime;
+        }
+        catch { _previousCpuTime = TimeSpan.Zero; }
+        _previousCpuTimestamp = DateTimeOffset.Now;
+
         // 初回は即座に実行し、以降は _interval ごとに OnTick を呼び出す
         _timer = new System.Threading.Timer(OnTick, null, TimeSpan.Zero, _interval);
     }
@@ -85,6 +100,15 @@ public sealed class ProfilerEngine : IDisposable
     {
         // ロック中にコピーを返すことでスレッドセーフを維持
         lock (_lock) { return _history.ToList(); }
+    }
+
+    /// <summary>
+    /// CPU使用率の時系列履歴を返す。
+    /// </summary>
+    /// <returns>CPU使用率のリスト（最大 <see cref="MaxHistorySize"/> 件）</returns>
+    public IReadOnlyList<double> GetCpuHistory()
+    {
+        lock (_lock) { return _history.Select(s => s.CpuUsagePercent).ToList(); }
     }
 
     /// <summary>
@@ -133,6 +157,24 @@ public sealed class ProfilerEngine : IDisposable
         // 現在のプロセス情報を取得（usingでリソースを確実に解放）
         using var process = Process.GetCurrentProcess();
 
+        // CPU使用率計算：前回からの差分で算出
+        var now = DateTimeOffset.Now;
+        double cpuPercent = 0;
+        try
+        {
+            var currentCpuTime = process.TotalProcessorTime;
+            var cpuDelta = (currentCpuTime - _previousCpuTime).TotalMilliseconds;
+            var timeDelta = (now - _previousCpuTimestamp).TotalMilliseconds;
+            if (timeDelta > 0)
+            {
+                cpuPercent = (cpuDelta / (timeDelta * Environment.ProcessorCount)) * 100;
+                cpuPercent = Math.Clamp(cpuPercent, 0, 100);
+            }
+            _previousCpuTime = currentCpuTime;
+            _previousCpuTimestamp = now;
+        }
+        catch { /* CPU時間取得失敗時はデフォルト値0を使用 */ }
+
         // GPU情報取得（取得失敗時はデフォルト値を使用し、処理を継続する）
         double gpuUsage = 0;
         long gpuDedicated = 0, gpuShared = 0;
@@ -158,12 +200,14 @@ public sealed class ProfilerEngine : IDisposable
             Gen0Collections: GC.CollectionCount(0),
             Gen1Collections: GC.CollectionCount(1),
             Gen2Collections: GC.CollectionCount(2),
+            // TODO: .NET 9+ の GC.GetGCMemoryInfo().PauseTimePercentage 等でGCポーズ時間を取得する
             GcPauseTimeMs: 0,
             GpuUsagePercent: gpuUsage,
             GpuDedicatedMemoryBytes: gpuDedicated,
             GpuSharedMemoryBytes: gpuShared,
             GpuTemperatureCelsius: gpuTemp,
-            GpuDeviceName: gpuName
+            GpuDeviceName: gpuName,
+            CpuUsagePercent: Math.Round(cpuPercent, 1)
         );
 
         lock (_lock)

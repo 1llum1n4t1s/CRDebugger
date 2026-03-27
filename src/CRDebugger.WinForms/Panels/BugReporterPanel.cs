@@ -105,10 +105,7 @@ public sealed class BugReporterPanel : Panel
         };
         _sendButton.FlatAppearance.BorderSize = 0;
         // クリック時に ViewModel の SendCommand を実行
-        _sendButton.Click += async (_, _) =>
-        {
-            _viewModel.SendCommand.Execute(null);
-        };
+        _sendButton.Click += (_, _) => _viewModel.SendCommand.Execute(null);
         buttonPanel.Controls.Add(_sendButton);
         formPanel.Controls.Add(buttonPanel);
 
@@ -284,16 +281,8 @@ public sealed class BugReporterPanel : Panel
             }
         }
 
-        // UIスレッド以外からの呼び出しは Invoke でマーシャリング
-        if (InvokeRequired)
-        {
-            // フォームが破棄済みの場合の ObjectDisposedException を握りつぶす
-            try { Invoke(Update); } catch (ObjectDisposedException) { }
-        }
-        else
-        {
-            Update();
-        }
+        // UIスレッドで安全に実行
+        this.SafeInvoke(Update);
     }
 
     /// <summary>

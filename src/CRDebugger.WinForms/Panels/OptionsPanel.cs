@@ -126,13 +126,7 @@ public sealed class OptionsPanel : Panel
     /// <param name="e">コレクション変更イベント引数。</param>
     private void OnCategoriesChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        if (InvokeRequired)
-        {
-            // フォームが破棄済みの場合の ObjectDisposedException を握りつぶす
-            try { Invoke(RebuildControls); } catch (ObjectDisposedException) { }
-            return;
-        }
-        RebuildControls();
+        this.SafeInvoke(RebuildControls);
     }
 
     /// <summary>

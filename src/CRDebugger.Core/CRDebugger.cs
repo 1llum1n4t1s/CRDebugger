@@ -268,6 +268,31 @@ public static class CRDebugger
     public static void RecordStorageIO(long bytesRead, long bytesWritten) =>
         _context?.Profiler.Operations.RecordStorageIO(bytesRead, bytesWritten);
 
+    /// <summary>現在のプロセスCPU使用率（%）を取得する</summary>
+    /// <returns>CPU使用率（0〜100）。未初期化またはスナップショット未取得の場合は0</returns>
+    public static double GetCpuUsage() =>
+        _context?.Profiler.Latest?.CpuUsagePercent ?? 0;
+
+    /// <summary>CPU使用率の時系列履歴を取得する</summary>
+    /// <returns>CPU使用率のリスト</returns>
+    /// <exception cref="CRDebuggerNotInitializedException">未初期化の場合</exception>
+    public static IReadOnlyList<double> GetCpuHistory() =>
+        GetContext().Profiler.GetCpuHistory();
+
+    /// <summary>CPU時間上位のホットスポットを取得する</summary>
+    /// <param name="topN">取得件数の上限（デフォルト: 10件）</param>
+    /// <returns>CPU時間上位の操作メトリクス一覧</returns>
+    /// <exception cref="CRDebuggerNotInitializedException">未初期化の場合</exception>
+    public static IReadOnlyList<OperationMetrics> GetCpuHotspots(int topN = 10) =>
+        GetContext().Profiler.Operations.GetCpuHotspots(topN);
+
+    /// <summary>メモリ使用量ホットスポット上位N件を返す</summary>
+    /// <param name="topN">取得件数の上限（デフォルト: 10件）</param>
+    /// <returns>メモリ使用量上位の操作メトリクス一覧</returns>
+    /// <exception cref="CRDebuggerNotInitializedException">未初期化の場合</exception>
+    public static IReadOnlyList<OperationMetrics> GetMemoryHotspots(int topN = 10) =>
+        GetContext().Profiler.Operations.GetMemoryHotspots(topN);
+
     /// <summary>ロジック単位プロファイラーのトラッカーを取得する</summary>
     /// <returns>操作トラッカー</returns>
     /// <exception cref="CRDebuggerNotInitializedException">未初期化の場合</exception>

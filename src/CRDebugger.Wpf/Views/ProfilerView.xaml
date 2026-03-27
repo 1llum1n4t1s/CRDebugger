@@ -202,9 +202,10 @@
                     </StackPanel>
                 </Border>
 
-                <!-- FPS カード -->
+                <!-- FPS + CPU Usage カード -->
                 <Border Background="{DynamicResource SurfaceBrush}"
                         CornerRadius="8"
+                        Margin="0,0,0,14"
                         Padding="18,14">
                     <StackPanel>
                         <TextBlock Text="Performance"
@@ -213,18 +214,207 @@
                                    Foreground="{DynamicResource PrimaryBrush}"
                                    Margin="0,0,0,10" />
 
-                        <DockPanel Margin="0,4,0,0">
-                            <TextBlock Text="FPS Estimate"
-                                       Foreground="{DynamicResource OnSurfaceMutedBrush}"
-                                       FontSize="12"
-                                       DockPanel.Dock="Left"
-                                       VerticalAlignment="Center" />
-                            <TextBlock Text="{Binding Fps, StringFormat='{}{0:F1}'}"
-                                       Foreground="{DynamicResource OnBackgroundBrush}"
-                                       FontSize="24"
-                                       FontWeight="Bold"
-                                       HorizontalAlignment="Right" />
-                        </DockPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+
+                            <!-- FPS -->
+                            <Border Grid.Column="0"
+                                    Background="{DynamicResource SurfaceAltBrush}"
+                                    CornerRadius="8"
+                                    Padding="14,12"
+                                    Margin="0,0,6,0">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="FPS Estimate"
+                                               Foreground="{DynamicResource OnSurfaceMutedBrush}"
+                                               FontSize="11"
+                                               HorizontalAlignment="Center" />
+                                    <TextBlock Text="{Binding Fps, StringFormat='{}{0:F1}'}"
+                                               Foreground="{DynamicResource OnBackgroundBrush}"
+                                               FontSize="24"
+                                               FontWeight="Bold"
+                                               HorizontalAlignment="Center"
+                                               Margin="0,6,0,0" />
+                                </StackPanel>
+                            </Border>
+
+                            <!-- CPU Usage -->
+                            <Border Grid.Column="1"
+                                    Background="{DynamicResource SurfaceAltBrush}"
+                                    CornerRadius="8"
+                                    Padding="14,12"
+                                    Margin="6,0,0,0">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="CPU Usage"
+                                               Foreground="{DynamicResource OnSurfaceMutedBrush}"
+                                               FontSize="11"
+                                               HorizontalAlignment="Center" />
+                                    <TextBlock Text="{Binding CpuUsageDisplay}"
+                                               Foreground="#FF9800"
+                                               FontSize="24"
+                                               FontWeight="Bold"
+                                               HorizontalAlignment="Center"
+                                               Margin="0,6,0,0" />
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- CPU Hotspots カード -->
+                <Border Background="{DynamicResource SurfaceBrush}"
+                        CornerRadius="8"
+                        Padding="18,14">
+                    <StackPanel>
+                        <TextBlock Text="CPU Hotspots"
+                                   FontSize="14"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource PrimaryBrush}"
+                                   Margin="0,0,0,10" />
+
+                        <!-- ホットスポットリスト -->
+                        <ItemsControl x:Name="HotspotsItemsControl" ItemsSource="{Binding CpuHotspots}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Padding="0,4" BorderThickness="0,1,0,0"
+                                            BorderBrush="{DynamicResource BorderBrush}">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="70" />
+                                                <ColumnDefinition Width="80" />
+                                                <ColumnDefinition Width="100" />
+                                            </Grid.ColumnDefinitions>
+                                            <!-- 操作名とカテゴリ -->
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="{Binding OperationName}"
+                                                           Foreground="{DynamicResource OnBackgroundBrush}"
+                                                           FontSize="12"
+                                                           TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="{Binding Category}"
+                                                           Foreground="{DynamicResource OnSurfaceMutedBrush}"
+                                                           FontSize="10" />
+                                            </StackPanel>
+                                            <!-- 呼出回数 -->
+                                            <TextBlock Grid.Column="1"
+                                                       Text="{Binding InvocationCount}"
+                                                       Foreground="{DynamicResource OnSurfaceBrush}"
+                                                       FontSize="12"
+                                                       TextAlignment="Right"
+                                                       VerticalAlignment="Center" />
+                                            <!-- 合計CPU時間 -->
+                                            <TextBlock Grid.Column="2"
+                                                       Text="{Binding TotalCpuTime}"
+                                                       Foreground="{DynamicResource OnSurfaceBrush}"
+                                                       FontSize="12"
+                                                       TextAlignment="Right"
+                                                       VerticalAlignment="Center" />
+                                            <!-- 割合バー -->
+                                            <Grid Grid.Column="3" VerticalAlignment="Center" Margin="8,0,0,0">
+                                                <Border Background="{DynamicResource SurfaceAltBrush}"
+                                                        CornerRadius="3" Height="6" />
+                                                <Border Background="#FF9800"
+                                                        CornerRadius="3" Height="6"
+                                                        HorizontalAlignment="Left"
+                                                        Width="{Binding CpuPercent}" />
+                                            </Grid>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- プレースホルダー -->
+                        <TextBlock x:Name="HotspotsPlaceholder"
+                                   Text="CRDebugger.Measure() で計測を開始してください"
+                                   Foreground="{DynamicResource OnSurfaceMutedBrush}"
+                                   FontSize="12"
+                                   FontStyle="Italic"
+                                   Margin="0,4" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Memory Hotspots カード -->
+                <Border Background="{DynamicResource SurfaceBrush}"
+                        CornerRadius="8"
+                        Margin="0,14,0,0"
+                        Padding="18,14">
+                    <StackPanel>
+                        <TextBlock Text="Memory Hotspots"
+                                   FontSize="14"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource PrimaryBrush}"
+                                   Margin="0,0,0,10" />
+
+                        <!-- メモリホットスポットリスト -->
+                        <ItemsControl x:Name="MemoryHotspotsItemsControl" ItemsSource="{Binding MemoryHotspots}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Padding="0,4" BorderThickness="0,1,0,0"
+                                            BorderBrush="{DynamicResource BorderBrush}">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="70" />
+                                                <ColumnDefinition Width="80" />
+                                                <ColumnDefinition Width="80" />
+                                                <ColumnDefinition Width="100" />
+                                            </Grid.ColumnDefinitions>
+                                            <!-- 操作名とカテゴリ -->
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="{Binding OperationName}"
+                                                           Foreground="{DynamicResource OnBackgroundBrush}"
+                                                           FontSize="12"
+                                                           TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="{Binding Category}"
+                                                           Foreground="{DynamicResource OnSurfaceMutedBrush}"
+                                                           FontSize="10" />
+                                            </StackPanel>
+                                            <!-- 呼出回数 -->
+                                            <TextBlock Grid.Column="1"
+                                                       Text="{Binding InvocationCount}"
+                                                       Foreground="{DynamicResource OnSurfaceBrush}"
+                                                       FontSize="12"
+                                                       TextAlignment="Right"
+                                                       VerticalAlignment="Center" />
+                                            <!-- 合計メモリ -->
+                                            <TextBlock Grid.Column="2"
+                                                       Text="{Binding TotalMemoryDelta}"
+                                                       Foreground="{DynamicResource OnSurfaceBrush}"
+                                                       FontSize="12"
+                                                       TextAlignment="Right"
+                                                       VerticalAlignment="Center" />
+                                            <!-- 最大メモリ -->
+                                            <TextBlock Grid.Column="3"
+                                                       Text="{Binding MaxMemoryDelta}"
+                                                       Foreground="{DynamicResource OnSurfaceBrush}"
+                                                       FontSize="12"
+                                                       TextAlignment="Right"
+                                                       VerticalAlignment="Center" />
+                                            <!-- 割合バー -->
+                                            <Grid Grid.Column="4" VerticalAlignment="Center" Margin="8,0,0,0">
+                                                <Border Background="{DynamicResource SurfaceAltBrush}"
+                                                        CornerRadius="3" Height="6" />
+                                                <Border Background="#4CAF50"
+                                                        CornerRadius="3" Height="6"
+                                                        HorizontalAlignment="Left"
+                                                        Width="{Binding MemoryPercent}" />
+                                            </Grid>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- メモリホットスポットプレースホルダー -->
+                        <TextBlock x:Name="MemoryHotspotsPlaceholder"
+                                   Text="CRDebugger.Measure() で計測を開始してください"
+                                   Foreground="{DynamicResource OnSurfaceMutedBrush}"
+                                   FontSize="12"
+                                   FontStyle="Italic"
+                                   Margin="0,4" />
                     </StackPanel>
                 </Border>
             </StackPanel>

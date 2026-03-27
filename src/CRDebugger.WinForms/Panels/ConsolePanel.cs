@@ -320,13 +320,7 @@ public sealed class ConsolePanel : Panel
     /// <param name="e">コレクション変更イベント引数。</param>
     private void OnDisplayEntriesChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        if (InvokeRequired)
-        {
-            // フォームが破棄済みの場合の ObjectDisposedException を握りつぶす
-            try { Invoke(RefreshLogList); } catch (ObjectDisposedException) { }
-            return;
-        }
-        RefreshLogList();
+        this.SafeInvoke(RefreshLogList);
     }
 
     /// <summary>
@@ -426,20 +420,8 @@ public sealed class ConsolePanel : Panel
     private void UpdateStackTrace()
     {
         var entry = _viewModel.SelectedEntry;
-        if (InvokeRequired)
-        {
-            try
-            {
-                Invoke(() =>
-                {
-                    // スタックトレースがない場合は空文字を表示
-                    _stackTraceBox.Text = entry?.StackTrace ?? string.Empty;
-                });
-            }
-            catch (ObjectDisposedException) { }
-            return;
-        }
-        _stackTraceBox.Text = entry?.StackTrace ?? string.Empty;
+        // スタックトレースがない場合は空文字を表示
+        this.SafeInvoke(() => _stackTraceBox.Text = entry?.StackTrace ?? string.Empty);
     }
 
     /// <summary>
@@ -448,7 +430,7 @@ public sealed class ConsolePanel : Panel
     /// </summary>
     private void UpdateBadgeText()
     {
-        void Update()
+        this.SafeInvoke(() =>
         {
             // イベント抑制フラグを立ててテキスト変更によるフィルター適用を防ぐ
             _suppressFilterEvents = true;
@@ -457,16 +439,7 @@ public sealed class ConsolePanel : Panel
             _chkWarning.Text = $"WRN ({_viewModel.WarningCount})";
             _chkError.Text = $"ERR ({_viewModel.ErrorCount})";
             _suppressFilterEvents = false;
-        }
-
-        if (InvokeRequired)
-        {
-            try { Invoke(Update); } catch (ObjectDisposedException) { }
-        }
-        else
-        {
-            Update();
-        }
+        });
     }
 
     /// <summary>
@@ -526,11 +499,7 @@ public sealed class ConsolePanel : Panel
 
         // テキスト色（レベル列とメッセージ列はログレベルに対応した色を使用）
         Color textColor;
-        if (e.ColumnIndex == 2) // レベル列は常にレベル色で描画
-        {
-            textColor = GetLevelColor(entry.Level);
-        }
-        else if (e.ColumnIndex == 4) // メッセージ列もレベル色で描画
+        if (e.ColumnIndex == 2 || e.ColumnIndex == 4) // レベル列・メッセージ列はレベル色で描画
         {
             textColor = GetLevelColor(entry.Level);
         }

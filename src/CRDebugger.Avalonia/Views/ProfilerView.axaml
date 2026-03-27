@@ -104,13 +104,181 @@
 
         <!-- FPS -->
         <TextBlock Text="Performance" Classes="category-header"/>
+        <UniformGrid Columns="2" Margin="0,0,0,0">
+          <Border Classes="cr-card" Margin="0,0,8,8">
+            <StackPanel>
+              <TextBlock Text="FPS (estimated)" Classes="metric-label"/>
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <TextBlock Text="{Binding Fps, StringFormat='{}{0:F1}'}" Classes="metric-value" Foreground="#7C8FFF"/>
+                <TextBlock Text="fps" Classes="metric-unit" VerticalAlignment="Bottom" Margin="0,0,0,4"/>
+              </StackPanel>
+            </StackPanel>
+          </Border>
+          <!-- CPU使用率カード -->
+          <Border Classes="cr-card" Margin="8,0,0,8">
+            <StackPanel>
+              <TextBlock Text="CPU Usage" Classes="metric-label"/>
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <TextBlock Text="{Binding CpuUsageDisplay}" Classes="metric-value" Foreground="#FF9800"/>
+              </StackPanel>
+            </StackPanel>
+          </Border>
+        </UniformGrid>
+
+        <!-- CPUホットスポット -->
+        <TextBlock Text="CPU Hotspots" Classes="category-header"/>
         <Border Classes="cr-card">
           <StackPanel>
-            <TextBlock Text="FPS (estimated)" Classes="metric-label"/>
-            <StackPanel Orientation="Horizontal" Spacing="6">
-              <TextBlock Text="{Binding Fps, StringFormat='{}{0:F1}'}" Classes="metric-value" Foreground="#7C8FFF"/>
-              <TextBlock Text="fps" Classes="metric-unit" VerticalAlignment="Bottom" Margin="0,0,0,4"/>
-            </StackPanel>
+            <!-- ホットスポットが無い場合のプレースホルダー -->
+            <TextBlock Text="CRDebugger.Measure() で計測を開始してください"
+                       IsVisible="{Binding !HasHotspots}"
+                       Foreground="{DynamicResource CRTextMutedBrush}"
+                       FontSize="12"
+                       FontStyle="Italic"
+                       Margin="0,4"/>
+
+            <!-- ホットスポットヘッダー行 -->
+            <Grid IsVisible="{Binding HasHotspots}" Margin="0,0,0,6">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="70"/>
+                <ColumnDefinition Width="80"/>
+                <ColumnDefinition Width="100"/>
+              </Grid.ColumnDefinitions>
+              <TextBlock Grid.Column="0" Text="操作名" Classes="metric-label" FontWeight="SemiBold"/>
+              <TextBlock Grid.Column="1" Text="呼出回数" Classes="metric-label" FontWeight="SemiBold" TextAlignment="Right"/>
+              <TextBlock Grid.Column="2" Text="合計CPU" Classes="metric-label" FontWeight="SemiBold" TextAlignment="Right"/>
+              <TextBlock Grid.Column="3" Text="割合" Classes="metric-label" FontWeight="SemiBold" Margin="8,0,0,0"/>
+            </Grid>
+
+            <!-- ホットスポットリスト -->
+            <ItemsControl ItemsSource="{Binding CpuHotspots}" IsVisible="{Binding HasHotspots}">
+              <ItemsControl.DataTemplates>
+                <DataTemplate x:DataType="vm:HotspotItem">
+                  <Border Padding="0,4" BorderThickness="0,1,0,0" BorderBrush="{DynamicResource CRBorderBrush}">
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="70"/>
+                        <ColumnDefinition Width="80"/>
+                        <ColumnDefinition Width="100"/>
+                      </Grid.ColumnDefinitions>
+                      <!-- 操作名とカテゴリ -->
+                      <StackPanel Grid.Column="0">
+                        <TextBlock Text="{Binding OperationName}"
+                                   Foreground="{DynamicResource CRTextPrimaryBrush}"
+                                   FontSize="12" TextTrimming="CharacterEllipsis"/>
+                        <TextBlock Text="{Binding Category}"
+                                   Foreground="{DynamicResource CRTextMutedBrush}"
+                                   FontSize="10"/>
+                      </StackPanel>
+                      <!-- 呼出回数 -->
+                      <TextBlock Grid.Column="1"
+                                 Text="{Binding InvocationCount}"
+                                 Foreground="{DynamicResource CRTextSecondaryBrush}"
+                                 FontSize="12" TextAlignment="Right"
+                                 VerticalAlignment="Center"/>
+                      <!-- 合計CPU時間 -->
+                      <TextBlock Grid.Column="2"
+                                 Text="{Binding TotalCpuTime}"
+                                 Foreground="{DynamicResource CRTextSecondaryBrush}"
+                                 FontSize="12" TextAlignment="Right"
+                                 VerticalAlignment="Center"/>
+                      <!-- 割合バー -->
+                      <Grid Grid.Column="3" VerticalAlignment="Center" Margin="8,0,0,0">
+                        <Border Background="#333333" CornerRadius="3" Height="6"/>
+                        <Border Background="#FF9800" CornerRadius="3" Height="6"
+                                HorizontalAlignment="Left"
+                                Width="{Binding CpuPercent}"/>
+                      </Grid>
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.DataTemplates>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
+
+        <!-- メモリホットスポット -->
+        <TextBlock Text="Memory Hotspots" Classes="category-header" Margin="0,12,0,0"/>
+        <Border Classes="cr-card">
+          <StackPanel>
+            <!-- メモリホットスポットが無い場合のプレースホルダー -->
+            <TextBlock Text="CRDebugger.Measure() で計測を開始してください"
+                       IsVisible="{Binding !HasMemoryHotspots}"
+                       Foreground="{DynamicResource CRTextMutedBrush}"
+                       FontSize="12"
+                       FontStyle="Italic"
+                       Margin="0,4"/>
+
+            <!-- メモリホットスポットヘッダー行 -->
+            <Grid IsVisible="{Binding HasMemoryHotspots}" Margin="0,0,0,6">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="70"/>
+                <ColumnDefinition Width="80"/>
+                <ColumnDefinition Width="80"/>
+                <ColumnDefinition Width="100"/>
+              </Grid.ColumnDefinitions>
+              <TextBlock Grid.Column="0" Text="操作名" Classes="metric-label" FontWeight="SemiBold"/>
+              <TextBlock Grid.Column="1" Text="呼出回数" Classes="metric-label" FontWeight="SemiBold" TextAlignment="Right"/>
+              <TextBlock Grid.Column="2" Text="合計メモリ" Classes="metric-label" FontWeight="SemiBold" TextAlignment="Right"/>
+              <TextBlock Grid.Column="3" Text="最大メモリ" Classes="metric-label" FontWeight="SemiBold" TextAlignment="Right"/>
+              <TextBlock Grid.Column="4" Text="割合" Classes="metric-label" FontWeight="SemiBold" Margin="8,0,0,0"/>
+            </Grid>
+
+            <!-- メモリホットスポットリスト -->
+            <ItemsControl ItemsSource="{Binding MemoryHotspots}" IsVisible="{Binding HasMemoryHotspots}">
+              <ItemsControl.DataTemplates>
+                <DataTemplate x:DataType="vm:MemoryHotspotItem">
+                  <Border Padding="0,4" BorderThickness="0,1,0,0" BorderBrush="{DynamicResource CRBorderBrush}">
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="70"/>
+                        <ColumnDefinition Width="80"/>
+                        <ColumnDefinition Width="80"/>
+                        <ColumnDefinition Width="100"/>
+                      </Grid.ColumnDefinitions>
+                      <!-- 操作名とカテゴリ -->
+                      <StackPanel Grid.Column="0">
+                        <TextBlock Text="{Binding OperationName}"
+                                   Foreground="{DynamicResource CRTextPrimaryBrush}"
+                                   FontSize="12" TextTrimming="CharacterEllipsis"/>
+                        <TextBlock Text="{Binding Category}"
+                                   Foreground="{DynamicResource CRTextMutedBrush}"
+                                   FontSize="10"/>
+                      </StackPanel>
+                      <!-- 呼出回数 -->
+                      <TextBlock Grid.Column="1"
+                                 Text="{Binding InvocationCount}"
+                                 Foreground="{DynamicResource CRTextSecondaryBrush}"
+                                 FontSize="12" TextAlignment="Right"
+                                 VerticalAlignment="Center"/>
+                      <!-- 合計メモリ -->
+                      <TextBlock Grid.Column="2"
+                                 Text="{Binding TotalMemoryDelta}"
+                                 Foreground="{DynamicResource CRTextSecondaryBrush}"
+                                 FontSize="12" TextAlignment="Right"
+                                 VerticalAlignment="Center"/>
+                      <!-- 最大メモリ -->
+                      <TextBlock Grid.Column="3"
+                                 Text="{Binding MaxMemoryDelta}"
+                                 Foreground="{DynamicResource CRTextSecondaryBrush}"
+                                 FontSize="12" TextAlignment="Right"
+                                 VerticalAlignment="Center"/>
+                      <!-- 割合バー -->
+                      <Grid Grid.Column="4" VerticalAlignment="Center" Margin="8,0,0,0">
+                        <Border Background="#333333" CornerRadius="3" Height="6"/>
+                        <Border Background="#4CAF50" CornerRadius="3" Height="6"
+                                HorizontalAlignment="Left"
+                                Width="{Binding MemoryPercent}"/>
+                      </Grid>
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.DataTemplates>
+            </ItemsControl>
           </StackPanel>
         </Border>
       </StackPanel>

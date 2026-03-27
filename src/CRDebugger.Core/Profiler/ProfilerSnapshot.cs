@@ -18,6 +18,7 @@ namespace CRDebugger.Core.Profiler;
 /// <param name="GpuSharedMemoryBytes">CPUと共有されるGPUメモリの使用量（バイト）。取得できない場合は 0</param>
 /// <param name="GpuTemperatureCelsius">GPU温度（℃）。取得できない場合は -1</param>
 /// <param name="GpuDeviceName">GPUデバイス名。取得できない場合は "N/A"</param>
+/// <param name="CpuUsagePercent">プロセスCPU使用率（%）。0〜100の範囲。取得できない場合は 0</param>
 public sealed record ProfilerSnapshot(
     DateTimeOffset Timestamp,
     double FpsEstimate,
@@ -33,5 +34,7 @@ public sealed record ProfilerSnapshot(
     long GpuDedicatedMemoryBytes = 0,
     long GpuSharedMemoryBytes = 0,
     double GpuTemperatureCelsius = -1,
-    string GpuDeviceName = "N/A"
+    string GpuDeviceName = "N/A",
+    // プロセスCPU使用率（0〜100%）
+    double CpuUsagePercent = 0
 );

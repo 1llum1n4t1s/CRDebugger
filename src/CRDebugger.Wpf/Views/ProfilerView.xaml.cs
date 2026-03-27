@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -32,16 +33,63 @@ public partial class ProfilerView : UserControl
     /// <param name="e">旧値と新値を含む DependencyPropertyChangedEventArgs</param>
     private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
-        // 旧 ViewModel のメモリ履歴変更イベントを解除してリークを防ぐ
+        // 旧 ViewModel のイベントを解除してリークを防ぐ
         if (e.OldValue is ProfilerViewModel oldVm)
         {
             oldVm.MemoryHistory.CollectionChanged -= OnMemoryHistoryChanged;
+            oldVm.PropertyChanged -= OnViewModelPropertyChanged;
         }
 
-        // 新 ViewModel のメモリ履歴変更イベントを購読してグラフ更新を有効化
+        // 新 ViewModel のイベントを購読
         if (e.NewValue is ProfilerViewModel vm)
         {
             vm.MemoryHistory.CollectionChanged += OnMemoryHistoryChanged;
+            vm.PropertyChanged += OnViewModelPropertyChanged;
+            // 初期状態のプレースホルダー制御
+            UpdateHotspotsPlaceholder(vm.HasHotspots);
+            UpdateMemoryHotspotsPlaceholder(vm.HasMemoryHotspots);
+        }
+    }
+
+    /// <summary>
+    /// ViewModelのプロパティ変更を監視してホットスポットプレースホルダーの表示を切り替える。
+    /// </summary>
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (sender is ProfilerViewModel vm)
+        {
+            if (e.PropertyName == nameof(ProfilerViewModel.HasHotspots))
+            {
+                Dispatcher.InvokeAsync(() => UpdateHotspotsPlaceholder(vm.HasHotspots));
+            }
+            else if (e.PropertyName == nameof(ProfilerViewModel.HasMemoryHotspots))
+            {
+                Dispatcher.InvokeAsync(() => UpdateMemoryHotspotsPlaceholder(vm.HasMemoryHotspots));
+            }
+        }
+    }
+
+    /// <summary>
+    /// CPUホットスポットプレースホルダーの表示/非表示を切り替える。
+    /// </summary>
+    /// <param name="hasHotspots">ホットスポットが存在する場合 true</param>
+    private void UpdateHotspotsPlaceholder(bool hasHotspots)
+    {
+        if (FindName("HotspotsPlaceholder") is TextBlock placeholder)
+        {
+            placeholder.Visibility = hasHotspots ? Visibility.Collapsed : Visibility.Visible;
+        }
+    }
+
+    /// <summary>
+    /// メモリホットスポットプレースホルダーの表示/非表示を切り替える。
+    /// </summary>
+    /// <param name="hasMemoryHotspots">メモリホットスポットが存在する場合 true</param>
+    private void UpdateMemoryHotspotsPlaceholder(bool hasMemoryHotspots)
+    {
+        if (FindName("MemoryHotspotsPlaceholder") is TextBlock placeholder)
+        {
+            placeholder.Visibility = hasMemoryHotspots ? Visibility.Collapsed : Visibility.Visible;
         }
     }
 

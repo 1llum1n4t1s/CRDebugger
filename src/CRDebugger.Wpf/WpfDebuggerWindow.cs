@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.IO;
 using System.Windows;
 using System.Windows.Media;
@@ -21,6 +22,9 @@ public sealed class WpfDebuggerWindow : IDebuggerWindow
 
     /// <summary>現在バインドされている DebuggerViewModel の参照</summary>
     private DebuggerViewModel? _viewModel;
+
+    /// <summary>テーマ変更監視用の PropertyChanged ハンドラ（重複購読防止用）</summary>
+    private PropertyChangedEventHandler? _themeChangedHandler;
 
     /// <summary>
     /// デバッガーウィンドウが現在画面上に表示されているかどうかを取得する
@@ -49,14 +53,21 @@ public sealed class WpfDebuggerWindow : IDebuggerWindow
         _window.DataContext = viewModel;
         _window.ApplyThemeColors(viewModel.ThemeColors);
 
+        // 旧ハンドラを解除して重複購読によるメモリリークを防ぐ
+        if (_themeChangedHandler != null && _viewModel != null)
+        {
+            _viewModel.PropertyChanged -= _themeChangedHandler;
+        }
+
         // テーマ変更を監視して ViewModel の ThemeColors が変わった際に自動再適用
-        viewModel.PropertyChanged += (_, e) =>
+        _themeChangedHandler = (_, e) =>
         {
             if (e.PropertyName == nameof(DebuggerViewModel.ThemeColors))
             {
                 _window?.ApplyThemeColors(viewModel.ThemeColors);
             }
         };
+        viewModel.PropertyChanged += _themeChangedHandler;
 
         // ウィンドウを表示してフォーカスを当てる
         _window.Show();
@@ -99,8 +110,6 @@ public sealed class WpfDebuggerWindow : IDebuggerWindow
         {
             try
             {
-                // ウィンドウの子孫要素全体の境界を取得（未使用だが将来のクロップ用に取得）
-                var bounds = VisualTreeHelper.GetDescendantBounds(_window);
                 var width = (int)_window.ActualWidth;
                 var height = (int)_window.ActualHeight;
 

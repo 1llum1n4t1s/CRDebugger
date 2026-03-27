@@ -42,6 +42,21 @@ public sealed class ProfilerPanel : Panel
     /// <summary>Gen 2 GC コレクション回数を表示するラベル。</summary>
     private readonly Label _gen2Label;
 
+    /// <summary>CPU使用率を表示するラベル。</summary>
+    private readonly Label _cpuUsageLabel;
+
+    /// <summary>CPUホットスポットを表示するListView。</summary>
+    private readonly ListView _hotspotsListView;
+
+    /// <summary>CPUホットスポットが無い場合のプレースホルダーラベル。</summary>
+    private readonly Label _hotspotsPlaceholder;
+
+    /// <summary>メモリホットスポットを表示するListView。</summary>
+    private readonly ListView _memoryHotspotsListView;
+
+    /// <summary>メモリホットスポットが無い場合のプレースホルダーラベル。</summary>
+    private readonly Label _memoryHotspotsPlaceholder;
+
     /// <summary>手動 GC 収集を実行するボタン。</summary>
     private readonly Button _gcButton;
 
@@ -103,9 +118,9 @@ public sealed class ProfilerPanel : Panel
         var metricsPanel = new TableLayoutPanel
         {
             Dock = DockStyle.Top,
-            Height = 180,
+            Height = 204,
             ColumnCount = 2,
-            RowCount = 7,
+            RowCount = 8,
             Padding = new Padding(20, 12, 20, 12),
             CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
         };
@@ -117,28 +132,115 @@ public sealed class ProfilerPanel : Panel
 
         // 各行の高さを24pxで統一
         var rowHeight = new RowStyle(SizeType.Absolute, 24);
-        for (var i = 0; i < 7; i++)
+        for (var i = 0; i < 8; i++)
             metricsPanel.RowStyles.Add(rowHeight);
 
         // FPS メトリクス行
         AddMetricRow(metricsPanel, 0, "FPS:", out _fpsLabel);
         _fpsLabel.Text = "0.0";
 
+        // CPU使用率行
+        AddMetricRow(metricsPanel, 1, "CPU Usage:", out _cpuUsageLabel);
+        _cpuUsageLabel.Text = "0.0%";
+
         // Working Set メモリ使用量行
-        AddMetricRow(metricsPanel, 1, "Working Set:", out _workingSetLabel);
+        AddMetricRow(metricsPanel, 2, "Working Set:", out _workingSetLabel);
 
         // Private メモリ使用量行
-        AddMetricRow(metricsPanel, 2, "Private Memory:", out _privateMemLabel);
+        AddMetricRow(metricsPanel, 3, "Private Memory:", out _privateMemLabel);
 
         // GC 管理メモリ使用量行
-        AddMetricRow(metricsPanel, 3, "GC Memory:", out _gcMemLabel);
+        AddMetricRow(metricsPanel, 4, "GC Memory:", out _gcMemLabel);
 
         // GC 世代別コレクション回数行（Gen0/1/2）
-        AddMetricRow(metricsPanel, 4, "Gen 0 Collections:", out _gen0Label);
-        AddMetricRow(metricsPanel, 5, "Gen 1 Collections:", out _gen1Label);
-        AddMetricRow(metricsPanel, 6, "Gen 2 Collections:", out _gen2Label);
+        AddMetricRow(metricsPanel, 5, "Gen 0 Collections:", out _gen0Label);
+        AddMetricRow(metricsPanel, 6, "Gen 1 Collections:", out _gen1Label);
+        AddMetricRow(metricsPanel, 7, "Gen 2 Collections:", out _gen2Label);
 
         Controls.Add(metricsPanel);
+
+        // CPUホットスポットのタイトルラベル
+        var hotspotsLabel = new Label
+        {
+            Text = "  CPU Hotspots",
+            Dock = DockStyle.Top,
+            Height = 28,
+            Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+            TextAlign = ContentAlignment.MiddleLeft,
+        };
+        Controls.Add(hotspotsLabel);
+
+        // ホットスポットが無い場合のプレースホルダー
+        _hotspotsPlaceholder = new Label
+        {
+            Text = "  CRDebugger.Measure() で計測を開始してください",
+            Dock = DockStyle.Top,
+            Height = 24,
+            Font = new Font("Segoe UI", 9f, FontStyle.Italic),
+            TextAlign = ContentAlignment.MiddleLeft,
+        };
+        Controls.Add(_hotspotsPlaceholder);
+
+        // CPUホットスポットListView
+        _hotspotsListView = new ListView
+        {
+            Dock = DockStyle.Top,
+            Height = 120,
+            View = System.Windows.Forms.View.Details,
+            FullRowSelect = true,
+            HeaderStyle = ColumnHeaderStyle.Nonclickable,
+            BorderStyle = BorderStyle.None,
+            Font = new Font("Segoe UI", 9f),
+            Visible = false,
+        };
+        _hotspotsListView.Columns.Add("操作名", 150);
+        _hotspotsListView.Columns.Add("カテゴリ", 80);
+        _hotspotsListView.Columns.Add("呼出回数", 70, HorizontalAlignment.Right);
+        _hotspotsListView.Columns.Add("合計CPU", 80, HorizontalAlignment.Right);
+        _hotspotsListView.Columns.Add("割合", 60, HorizontalAlignment.Right);
+        Controls.Add(_hotspotsListView);
+
+        // メモリホットスポットのタイトルラベル
+        var memoryHotspotsLabel = new Label
+        {
+            Text = "  Memory Hotspots",
+            Dock = DockStyle.Top,
+            Height = 28,
+            Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+            TextAlign = ContentAlignment.MiddleLeft,
+        };
+        Controls.Add(memoryHotspotsLabel);
+
+        // メモリホットスポットが無い場合のプレースホルダー
+        _memoryHotspotsPlaceholder = new Label
+        {
+            Text = "  CRDebugger.Measure() で計測を開始してください",
+            Dock = DockStyle.Top,
+            Height = 24,
+            Font = new Font("Segoe UI", 9f, FontStyle.Italic),
+            TextAlign = ContentAlignment.MiddleLeft,
+        };
+        Controls.Add(_memoryHotspotsPlaceholder);
+
+        // メモリホットスポットListView
+        _memoryHotspotsListView = new ListView
+        {
+            Dock = DockStyle.Top,
+            Height = 120,
+            View = System.Windows.Forms.View.Details,
+            FullRowSelect = true,
+            HeaderStyle = ColumnHeaderStyle.Nonclickable,
+            BorderStyle = BorderStyle.None,
+            Font = new Font("Segoe UI", 9f),
+            Visible = false,
+        };
+        _memoryHotspotsListView.Columns.Add("操作名", 150);
+        _memoryHotspotsListView.Columns.Add("カテゴリ", 80);
+        _memoryHotspotsListView.Columns.Add("呼出回数", 70, HorizontalAlignment.Right);
+        _memoryHotspotsListView.Columns.Add("合計メモリ", 80, HorizontalAlignment.Right);
+        _memoryHotspotsListView.Columns.Add("最大メモリ", 80, HorizontalAlignment.Right);
+        _memoryHotspotsListView.Columns.Add("割合", 60, HorizontalAlignment.Right);
+        Controls.Add(_memoryHotspotsListView);
 
         // メモリグラフのタイトルラベル
         var graphLabel = new Label
@@ -196,12 +298,23 @@ public sealed class ProfilerPanel : Panel
 
         // メトリクス値ラベルの色を更新（FPS/メモリ系はプライマリ色、GC系はOnSurface色）
         _fpsLabel.ForeColor = primary;
+        _cpuUsageLabel.ForeColor = Color.FromArgb(255, 152, 0); // #FF9800 オレンジ
         _workingSetLabel.ForeColor = primary;
         _privateMemLabel.ForeColor = primary;
         _gcMemLabel.ForeColor = primary;
         _gen0Label.ForeColor = onSurface;
         _gen1Label.ForeColor = onSurface;
         _gen2Label.ForeColor = onSurface;
+
+        // ホットスポットListViewのテーマ色
+        _hotspotsListView.BackColor = surfaceAlt;
+        _hotspotsListView.ForeColor = onSurface;
+        _hotspotsPlaceholder.ForeColor = OptionControlFactory.ArgbToColor(colors.OnSurfaceMuted);
+
+        // メモリホットスポットListViewのテーマ色
+        _memoryHotspotsListView.BackColor = surfaceAlt;
+        _memoryHotspotsListView.ForeColor = onSurface;
+        _memoryHotspotsPlaceholder.ForeColor = OptionControlFactory.ArgbToColor(colors.OnSurfaceMuted);
 
         // 子コントロール全体にテーマカラーを適用
         foreach (Control c in Controls)
@@ -271,27 +384,22 @@ public sealed class ProfilerPanel : Panel
     /// <param name="e">プロパティ変更イベント引数。</param>
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        void UpdateLabels()
+        this.SafeInvoke(() =>
         {
             // 全メトリクスラベルを最新の ViewModel 値で更新
             _fpsLabel.Text = $"{_viewModel.Fps:F1}";
+            _cpuUsageLabel.Text = _viewModel.CpuUsageDisplay;
             _workingSetLabel.Text = _viewModel.WorkingSet;
             _privateMemLabel.Text = _viewModel.PrivateMemory;
             _gcMemLabel.Text = _viewModel.GcMemory;
             _gen0Label.Text = _viewModel.Gen0;
             _gen1Label.Text = _viewModel.Gen1;
             _gen2Label.Text = _viewModel.Gen2;
-        }
 
-        if (InvokeRequired)
-        {
-            // フォームが破棄済みの場合の ObjectDisposedException を握りつぶす
-            try { Invoke(UpdateLabels); } catch (ObjectDisposedException) { }
-        }
-        else
-        {
-            UpdateLabels();
-        }
+            // ホットスポットの更新
+            UpdateHotspotsListView();
+            UpdateMemoryHotspotsListView();
+        });
     }
 
     /// <summary>
@@ -303,15 +411,8 @@ public sealed class ProfilerPanel : Panel
     /// <param name="e">コレクション変更イベント引数。</param>
     private void OnMemoryHistoryChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        if (InvokeRequired)
-        {
-            // グラフパネルの無効化（再描画リクエスト）をUIスレッドでマーシャリング
-            try { Invoke(() => _graphPanel.Invalidate()); } catch (ObjectDisposedException) { }
-        }
-        else
-        {
-            _graphPanel.Invalidate();
-        }
+        // グラフパネルの無効化（再描画リクエスト）をUIスレッドでマーシャリング
+        this.SafeInvoke(() => _graphPanel.Invalidate());
     }
 
     /// <summary>
@@ -396,6 +497,57 @@ public sealed class ProfilerPanel : Panel
         var latestVal = data[^1];
         g.DrawString($"{latestVal:F1} MB", valFont, valBrush,
             graphRect.Right - 65, graphRect.Y + 6);
+    }
+
+    /// <summary>
+    /// CPUホットスポットListViewを最新の ViewModel データで更新する。
+    /// </summary>
+    private void UpdateHotspotsListView()
+    {
+        var hasHotspots = _viewModel.HasHotspots;
+        _hotspotsListView.Visible = hasHotspots;
+        _hotspotsPlaceholder.Visible = !hasHotspots;
+
+        if (!hasHotspots) return;
+
+        _hotspotsListView.BeginUpdate();
+        _hotspotsListView.Items.Clear();
+        foreach (var item in _viewModel.CpuHotspots)
+        {
+            var lvi = new ListViewItem(item.OperationName);
+            lvi.SubItems.Add(item.Category);
+            lvi.SubItems.Add(item.InvocationCount.ToString());
+            lvi.SubItems.Add(item.TotalCpuTime);
+            lvi.SubItems.Add($"{item.CpuPercent:F1}%");
+            _hotspotsListView.Items.Add(lvi);
+        }
+        _hotspotsListView.EndUpdate();
+    }
+
+    /// <summary>
+    /// メモリホットスポットListViewを最新の ViewModel データで更新する。
+    /// </summary>
+    private void UpdateMemoryHotspotsListView()
+    {
+        var hasMemoryHotspots = _viewModel.HasMemoryHotspots;
+        _memoryHotspotsListView.Visible = hasMemoryHotspots;
+        _memoryHotspotsPlaceholder.Visible = !hasMemoryHotspots;
+
+        if (!hasMemoryHotspots) return;
+
+        _memoryHotspotsListView.BeginUpdate();
+        _memoryHotspotsListView.Items.Clear();
+        foreach (var item in _viewModel.MemoryHotspots)
+        {
+            var lvi = new ListViewItem(item.OperationName);
+            lvi.SubItems.Add(item.Category);
+            lvi.SubItems.Add(item.InvocationCount.ToString());
+            lvi.SubItems.Add(item.TotalMemoryDelta);
+            lvi.SubItems.Add(item.MaxMemoryDelta);
+            lvi.SubItems.Add($"{item.MemoryPercent:F1}%");
+            _memoryHotspotsListView.Items.Add(lvi);
+        }
+        _memoryHotspotsListView.EndUpdate();
     }
 
     /// <summary>
