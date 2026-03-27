@@ -57,6 +57,28 @@ WinForms プロジェクトでは `System.Windows.Forms.Timer` と `System.Threa
 
 Avalonia では `AvaloniaUseCompiledBindingsByDefault=true` のため `x:DataType` の指定が必須。`IsVisible` に `int` を直接バインドすると型不一致エラーになるので `CountToVisibilityConverter` を使うこと。
 
+### Avalonia 色指定の鉄則
+
+**半透明色 `#FFFFFFxx` は絶対に使わない**。FluentTheme の `SystemAccentColor`（ユーザーのOS設定に依存）が背景に流入し、黄色やピンク等の意図しない色になる。必ず不透明色（6桁 `#RRGGBB`）を使用すること。
+
+```
+❌ Background="#FFFFFF06"  ← 半透明（OSアクセントカラーが透ける）
+✅ Background="#252538"    ← 不透明（確実にダークブルー）
+```
+
+同様に `ExtendClientAreaToDecorationsHint="True"` は DWM タイトルバー背景（=SystemAccentColor）をクライアントエリアに流入させるため使用しない。
+
+### Avalonia ControlTheme
+
+FluentTheme の ToggleButton/Button がアクセントカラーを使う問題は、リソース上書きやスタイルセレクタでは解決できない。`ControlTheme` でテンプレートごと差し替えて完全バイパスする（`ConsoleView.axaml` の `FilterToggleTheme`、`DebuggerWindow.axaml` の `SidebarButtonTheme` を参照）。
+
+### Avalonia Win32 統合
+
+`DebuggerWindow.axaml.cs` の `ApplyDarkWindowChrome()` で Win32 DWM API を使用：
+- `DWMWA_BORDER_COLOR` / `DWMWA_CAPTION_COLOR` — ウィンドウ枠線・タイトルバー色を強制指定
+- `DWMWA_USE_IMMERSIVE_DARK_MODE` — ダークモードキャプションボタン
+- `WS_EX_DLGMODALFRAME` + `WM_SETICON` — タイトルバーアイコン非表示
+
 ## Version Rules
 
 - パッチバージョンは **偶数のみ** 使用（1.0.0, 1.0.2, 1.0.4, ...）
