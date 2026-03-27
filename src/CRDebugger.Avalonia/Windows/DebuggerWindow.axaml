@@ -7,64 +7,86 @@
         x:Class="CRDebugger.Avalonia.Windows.DebuggerWindow"
         x:DataType="vm:DebuggerViewModel"
         x:Name="root"
-        Title="CRDEBUGGER"
+        Title=""
         Width="900" Height="600"
         MinWidth="600" MinHeight="400"
         Topmost="False"
         WindowStartupLocation="CenterScreen"
         CanResize="True"
         SystemDecorations="Full"
-        TransparencyLevelHint="AcrylicBlur"
-        Background="Transparent"
-        ExtendClientAreaToDecorationsHint="True"
-        ExtendClientAreaChromeHints="PreferSystemChrome"
-        ExtendClientAreaTitleBarHeightHint="-1">
+        Background="#1E1E2E">
 
   <Window.Resources>
     <conv:TabEqualsConverter x:Key="TabEquals"/>
     <conv:CountToVisibilityConverter x:Key="CountToVis"/>
-  </Window.Resources>
 
-  <Window.Styles>
-    <StyleInclude Source="avares://CRDebugger.Avalonia/Styles/SharedStyles.axaml"/>
-    <!-- ═══════════════════════════════════ -->
-    <!-- サイドバーボタン - モダンスタイル -->
-    <!-- ═══════════════════════════════════ -->
-    <Style Selector="Button.sidebar-btn">
+    <!-- Fluentテーマ ListBoxItem リソース上書き（黄色アクセント完全無効化） -->
+    <SolidColorBrush x:Key="ListBoxItemBackgroundPointerOver">#252538</SolidColorBrush>
+    <SolidColorBrush x:Key="ListBoxItemBackgroundPressed">#2B2B40</SolidColorBrush>
+    <SolidColorBrush x:Key="ListBoxItemBackgroundSelected">#2E2E44</SolidColorBrush>
+    <SolidColorBrush x:Key="ListBoxItemBackgroundSelectedPointerOver">#323248</SolidColorBrush>
+    <SolidColorBrush x:Key="ListBoxItemBackgroundSelectedPressed">#323248</SolidColorBrush>
+    <SolidColorBrush x:Key="ListBoxItemForeground">#C0C0D5</SolidColorBrush>
+    <SolidColorBrush x:Key="ListBoxItemForegroundPointerOver">#C0C0D5</SolidColorBrush>
+    <SolidColorBrush x:Key="ListBoxItemForegroundSelected">#C0C0D5</SolidColorBrush>
+    <SolidColorBrush x:Key="ListBoxItemForegroundSelectedPointerOver">#C0C0D5</SolidColorBrush>
+    <SolidColorBrush x:Key="ListBoxItemForegroundPressed">#C0C0D5</SolidColorBrush>
+
+    <!-- SystemAccentColor 上書き（WindowsアクセントカラーによるUI黄色化防止）Color型で指定必須 -->
+    <Color x:Key="SystemAccentColor">#7C8FFF</Color>
+    <Color x:Key="SystemAccentColorLight1">#9EAAFF</Color>
+    <Color x:Key="SystemAccentColorLight2">#BFCAFF</Color>
+    <Color x:Key="SystemAccentColorLight3">#DFE4FF</Color>
+    <Color x:Key="SystemAccentColorDark1">#5A6FD9</Color>
+    <Color x:Key="SystemAccentColorDark2">#3F52B3</Color>
+    <Color x:Key="SystemAccentColorDark3">#2B3A8C</Color>
+    <SolidColorBrush x:Key="SystemAccentColorBrush">#7C8FFF</SolidColorBrush>
+
+    <!-- サイドバーボタン用 ControlTheme（Fluentテーマ完全バイパス） -->
+    <ControlTheme x:Key="SidebarButtonTheme" TargetType="Button">
       <Setter Property="Background" Value="Transparent"/>
       <Setter Property="Foreground" Value="#9090A5"/>
       <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Padding" Value="0"/>
       <Setter Property="HorizontalAlignment" Value="Stretch"/>
       <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-      <Setter Property="Padding" Value="0"/>
       <Setter Property="CornerRadius" Value="0"/>
       <Setter Property="FontSize" Value="13"/>
       <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="Transitions">
         <Transitions>
+          <BrushTransition Property="Background" Duration="0:0:0.15"/>
           <BrushTransition Property="Foreground" Duration="0:0:0.15"/>
         </Transitions>
       </Setter>
-    </Style>
-    <Style Selector="Button.sidebar-btn /template/ ContentPresenter">
-      <Setter Property="Transitions">
-        <Transitions>
-          <BrushTransition Property="Background" Duration="0:0:0.15"/>
-        </Transitions>
+      <Setter Property="Template">
+        <ControlTemplate TargetType="Button">
+          <Border Background="{TemplateBinding Background}"
+                  Padding="{TemplateBinding Padding}">
+            <ContentPresenter Content="{TemplateBinding Content}"
+                              HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"/>
+          </Border>
+        </ControlTemplate>
       </Setter>
-    </Style>
-    <Style Selector="Button.sidebar-btn:pointerover /template/ ContentPresenter">
-      <Setter Property="Background" Value="#FFFFFF08"/>
-    </Style>
-    <Style Selector="Button.sidebar-btn:pointerover">
-      <Setter Property="Foreground" Value="#C0C0D0"/>
-    </Style>
-    <Style Selector="Button.sidebar-btn.active /template/ ContentPresenter">
-      <Setter Property="Background" Value="#FFFFFF0C"/>
-    </Style>
-    <Style Selector="Button.sidebar-btn.active">
-      <Setter Property="Foreground" Value="#7C8FFF"/>
-    </Style>
+      <Style Selector="^:pointerover">
+        <Setter Property="Background" Value="#28283E"/>
+        <Setter Property="Foreground" Value="#C0C0D0"/>
+      </Style>
+      <Style Selector="^:pressed">
+        <Setter Property="Background" Value="#2E2E46"/>
+      </Style>
+      <Style Selector="^.active">
+        <Setter Property="Background" Value="#2A2A42"/>
+        <Setter Property="Foreground" Value="#7C8FFF"/>
+      </Style>
+      <Style Selector="^.active:pointerover">
+        <Setter Property="Background" Value="#303050"/>
+      </Style>
+    </ControlTheme>
+  </Window.Resources>
+
+  <Window.Styles>
+    <StyleInclude Source="avares://CRDebugger.Avalonia/Styles/SharedStyles.axaml"/>
 
     <!-- アクティブインジケーター（左端の縦バー） -->
     <Style Selector="Button.sidebar-btn Border.active-indicator">
@@ -92,57 +114,47 @@
 
     <!-- コンテンツエリア共通 - 薄いボーダー -->
     <Style Selector="Border.content-area">
-      <Setter Property="Background" Value="#1A1A2E"/>
+      <Setter Property="Background" Value="#1E1E2E"/>
       <Setter Property="CornerRadius" Value="12,0,0,0"/>
     </Style>
   </Window.Styles>
 
-  <!-- ルートパネル（アクリル背景） -->
-  <Panel>
-    <!-- アクリル背景レイヤー -->
-    <ExperimentalAcrylicBorder IsHitTestVisible="False">
-      <ExperimentalAcrylicBorder.Material>
-        <ExperimentalAcrylicMaterial
-          BackgroundSource="Digger"
-          TintColor="#12121C"
-          TintOpacity="0.92"
-          MaterialOpacity="0.4"/>
-      </ExperimentalAcrylicBorder.Material>
-    </ExperimentalAcrylicBorder>
-
+  <!-- ルートパネル（ソリッド背景） -->
+  <Panel Background="#1E1E2E">
     <Grid ColumnDefinitions="170,*">
       <!-- ═══════════════════════════════════ -->
-      <!-- 左サイドバー（アクリル半透明） -->
+      <!-- 左サイドバー（ソリッド背景） -->
       <!-- ═══════════════════════════════════ -->
       <Panel Grid.Column="0">
-        <!-- サイドバーアクリル背景 -->
-        <ExperimentalAcrylicBorder IsHitTestVisible="False">
-          <ExperimentalAcrylicBorder.Material>
-            <ExperimentalAcrylicMaterial
-              BackgroundSource="Digger"
-              TintColor="#0E0E18"
-              TintOpacity="0.88"
-              MaterialOpacity="0.3"/>
-          </ExperimentalAcrylicBorder.Material>
-        </ExperimentalAcrylicBorder>
-
+        <!-- 不透明ソリッド背景レイヤー（アクリル置換） -->
+        <Border Background="#1A1A2E"/>
         <DockPanel>
-          <!-- ブランディングヘッダー -->
-          <Border DockPanel.Dock="Top" Padding="16,14"
-                  BorderBrush="#FFFFFF08" BorderThickness="0,0,0,1">
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4">
-              <TextBlock Text="CR" FontWeight="Bold" FontSize="17" Foreground="#7C8FFF"
-                         LetterSpacing="1"/>
-              <TextBlock Text="DEBUGGER" FontWeight="SemiBold" FontSize="17" Foreground="#606080"
-                         LetterSpacing="1"/>
-            </StackPanel>
+          <!-- ブランディングヘッダー + ピン留めボタン -->
+          <Border DockPanel.Dock="Top" Padding="12,10"
+                  BorderBrush="#28283C" BorderThickness="0,0,0,1">
+            <Grid ColumnDefinitions="*,Auto">
+              <StackPanel Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4">
+                <TextBlock Text="CR" FontWeight="Bold" FontSize="17" Foreground="#7C8FFF"
+                           LetterSpacing="1"/>
+                <TextBlock Text="DEBUGGER" FontWeight="SemiBold" FontSize="17" Foreground="#606080"
+                           LetterSpacing="1"/>
+              </StackPanel>
+              <Button x:Name="PinButton" Grid.Column="1"
+                      Click="OnPinClick"
+                      Background="Transparent" BorderThickness="0"
+                      Padding="4" Cursor="Hand" ToolTip.Tip="常に前面に固定"
+                      Width="28" Height="28">
+                <TextBlock x:Name="PinIcon" Text="📌" FontSize="12" Opacity="0.4"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+              </Button>
+            </Grid>
           </Border>
 
           <!-- タブボタン群 -->
           <ScrollViewer VerticalScrollBarVisibility="Auto">
             <StackPanel Margin="0,8">
               <!-- System タブ -->
-              <Button Classes="sidebar-btn"
+              <Button Theme="{StaticResource SidebarButtonTheme}" Classes="sidebar-btn"
                       Classes.active="{Binding SelectedTab, Converter={StaticResource TabEquals}, ConverterParameter=System}"
                       Click="OnTabClick" Tag="{x:Static core:CRTab.System}">
                 <Grid ColumnDefinitions="3,*">
@@ -155,7 +167,7 @@
               </Button>
 
               <!-- Console タブ -->
-              <Button Classes="sidebar-btn"
+              <Button Theme="{StaticResource SidebarButtonTheme}" Classes="sidebar-btn"
                       Classes.active="{Binding SelectedTab, Converter={StaticResource TabEquals}, ConverterParameter=Console}"
                       Click="OnTabClick" Tag="{x:Static core:CRTab.Console}">
                 <Grid ColumnDefinitions="3,*">
@@ -182,7 +194,7 @@
               </Button>
 
               <!-- Options タブ -->
-              <Button Classes="sidebar-btn"
+              <Button Theme="{StaticResource SidebarButtonTheme}" Classes="sidebar-btn"
                       Classes.active="{Binding SelectedTab, Converter={StaticResource TabEquals}, ConverterParameter=Options}"
                       Click="OnTabClick" Tag="{x:Static core:CRTab.Options}">
                 <Grid ColumnDefinitions="3,*">
@@ -195,7 +207,7 @@
               </Button>
 
               <!-- Profiler タブ -->
-              <Button Classes="sidebar-btn"
+              <Button Theme="{StaticResource SidebarButtonTheme}" Classes="sidebar-btn"
                       Classes.active="{Binding SelectedTab, Converter={StaticResource TabEquals}, ConverterParameter=Profiler}"
                       Click="OnTabClick" Tag="{x:Static core:CRTab.Profiler}">
                 <Grid ColumnDefinitions="3,*">
@@ -208,7 +220,7 @@
               </Button>
 
               <!-- Bug Reporter タブ -->
-              <Button Classes="sidebar-btn"
+              <Button Theme="{StaticResource SidebarButtonTheme}" Classes="sidebar-btn"
                       Classes.active="{Binding SelectedTab, Converter={StaticResource TabEquals}, ConverterParameter=BugReporter}"
                       Click="OnTabClick" Tag="{x:Static core:CRTab.BugReporter}">
                 <Grid ColumnDefinitions="3,*">
@@ -224,7 +236,7 @@
         </DockPanel>
 
         <!-- サイドバー右端の薄いボーダー -->
-        <Border HorizontalAlignment="Right" Width="1" Background="#FFFFFF08"/>
+        <Border HorizontalAlignment="Right" Width="1" Background="#28283C"/>
       </Panel>
 
       <!-- ═══════════════════════════════════ -->
@@ -232,25 +244,6 @@
       <!-- ═══════════════════════════════════ -->
       <Border Grid.Column="1" Classes="content-area">
         <Panel>
-          <!-- ピン + 閉じるボタン（コンテンツエリア右上） -->
-          <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top"
-                      Spacing="2" Margin="0,6,8,0" ZIndex="100">
-            <Button x:Name="PinButton"
-                    Click="OnPinClick"
-                    Background="Transparent" BorderThickness="0"
-                    Padding="4" Cursor="Hand" ToolTip.Tip="常に前面に固定"
-                    Width="30" Height="30">
-              <TextBlock x:Name="PinIcon" Text="📌" FontSize="13" Opacity="0.4"
-                         HorizontalAlignment="Center" VerticalAlignment="Center"/>
-            </Button>
-            <Button Click="OnCloseClick"
-                    Background="Transparent" BorderThickness="0"
-                    Padding="4" Cursor="Hand" ToolTip.Tip="閉じる"
-                    Width="30" Height="30">
-              <TextBlock Text="✕" Foreground="#808095" FontSize="15"
-                         HorizontalAlignment="Center" VerticalAlignment="Center"/>
-            </Button>
-          </StackPanel>
           <views:SystemInfoView DataContext="{Binding SystemInfo}"
                                 IsVisible="{Binding #root.((vm:DebuggerViewModel)DataContext).SelectedTab, Converter={StaticResource TabEquals}, ConverterParameter=System}"/>
           <views:ConsoleView DataContext="{Binding Console}"

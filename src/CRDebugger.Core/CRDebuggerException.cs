@@ -6,7 +6,17 @@ namespace CRDebugger.Core;
 /// </summary>
 public class CRDebuggerException : Exception
 {
+    /// <summary>
+    /// 指定されたメッセージで <see cref="CRDebuggerException"/> を生成する
+    /// </summary>
+    /// <param name="message">エラーメッセージ</param>
     public CRDebuggerException(string message) : base($"[CRDebugger] {message}") { }
+
+    /// <summary>
+    /// 指定されたメッセージと内部例外で <see cref="CRDebuggerException"/> を生成する
+    /// </summary>
+    /// <param name="message">エラーメッセージ</param>
+    /// <param name="innerException">内部例外</param>
     public CRDebuggerException(string message, Exception innerException) : base($"[CRDebugger] {message}", innerException) { }
 }
 
@@ -15,6 +25,9 @@ public class CRDebuggerException : Exception
 /// </summary>
 public sealed class CRDebuggerNotInitializedException : CRDebuggerException
 {
+    /// <summary>
+    /// <see cref="CRDebuggerNotInitializedException"/> のインスタンスを生成する
+    /// </summary>
     public CRDebuggerNotInitializedException()
         : base("CRDebuggerが初期化されていません。CRDebugger.Initialize() を先に呼んでください。") { }
 }
@@ -24,6 +37,9 @@ public sealed class CRDebuggerNotInitializedException : CRDebuggerException
 /// </summary>
 public sealed class CRDebuggerAlreadyInitializedException : CRDebuggerException
 {
+    /// <summary>
+    /// <see cref="CRDebuggerAlreadyInitializedException"/> のインスタンスを生成する
+    /// </summary>
     public CRDebuggerAlreadyInitializedException()
         : base("CRDebuggerは既に初期化されています。再初期化する場合は先にShutdown()を呼んでください。") { }
 }
@@ -33,7 +49,17 @@ public sealed class CRDebuggerAlreadyInitializedException : CRDebuggerException
 /// </summary>
 public sealed class CRDebuggerConfigurationException : CRDebuggerException
 {
+    /// <summary>
+    /// 指定されたメッセージで <see cref="CRDebuggerConfigurationException"/> を生成する
+    /// </summary>
+    /// <param name="message">エラーメッセージ</param>
     public CRDebuggerConfigurationException(string message) : base(message) { }
+
+    /// <summary>
+    /// 指定されたメッセージと内部例外で <see cref="CRDebuggerConfigurationException"/> を生成する
+    /// </summary>
+    /// <param name="message">エラーメッセージ</param>
+    /// <param name="innerException">内部例外</param>
     public CRDebuggerConfigurationException(string message, Exception innerException) : base(message, innerException) { }
 }
 
@@ -43,6 +69,11 @@ public sealed class CRDebuggerConfigurationException : CRDebuggerException
 /// </summary>
 public sealed class CRDebuggerInternalException : CRDebuggerException
 {
+    /// <summary>
+    /// 指定されたメッセージと内部例外で <see cref="CRDebuggerInternalException"/> を生成する
+    /// </summary>
+    /// <param name="message">エラーメッセージ</param>
+    /// <param name="innerException">原因となった内部例外</param>
     public CRDebuggerInternalException(string message, Exception innerException)
         : base($"内部エラー: {message} （これはCRDebuggerのバグの可能性があります。GitHubでIssueを報告してください）", innerException) { }
 }

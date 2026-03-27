@@ -12,16 +12,13 @@
     <conv:TimestampConverter x:Key="Timestamp"/>
     <conv:NotNullOrEmptyConverter x:Key="NotNullOrEmpty"/>
     <conv:InverseBoolConverter x:Key="InverseBool"/>
-  </UserControl.Resources>
 
-  <UserControl.Styles>
-    <StyleInclude Source="avares://CRDebugger.Avalonia/Styles/SharedStyles.axaml"/>
-    <!-- フィルタートグルボタン - モダン -->
-    <Style Selector="ToggleButton.filter-btn">
-      <Setter Property="Background" Value="#FFFFFF06"/>
+    <!-- フィルタートグルボタン用 ControlTheme（Fluentテーマ完全バイパス） -->
+    <ControlTheme x:Key="FilterToggleTheme" TargetType="ToggleButton">
+      <Setter Property="Background" Value="#252538"/>
       <Setter Property="Foreground" Value="#707085"/>
+      <Setter Property="BorderBrush" Value="#2A2A3E"/>
       <Setter Property="BorderThickness" Value="1"/>
-      <Setter Property="BorderBrush" Value="#FFFFFF08"/>
       <Setter Property="Padding" Value="12,5"/>
       <Setter Property="CornerRadius" Value="8"/>
       <Setter Property="FontSize" Value="11"/>
@@ -34,53 +31,83 @@
           <BrushTransition Property="Foreground" Duration="0:0:0.15"/>
         </Transitions>
       </Setter>
+      <Setter Property="Template">
+        <ControlTemplate TargetType="ToggleButton">
+          <Border Background="{TemplateBinding Background}"
+                  BorderBrush="{TemplateBinding BorderBrush}"
+                  BorderThickness="{TemplateBinding BorderThickness}"
+                  CornerRadius="{TemplateBinding CornerRadius}"
+                  Padding="{TemplateBinding Padding}">
+            <ContentPresenter Content="{TemplateBinding Content}"
+                              HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"/>
+          </Border>
+        </ControlTemplate>
+      </Setter>
+      <Style Selector="^:pointerover">
+        <Setter Property="Background" Value="#2C2C42"/>
+      </Style>
+      <Style Selector="^:checked">
+        <Setter Property="Background" Value="#353550"/>
+        <Setter Property="BorderBrush" Value="#3A3A55"/>
+        <Setter Property="Foreground" Value="#E0E0F0"/>
+      </Style>
+      <Style Selector="^:checked:pointerover">
+        <Setter Property="Background" Value="#3C3C58"/>
+      </Style>
+      <Style Selector="^:checked:pressed">
+        <Setter Property="Background" Value="#424260"/>
+      </Style>
+    </ControlTheme>
+  </UserControl.Resources>
+
+  <UserControl.Styles>
+    <StyleInclude Source="avares://CRDebugger.Avalonia/Styles/SharedStyles.axaml"/>
+
+    <!-- TextBox フォーカス時の黄色アクセント無効化 -->
+    <Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
+        <Setter Property="BorderBrush" Value="#7C8FFF"/>
+        <Setter Property="Background" Value="#252538"/>
     </Style>
-    <Style Selector="ToggleButton.filter-btn:pointerover /template/ ContentPresenter">
-      <Setter Property="Background" Value="#FFFFFF0C"/>
-    </Style>
-    <Style Selector="ToggleButton.filter-btn:checked /template/ ContentPresenter">
-      <Setter Property="Background" Value="#FFFFFF10"/>
-      <Setter Property="BorderBrush" Value="#FFFFFF15"/>
-    </Style>
-    <Style Selector="ToggleButton.filter-btn:checked">
-      <Setter Property="Foreground" Value="#E0E0F0"/>
+    <Style Selector="TextBox:pointerover /template/ Border#PART_BorderElement">
+        <Setter Property="BorderBrush" Value="#3A3A54"/>
+        <Setter Property="Background" Value="#252538"/>
     </Style>
   </UserControl.Styles>
 
   <DockPanel>
     <!-- 上部ツールバー -->
-    <Border DockPanel.Dock="Top" Background="#FFFFFF06" Padding="14,10"
-            BorderBrush="#FFFFFF08" BorderThickness="0,0,0,1">
+    <Border DockPanel.Dock="Top" Background="#222236" Padding="14,10"
+            BorderBrush="#2A2A3E" BorderThickness="0,0,0,1">
       <DockPanel>
         <!-- 右側: クリアボタン -->
         <Button DockPanel.Dock="Right" Content="Clear"
                 Command="{Binding ClearCommand}"
-                Background="#FFFFFF08" Foreground="#A0A0B5"
-                BorderThickness="1" BorderBrush="#FFFFFF08"
+                Background="#28283C" Foreground="#A0A0B5"
+                BorderThickness="1" BorderBrush="#28283C"
                 Padding="14,5" CornerRadius="8" FontSize="11"
                 Cursor="Hand" Margin="10,0,0,0"/>
 
         <!-- フィルタートグル群 -->
         <StackPanel Orientation="Horizontal" Spacing="6" DockPanel.Dock="Left">
-          <ToggleButton Classes="filter-btn" IsChecked="{Binding ShowDebug}">
+          <ToggleButton Theme="{StaticResource FilterToggleTheme}" IsChecked="{Binding ShowDebug}">
             <StackPanel Orientation="Horizontal" Spacing="5">
               <TextBlock Text="DBG" Foreground="#6CAEDD" FontWeight="SemiBold"/>
               <TextBlock Text="{Binding DebugCount}" Foreground="#606075" FontSize="10"/>
             </StackPanel>
           </ToggleButton>
-          <ToggleButton Classes="filter-btn" IsChecked="{Binding ShowInfo}">
+          <ToggleButton Theme="{StaticResource FilterToggleTheme}" IsChecked="{Binding ShowInfo}">
             <StackPanel Orientation="Horizontal" Spacing="5">
               <TextBlock Text="INF" Foreground="#B0B0C0" FontWeight="SemiBold"/>
               <TextBlock Text="{Binding InfoCount}" Foreground="#606075" FontSize="10"/>
             </StackPanel>
           </ToggleButton>
-          <ToggleButton Classes="filter-btn" IsChecked="{Binding ShowWarning}">
+          <ToggleButton Theme="{StaticResource FilterToggleTheme}" IsChecked="{Binding ShowWarning}">
             <StackPanel Orientation="Horizontal" Spacing="5">
               <TextBlock Text="WRN" Foreground="#E8C44A" FontWeight="SemiBold"/>
               <TextBlock Text="{Binding WarningCount}" Foreground="#606075" FontSize="10"/>
             </StackPanel>
           </ToggleButton>
-          <ToggleButton Classes="filter-btn" IsChecked="{Binding ShowError}">
+          <ToggleButton Theme="{StaticResource FilterToggleTheme}" IsChecked="{Binding ShowError}">
             <StackPanel Orientation="Horizontal" Spacing="5">
               <TextBlock Text="ERR" Foreground="#E05252" FontWeight="SemiBold"/>
               <TextBlock Text="{Binding ErrorCount}" Foreground="#606075" FontSize="10"/>
@@ -91,8 +118,8 @@
           <TextBox Text="{Binding SearchText}"
                    Watermark="&#x1F50D; Search..."
                    Width="220" FontSize="12"
-                   Background="#FFFFFF06" Foreground="#C0C0D0"
-                   BorderBrush="#FFFFFF0C" BorderThickness="1"
+                   Background="#252538" Foreground="#C0C0D0"
+                   BorderBrush="#2E2E44" BorderThickness="1"
                    CornerRadius="8" Padding="10,5"
                    Margin="12,0,0,0"/>
         </StackPanel>
@@ -100,13 +127,13 @@
     </Border>
 
     <!-- 下部: スタックトレース詳細 -->
-    <Border DockPanel.Dock="Bottom" Background="#FFFFFF04"
-            BorderBrush="#FFFFFF08" BorderThickness="0,1,0,0"
+    <Border DockPanel.Dock="Bottom" Background="#222234"
+            BorderBrush="#28283C" BorderThickness="0,1,0,0"
             Height="150"
             IsVisible="{Binding SelectedEntry, Converter={StaticResource NotNullOrEmpty}}">
       <DockPanel>
-        <Border DockPanel.Dock="Top" Background="#FFFFFF06" Padding="14,7"
-                BorderBrush="#FFFFFF08" BorderThickness="0,0,0,1">
+        <Border DockPanel.Dock="Top" Background="#252538" Padding="14,7"
+                BorderBrush="#28283C" BorderThickness="0,0,0,1">
           <TextBlock Text="Stack Trace" Foreground="#707085" FontSize="11" FontWeight="SemiBold"/>
         </Border>
         <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="10">
@@ -121,36 +148,13 @@
     <!-- ログリスト -->
     <ListBox ItemsSource="{Binding DisplayEntries}"
              SelectedItem="{Binding SelectedEntry}"
-             Background="Transparent"
+             Background="#1E1E2E"
              BorderThickness="0"
              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-      <ListBox.Styles>
-        <Style Selector="ListBoxItem">
-          <Setter Property="Padding" Value="0"/>
-          <Setter Property="Margin" Value="0"/>
-          <Setter Property="MinHeight" Value="0"/>
-          <Setter Property="Background" Value="Transparent"/>
-          <Setter Property="Foreground" Value="#C0C0D5"/>
-        </Style>
-        <Style Selector="ListBoxItem /template/ ContentPresenter">
-          <Setter Property="Background" Value="Transparent"/>
-        </Style>
-        <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
-          <Setter Property="Background" Value="#FFFFFF06"/>
-        </Style>
-        <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
-          <Setter Property="Background" Value="#FFFFFF0C"/>
-        </Style>
-        <Style Selector="ListBoxItem:selected:focus /template/ ContentPresenter">
-          <Setter Property="Background" Value="#FFFFFF0C"/>
-        </Style>
-        <Style Selector="ListBoxItem:selected:pointerover /template/ ContentPresenter">
-          <Setter Property="Background" Value="#FFFFFF10"/>
-        </Style>
-      </ListBox.Styles>
+      <!-- ListBoxItemスタイルはSharedStyles.axamlで定義済み -->
       <ListBox.ItemTemplate>
         <DataTemplate x:DataType="log:LogEntry">
-          <Border Padding="14,6" BorderBrush="#FFFFFF06" BorderThickness="0,0,0,1">
+          <Border Padding="14,6" BorderBrush="#252538" BorderThickness="0,0,0,1">
             <Grid ColumnDefinitions="65,45,*">
               <TextBlock Grid.Column="0"
                          Text="{Binding Timestamp, Converter={StaticResource Timestamp}}"

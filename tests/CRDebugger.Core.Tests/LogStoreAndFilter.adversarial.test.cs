@@ -203,7 +203,7 @@ public sealed class LogStoreAndFilterAdversarialTests
     /// 複数スレッドから同時にAppendしてもクラッシュしないこと
     /// </summary>
     [Fact]
-    public void LogStore_ConcurrentAppend_NoCorruption()
+    public async Task LogStore_ConcurrentAppend_NoCorruption()
     {
         var store = new LogStore(1000);
         const int threadCount = 8;
@@ -217,7 +217,7 @@ public sealed class LogStoreAndFilterAdversarialTests
             }
         })).ToArray();
 
-        Task.WaitAll(tasks);
+        await Task.WhenAll(tasks);
 
         // 循環バッファなので最大1000件、ただし全件追加された（8000件）
         Assert.Equal(1000, store.Count);
@@ -228,7 +228,7 @@ public sealed class LogStoreAndFilterAdversarialTests
     /// AppendとGetAllの同時実行がデッドロックしないこと
     /// </summary>
     [Fact]
-    public void LogStore_ConcurrentAppendAndGetAll_NoDeadlock()
+    public async Task LogStore_ConcurrentAppendAndGetAll_NoDeadlock()
     {
         var store = new LogStore(100);
         var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
@@ -237,13 +237,13 @@ public sealed class LogStoreAndFilterAdversarialTests
         {
             while (!cts.Token.IsCancellationRequested)
                 store.Append(CRLogLevel.Info, "w", "msg");
-        });
+        }, TestContext.Current.CancellationToken);
 
         var reader = Task.Run(() =>
         {
             while (!cts.Token.IsCancellationRequested)
                 _ = store.GetAll();
-        });
+        }, TestContext.Current.CancellationToken);
 
         var clearer = Task.Run(() =>
         {
@@ -252,10 +252,10 @@ public sealed class LogStoreAndFilterAdversarialTests
                 Thread.Sleep(100);
                 store.Clear();
             }
-        });
+        }, TestContext.Current.CancellationToken);
 
-        // 3秒以内にタスクが完了すること（デッドロックしない）
-        Assert.True(Task.WaitAll(new[] { writer, reader, clearer }, TimeSpan.FromSeconds(5)));
+        // 5秒以内にタスクが完了すること（デッドロックしない）
+        await Task.WhenAll(writer, reader, clearer).WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
     }
 
     /// <summary>
@@ -263,7 +263,7 @@ public sealed class LogStoreAndFilterAdversarialTests
     /// ConcurrentにGetFilteredを呼んでもクラッシュしないこと
     /// </summary>
     [Fact]
-    public void LogStore_ConcurrentGetFiltered_NoCrash()
+    public async Task LogStore_ConcurrentGetFiltered_NoCrash()
     {
         var store = new LogStore(500);
         for (int i = 0; i < 500; i++)
@@ -276,7 +276,7 @@ public sealed class LogStoreAndFilterAdversarialTests
             Assert.All(result, entry => Assert.Equal(CRLogLevel.Error, entry.Level));
         })).ToArray();
 
-        Task.WaitAll(tasks);
+        await Task.WhenAll(tasks);
     }
 
     /// <summary>

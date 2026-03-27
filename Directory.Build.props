@@ -1,6 +1,6 @@
 <Project>
   <PropertyGroup>
-    <Version>1.0.14</Version>
+    <Version>1.0.16</Version>
     <Authors>ゆろち</Authors>
     <Copyright>Copyright (C) 2026 ゆろち</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -11,6 +11,8 @@
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageOutputPath>$(MSBuildThisFileDirectory)artifacts</PackageOutputPath>
     <PackageTags>debug;logging;devtools;diagnostics;profiler;srdebugger</PackageTags>
+    <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
+    <ApplicationIcon>$(MSBuildThisFileDirectory)icon\app.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup Condition="'$(IsPackable)' == 'true'">
     <None Include="$(MSBuildThisFileDirectory)icon/icon.png" Pack="true" PackagePath="icon.png" Visible="false" />

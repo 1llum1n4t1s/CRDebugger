@@ -40,14 +40,14 @@ public sealed class CircularBufferAdversarialTests
     public void Capacity1_AddOverwrite_WorksCorrectly()
     {
         var buffer = new CircularBuffer<string>(1);
-        Assert.Equal(0, buffer.Count);
+        Assert.Empty(buffer);
 
         buffer.Add("first");
-        Assert.Equal(1, buffer.Count);
+        Assert.Single(buffer);
         Assert.Equal("first", buffer[0]);
 
         buffer.Add("second");
-        Assert.Equal(1, buffer.Count);
+        Assert.Single(buffer);
         Assert.Equal("second", buffer[0]);
     }
 
@@ -143,11 +143,11 @@ public sealed class CircularBufferAdversarialTests
         for (int i = 0; i < 10; i++) buffer.Add(i);
 
         buffer.Clear();
-        Assert.Equal(0, buffer.Count);
+        Assert.Empty(buffer);
         Assert.Throws<ArgumentOutOfRangeException>(() => buffer[0]);
 
         buffer.Add(999);
-        Assert.Equal(1, buffer.Count);
+        Assert.Single(buffer);
         Assert.Equal(999, buffer[0]);
     }
 
@@ -193,7 +193,7 @@ public sealed class CircularBufferAdversarialTests
     /// （CircularBufferはスレッドセーフではないが、クラッシュ耐性を確認）
     /// </summary>
     [Fact]
-    public void ConcurrentAddAndRead_DoesNotThrowFatalException()
+    public async Task ConcurrentAddAndRead_DoesNotThrowFatalException()
     {
         var buffer = new CircularBuffer<int>(100);
         var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
@@ -206,7 +206,7 @@ public sealed class CircularBufferAdversarialTests
                 try { buffer.Add(i); }
                 catch (Exception ex) { lock (exceptions) exceptions.Add(ex); }
             }
-        });
+        }, TestContext.Current.CancellationToken);
 
         var reader = Task.Run(() =>
         {
@@ -215,9 +215,9 @@ public sealed class CircularBufferAdversarialTests
                 try { _ = buffer.ToList(); }
                 catch (Exception ex) when (ex is not OutOfMemoryException) { /* レース条件による例外は許容 */ }
             }
-        });
+        }, TestContext.Current.CancellationToken);
 
-        Task.WaitAll(writer, reader);
+        await Task.WhenAll(writer, reader);
 
         // 致命的例外（OOM等）が発生していないこと
         Assert.DoesNotContain(exceptions, e => e is OutOfMemoryException || e is StackOverflowException);
@@ -277,11 +277,11 @@ public sealed class CircularBufferAdversarialTests
             Assert.Equal(5, buffer.Count);
 
             buffer.Clear();
-            Assert.Equal(0, buffer.Count);
+            Assert.Empty(buffer);
         }
 
         buffer.Add(42);
-        Assert.Equal(1, buffer.Count);
+        Assert.Single(buffer);
         Assert.Equal(42, buffer[0]);
     }
 
@@ -295,7 +295,7 @@ public sealed class CircularBufferAdversarialTests
         var buffer = new CircularBuffer<int>(5);
         buffer.Clear(); // 空のバッファをクリア
         buffer.Clear(); // 二重クリア
-        Assert.Equal(0, buffer.Count);
+        Assert.Empty(buffer);
     }
 
     /// <summary>

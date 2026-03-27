@@ -40,13 +40,13 @@
       <Setter Property="Background" Value="#8E9FFF"/>
     </Style>
     <Style Selector="Button.send-btn:disabled /template/ ContentPresenter">
-      <Setter Property="Background" Value="#FFFFFF10"/>
+      <Setter Property="Background" Value="#323248"/>
     </Style>
     <!-- テキスト入力 -->
     <Style Selector="TextBox.form-input">
-      <Setter Property="Background" Value="#FFFFFF06"/>
+      <Setter Property="Background" Value="#252538"/>
       <Setter Property="Foreground" Value="#C0C0D5"/>
-      <Setter Property="BorderBrush" Value="#FFFFFF08"/>
+      <Setter Property="BorderBrush" Value="#28283C"/>
       <Setter Property="BorderThickness" Value="1"/>
       <Setter Property="CornerRadius" Value="8"/>
       <Setter Property="Padding" Value="12,9"/>
@@ -109,7 +109,7 @@
                     Margin="0,10,0,0"
                     IsVisible="{Binding IsSending}">
           <ProgressBar IsIndeterminate="True" Width="100" Height="4"
-                       Foreground="#7C8FFF" Background="#FFFFFF08"/>
+                       Foreground="#7C8FFF" Background="#28283C"/>
           <TextBlock Text="送信中..." Foreground="#606075" FontSize="12"/>
         </StackPanel>
       </StackPanel>

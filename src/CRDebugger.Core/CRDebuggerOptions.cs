@@ -8,14 +8,31 @@ namespace CRDebugger.Core;
 /// </summary>
 public sealed class CRDebuggerOptions
 {
+    /// <summary>UIテーマ（デフォルト: System）</summary>
     public CRTheme Theme { get; set; } = CRTheme.System;
+
+    /// <summary>初期表示するタブ（デフォルト: Console）</summary>
     public CRTab DefaultTab { get; set; } = CRTab.Console;
+
+    /// <summary>ログバッファの最大保持件数（デフォルト: 2000）</summary>
     public int MaxLogEntries { get; set; } = 2000;
+
+    /// <summary>System.Diagnostics.Trace/Debug 出力をキャプチャするか（デフォルト: true）</summary>
     public bool CaptureTraceOutput { get; set; } = true;
+
+    /// <summary>未処理例外をキャプチャするか（デフォルト: true）</summary>
     public bool CaptureUnhandledExceptions { get; set; } = true;
+
+    /// <summary>プロファイラーのサンプリング間隔（デフォルト: 500ms）</summary>
     public TimeSpan ProfilerSampleInterval { get; set; } = TimeSpan.FromMilliseconds(500);
+
+    /// <summary>バグレポートの送信先。<c>null</c> の場合はコンソール出力</summary>
     public IBugReportSender? BugReportSender { get; set; }
+
+    /// <summary>ウィンドウの初期幅（ピクセル）</summary>
     public double WindowWidth { get; set; } = 900;
+
+    /// <summary>ウィンドウの初期高さ（ピクセル）</summary>
     public double WindowHeight { get; set; } = 600;
 
     /// <summary>ウィンドウを常に前面に表示するか（デフォルト: false、画面上のピンボタンで切替可能）</summary>

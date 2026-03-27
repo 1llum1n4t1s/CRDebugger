@@ -184,7 +184,7 @@ public sealed class CRDebuggerFacadeAdversarialTests : IDisposable
     /// 複数スレッドから同時にInitializeを呼んでも一つだけ成功すること
     /// </summary>
     [Fact]
-    public void Initialize_ConcurrentCalls_OnlyOneSucceeds()
+    public async Task Initialize_ConcurrentCalls_OnlyOneSucceeds()
     {
         var options = CreateTestOptions();
         int successCount = 0;
@@ -203,7 +203,7 @@ public sealed class CRDebuggerFacadeAdversarialTests : IDisposable
             }
         })).ToArray();
 
-        Task.WaitAll(tasks);
+        await Task.WhenAll(tasks);
 
         Assert.Equal(1, successCount);
         Assert.Equal(9, failCount);
@@ -353,7 +353,7 @@ public sealed class CRTraceListenerAdversarialTests
     /// （_partialMessageフィールドはスレッドセーフではないので破損するかも）
     /// </summary>
     [Fact]
-    public void ConcurrentWriteAndWriteLine_NoCrash()
+    public async Task ConcurrentWriteAndWriteLine_NoCrash()
     {
         var store = new LogStore();
         var listener = new CRTraceListener(store);
@@ -371,7 +371,7 @@ public sealed class CRTraceListenerAdversarialTests
             }
         })).ToArray();
 
-        Task.WaitAll(tasks);
+        await Task.WhenAll(tasks);
 
         // データ破損はあるかもしれないが、致命的クラッシュしないこと
         Assert.True(store.Count > 0);

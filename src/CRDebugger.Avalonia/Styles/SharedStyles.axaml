@@ -5,15 +5,40 @@
   <!-- 共通カラーリソース -->
   <!-- ═══════════════════════════════════ -->
   <Styles.Resources>
-    <SolidColorBrush x:Key="CRSurfaceBrush">#FFFFFF06</SolidColorBrush>
-    <SolidColorBrush x:Key="CRSurfaceHoverBrush">#FFFFFF0A</SolidColorBrush>
-    <SolidColorBrush x:Key="CRBorderBrush">#FFFFFF08</SolidColorBrush>
-    <SolidColorBrush x:Key="CRBorderStrongBrush">#FFFFFF10</SolidColorBrush>
+    <SolidColorBrush x:Key="CRSurfaceBrush">#252538</SolidColorBrush>
+    <SolidColorBrush x:Key="CRSurfaceHoverBrush">#2B2B40</SolidColorBrush>
+    <SolidColorBrush x:Key="CRBorderBrush">#28283C</SolidColorBrush>
+    <SolidColorBrush x:Key="CRBorderStrongBrush">#323248</SolidColorBrush>
     <SolidColorBrush x:Key="CRTextPrimaryBrush">#C0C0D5</SolidColorBrush>
     <SolidColorBrush x:Key="CRTextSecondaryBrush">#9090A5</SolidColorBrush>
     <SolidColorBrush x:Key="CRTextMutedBrush">#606075</SolidColorBrush>
     <SolidColorBrush x:Key="CRAccentBrush">#7C8FFF</SolidColorBrush>
+
   </Styles.Resources>
+
+  <!-- ═══════════════════════════════════ -->
+  <!-- ListBoxItem グローバルリセット（Fluentテーマの黄色アクセント無効化） -->
+  <!-- ═══════════════════════════════════ -->
+  <Style Selector="ListBoxItem">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="MinHeight" Value="0"/>
+  </Style>
+  <Style Selector="ListBoxItem /template/ ContentPresenter">
+    <Setter Property="Background" Value="Transparent"/>
+  </Style>
+  <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="#2A2A3C"/>
+  </Style>
+  <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
+    <Setter Property="Background" Value="#353548"/>
+  </Style>
+  <Style Selector="ListBoxItem:selected:focus /template/ ContentPresenter">
+    <Setter Property="Background" Value="#353548"/>
+  </Style>
+  <Style Selector="ListBoxItem:selected:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="#3A3A50"/>
+  </Style>
 
   <!-- ═══════════════════════════════════ -->
   <!-- ページヘッダー -->
@@ -103,7 +128,7 @@
     </Setter>
   </Style>
   <Style Selector="Button.action-btn:pointerover /template/ ContentPresenter">
-    <Setter Property="Background" Value="#FFFFFF14"/>
+    <Setter Property="Background" Value="#36364E"/>
   </Style>
 
   <!-- ═══════════════════════════════════ -->

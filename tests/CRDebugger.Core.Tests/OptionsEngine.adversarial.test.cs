@@ -196,7 +196,7 @@ public sealed class OptionsEngineAdversarialTests
     /// AddContainerとScanAllの同時実行がデッドロックしないこと
     /// </summary>
     [Fact]
-    public void ConcurrentAddAndScan_NoDeadlock()
+    public async Task ConcurrentAddAndScan_NoDeadlock()
     {
         var engine = new OptionsEngine();
         var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
@@ -208,7 +208,7 @@ public sealed class OptionsEngineAdversarialTests
                 engine.AddContainer(new SimpleContainer());
                 Thread.Sleep(1);
             }
-        });
+        }, TestContext.Current.CancellationToken);
 
         var scanner = Task.Run(() =>
         {
@@ -217,9 +217,9 @@ public sealed class OptionsEngineAdversarialTests
                 _ = engine.ScanAll();
                 Thread.Sleep(1);
             }
-        });
+        }, TestContext.Current.CancellationToken);
 
-        Assert.True(Task.WaitAll(new[] { adder, scanner }, TimeSpan.FromSeconds(5)));
+        await Task.WhenAll(adder, scanner).WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
     }
 
     /// <summary>

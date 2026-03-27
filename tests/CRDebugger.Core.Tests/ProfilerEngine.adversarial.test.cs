@@ -122,7 +122,7 @@ public sealed class ProfilerEngineAdversarialTests : IDisposable
     /// 複数スレッドからRecordFrameを同時に呼んでもクラッシュしないこと
     /// </summary>
     [Fact]
-    public void RecordFrame_ConcurrentCalls_NoCorruption()
+    public async Task RecordFrame_ConcurrentCalls_NoCorruption()
     {
         _engine.Start();
         const int threadCount = 8;
@@ -134,7 +134,7 @@ public sealed class ProfilerEngineAdversarialTests : IDisposable
                 _engine.RecordFrame();
         })).ToArray();
 
-        Task.WaitAll(tasks);
+        await Task.WhenAll(tasks);
         Thread.Sleep(100);
 
         // クラッシュせず完了

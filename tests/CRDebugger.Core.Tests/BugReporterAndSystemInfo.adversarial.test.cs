@@ -32,7 +32,7 @@ public sealed class BugReporterAndSystemInfoAdversarialTests
             .ReturnsAsync(true);
 
         var engine = new BugReportEngine(store, sysInfo, mockSender.Object);
-        var report = await engine.CreateAndSendAsync("", "");
+        var report = await engine.CreateAndSendAsync("", "", cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.NotNull(report);
         Assert.Equal("", report.UserMessage);
@@ -54,7 +54,7 @@ public sealed class BugReporterAndSystemInfoAdversarialTests
 
         var engine = new BugReportEngine(store, sysInfo, mockSender.Object);
         var hugeMsg = new string('X', 1_000_000);
-        var report = await engine.CreateAndSendAsync(hugeMsg, "test@example.com");
+        var report = await engine.CreateAndSendAsync(hugeMsg, "test@example.com", cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(1_000_000, report.UserMessage.Length);
     }
@@ -73,7 +73,7 @@ public sealed class BugReporterAndSystemInfoAdversarialTests
             .ReturnsAsync(true);
 
         var engine = new BugReportEngine(store, sysInfo, mockSender.Object);
-        var report = await engine.CreateAndSendAsync("bug!", "a@b.c");
+        var report = await engine.CreateAndSendAsync("bug!", "a@b.c", cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Null(report.Screenshot);
     }
@@ -93,7 +93,8 @@ public sealed class BugReporterAndSystemInfoAdversarialTests
 
         var engine = new BugReportEngine(store, sysInfo, mockSender.Object);
         var report = await engine.CreateAndSendAsync("bug!", "a@b.c",
-            screenshotCapture: () => Task.FromResult<byte[]?>(null));
+            screenshotCapture: () => Task.FromResult<byte[]?>(null),
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Null(report.Screenshot);
     }
@@ -144,10 +145,11 @@ public sealed class BugReporterAndSystemInfoAdversarialTests
         // 永遠に完了しないスクリーンショット
         var neverComplete = new TaskCompletionSource<byte[]?>();
         var reportTask = engine.CreateAndSendAsync("bug!", "a@b.c",
-            screenshotCapture: () => neverComplete.Task);
+            screenshotCapture: () => neverComplete.Task,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         // 2秒以内に完了しないことを確認（タイムアウトなしのバグ）
-        var completed = await Task.WhenAny(reportTask, Task.Delay(2000));
+        var completed = await Task.WhenAny(reportTask, Task.Delay(2000, TestContext.Current.CancellationToken));
         Assert.NotEqual(reportTask, completed); // レポートタスクは完了していない
 
         // クリーンアップ
@@ -170,7 +172,8 @@ public sealed class BugReporterAndSystemInfoAdversarialTests
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             engine.CreateAndSendAsync("bug!", "a@b.c",
-                screenshotCapture: () => throw new InvalidOperationException("キャプチャ失敗")));
+                screenshotCapture: () => throw new InvalidOperationException("キャプチャ失敗"),
+                cancellationToken: TestContext.Current.CancellationToken));
     }
 
     // ── 🔀 状態遷移 ──
@@ -205,7 +208,7 @@ public sealed class BugReporterAndSystemInfoAdversarialTests
             .ReturnsAsync(true);
 
         engine.SetSender(mockSender.Object);
-        await engine.CreateAndSendAsync("test", "a@b.c");
+        await engine.CreateAndSendAsync("test", "a@b.c", cancellationToken: TestContext.Current.CancellationToken);
 
         mockSender.Verify(s => s.SendAsync(It.IsAny<BugReport>(), It.IsAny<CancellationToken>()), Times.Once);
     }
@@ -374,20 +377,20 @@ public sealed class BugReporterAndSystemInfoAdversarialTests
     /// SetThemeとNotifySystemThemeChangedの同時呼び出しがクラッシュしないこと
     /// </summary>
     [Fact]
-    public void ThemeManager_ConcurrentThemeChanges_NoCrash()
+    public async Task ThemeManager_ConcurrentThemeChanges_NoCrash()
     {
         var manager = new ThemeManager(CRTheme.System);
         manager.ThemeChanged += (_, _) => { /* nop */ };
 
         var tasks = new[]
         {
-            Task.Run(() => { for (int i = 0; i < 1000; i++) manager.SetTheme(CRTheme.Dark); }),
-            Task.Run(() => { for (int i = 0; i < 1000; i++) manager.SetTheme(CRTheme.Light); }),
-            Task.Run(() => { for (int i = 0; i < 1000; i++) manager.NotifySystemThemeChanged(i % 2 == 0); }),
-            Task.Run(() => { for (int i = 0; i < 1000; i++) _ = manager.CurrentColors; })
+            Task.Run(() => { for (int i = 0; i < 1000; i++) manager.SetTheme(CRTheme.Dark); }, TestContext.Current.CancellationToken),
+            Task.Run(() => { for (int i = 0; i < 1000; i++) manager.SetTheme(CRTheme.Light); }, TestContext.Current.CancellationToken),
+            Task.Run(() => { for (int i = 0; i < 1000; i++) manager.NotifySystemThemeChanged(i % 2 == 0); }, TestContext.Current.CancellationToken),
+            Task.Run(() => { for (int i = 0; i < 1000; i++) _ = manager.CurrentColors; }, TestContext.Current.CancellationToken)
         };
 
-        Task.WaitAll(tasks);
+        await Task.WhenAll(tasks);
     }
 
     // ───────────────────────────────────
@@ -406,7 +409,7 @@ public sealed class BugReporterAndSystemInfoAdversarialTests
             Guid.NewGuid(), DateTimeOffset.Now, "msg", "email",
             Array.Empty<SystemInfoEntry>(), Array.Empty<LogEntry>(), null);
 
-        var result = await sender.SendAsync(report);
+        var result = await sender.SendAsync(report, TestContext.Current.CancellationToken);
         Assert.True(result);
     }
 }

@@ -65,8 +65,8 @@
                                            Increment="{Binding Step}"
                                            IsReadOnly="{Binding IsReadOnly}"
                                            IsVisible="{Binding Kind, Converter={StaticResource KindEquals}, ConverterParameter=Integer}"
-                                           Background="#FFFFFF06" Foreground="#C0C0D5"
-                                           BorderBrush="#FFFFFF08" Width="160" FontSize="12"/>
+                                           Background="#252538" Foreground="#C0C0D5"
+                                           BorderBrush="#28283C" Width="160" FontSize="12"/>
 
                             <!-- Float: NumericUpDown (decimal) -->
                             <NumericUpDown Value="{Binding Value}"
@@ -74,24 +74,24 @@
                                            Increment="{Binding Step}"
                                            IsReadOnly="{Binding IsReadOnly}"
                                            IsVisible="{Binding Kind, Converter={StaticResource KindEquals}, ConverterParameter=Float}"
-                                           Background="#FFFFFF06" Foreground="#C0C0D5"
-                                           BorderBrush="#FFFFFF08" Width="160" FontSize="12"
+                                           Background="#252538" Foreground="#C0C0D5"
+                                           BorderBrush="#28283C" Width="160" FontSize="12"
                                            FormatString="F2"/>
 
                             <!-- String: TextBox -->
                             <TextBox Text="{Binding Value}"
                                      IsReadOnly="{Binding IsReadOnly}"
                                      IsVisible="{Binding Kind, Converter={StaticResource KindEquals}, ConverterParameter=String}"
-                                     Background="#FFFFFF06" Foreground="#C0C0D5"
-                                     BorderBrush="#FFFFFF08" MaxWidth="300" FontSize="12"
+                                     Background="#252538" Foreground="#C0C0D5"
+                                     BorderBrush="#28283C" MaxWidth="300" FontSize="12"
                                      CornerRadius="8" Padding="10,6"/>
 
                             <!-- Enum: ComboBox -->
                             <ComboBox ItemsSource="{Binding EnumNames}"
                                       SelectedItem="{Binding Value}"
                                       IsVisible="{Binding Kind, Converter={StaticResource KindEquals}, ConverterParameter=Enum}"
-                                      Background="#FFFFFF06" Foreground="#C0C0D5"
-                                      BorderBrush="#FFFFFF08" MaxWidth="200" FontSize="12"/>
+                                      Background="#252538" Foreground="#C0C0D5"
+                                      BorderBrush="#28283C" MaxWidth="200" FontSize="12"/>
 
                             <!-- ReadOnly: 表示のみ -->
                             <TextBlock Text="{Binding Value}"
