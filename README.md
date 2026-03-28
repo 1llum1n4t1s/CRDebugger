@@ -4,6 +4,9 @@
 
 Unity の [SRDebugger](https://www.stompyrobot.uk/tools/srdebugger/) にインスパイアされた、WinForms / WPF / Avalonia 対応のランタイムデバッグパネルです。
 
+<img width="600" alt="スクリーンショット 2026-03-28 135900" src="https://github.com/user-attachments/assets/1d631852-d6c8-4ae8-a3f3-16425a21d468" />
+
+
 ## Features
 
 - **System** - OS、CPU、メモリ、.NET ランタイム、プロセス情報を一覧表示
