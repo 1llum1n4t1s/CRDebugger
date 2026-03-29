@@ -48,18 +48,15 @@ public sealed class DynamicOptionContainer
     {
         _options.Add(new OptionDescriptor
         {
-            // "Dynamic.{カテゴリ}.{名前}" 形式で一意の ID を生成する
             Id = $"Dynamic.{_category}.{name}",
             DisplayName = name,
             Category = _category,
             SortOrder = sortOrder,
             Kind = OptionKind.Boolean,
             ValueType = typeof(bool),
-            // object? 型との境界でラップして型を合わせる
             Getter = () => getter(),
-            // null の場合は false にフォールバックしてキャストする
+            // null → false にフォールバック（UI が null を送ることがあるため）
             Setter = v => setter((bool)(v ?? false)),
-            // 説明テキスト（null なら UI に表示しない）
             Description = description,
         });
         return this;
@@ -84,20 +81,15 @@ public sealed class DynamicOptionContainer
     {
         _options.Add(new OptionDescriptor
         {
-            // "Dynamic.{カテゴリ}.{名前}" 形式で一意の ID を生成する
             Id = $"Dynamic.{_category}.{name}",
             DisplayName = name,
             Category = _category,
             SortOrder = sortOrder,
             Kind = OptionKind.Integer,
             ValueType = typeof(int),
-            // object? 型との境界でラップして型を合わせる
             Getter = () => getter(),
-            // object? から int へ変換する（Convert.ToInt32 でボックス化された値も安全に変換）
             Setter = v => setter(Convert.ToInt32(v)),
-            // min と max の両方が指定された場合のみ範囲制約を設定する
             Range = min.HasValue && max.HasValue ? new CRRangeAttribute(min.Value, max.Value) { Step = step } : null,
-            // 説明テキスト（null なら UI に表示しない）
             Description = description,
         });
         return this;
@@ -122,20 +114,15 @@ public sealed class DynamicOptionContainer
     {
         _options.Add(new OptionDescriptor
         {
-            // "Dynamic.{カテゴリ}.{名前}" 形式で一意の ID を生成する
             Id = $"Dynamic.{_category}.{name}",
             DisplayName = name,
             Category = _category,
             SortOrder = sortOrder,
             Kind = OptionKind.Float,
             ValueType = typeof(float),
-            // object? 型との境界でラップして型を合わせる
             Getter = () => getter(),
-            // object? から float へ変換する（Convert.ToSingle でボックス化された値も安全に変換）
             Setter = v => setter(Convert.ToSingle(v)),
-            // min と max の両方が指定された場合のみ範囲制約を設定する
             Range = min.HasValue && max.HasValue ? new CRRangeAttribute(min.Value, max.Value) { Step = step } : null,
-            // 説明テキスト（null なら UI に表示しない）
             Description = description,
         });
         return this;
@@ -156,18 +143,14 @@ public sealed class DynamicOptionContainer
     {
         _options.Add(new OptionDescriptor
         {
-            // "Dynamic.{カテゴリ}.{名前}" 形式で一意の ID を生成する
             Id = $"Dynamic.{_category}.{name}",
             DisplayName = name,
             Category = _category,
             SortOrder = sortOrder,
             Kind = OptionKind.String,
             ValueType = typeof(string),
-            // object? 型との境界でラップして型を合わせる
             Getter = () => getter(),
-            // object? を ToString() で文字列に変換する（null はそのまま渡す）
             Setter = v => setter(v?.ToString()),
-            // 説明テキスト（null なら UI に表示しない）
             Description = description,
         });
         return this;
@@ -189,19 +172,14 @@ public sealed class DynamicOptionContainer
     {
         _options.Add(new OptionDescriptor
         {
-            // "Dynamic.{カテゴリ}.{名前}" 形式で一意の ID を生成する
             Id = $"Dynamic.{_category}.{name}",
             DisplayName = name,
             Category = _category,
             SortOrder = sortOrder,
-            // Color Kind はカラースウォッチ＋HEX入力の専用 UI を表示する
             Kind = OptionKind.Color,
             ValueType = typeof(string),
-            // object? 型との境界でラップして型を合わせる
             Getter = () => getter(),
-            // object? を ToString() で文字列に変換する（null はそのまま渡す）
             Setter = v => setter(v?.ToString()),
-            // 説明テキスト（null なら UI に表示しない）
             Description = description,
         });
         return this;
@@ -222,16 +200,12 @@ public sealed class DynamicOptionContainer
     {
         _actions.Add(new ActionDescriptor
         {
-            // "Dynamic.{カテゴリ}.{ラベル}" 形式で一意の ID を生成する
             Id = $"Dynamic.{_category}.{label}",
             Label = label,
             Category = _category,
             SortOrder = sortOrder,
-            // 同期アクションのデリゲート
             Execute = execute,
-            // 同期メソッドを Task.CompletedTask 返却のラッパーで包んで非同期インターフェースに統一する
             ExecuteAsync = () => { execute(); return Task.CompletedTask; },
-            // 説明テキスト（null なら UI に表示しない）
             Description = description,
         });
         return this;
@@ -252,16 +226,12 @@ public sealed class DynamicOptionContainer
     {
         _actions.Add(new ActionDescriptor
         {
-            // "Dynamic.{カテゴリ}.{ラベル}" 形式で一意の ID を生成する
             Id = $"Dynamic.{_category}.{label}",
             Label = label,
             Category = _category,
             SortOrder = sortOrder,
-            // 非同期アクションを同期インターフェースにも提供する（fire-and-forget で呼べるように）
             Execute = () => executeAsync(),
-            // 非同期アクションのデリゲート（ActionItemViewModel が await する）
             ExecuteAsync = executeAsync,
-            // 説明テキスト（null なら UI に表示しない）
             Description = description,
         });
         return this;

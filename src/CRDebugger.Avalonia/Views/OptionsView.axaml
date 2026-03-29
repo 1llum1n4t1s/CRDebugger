@@ -89,7 +89,7 @@
                         <!-- アクション説明テキスト -->
                         <TextBlock Text="{Binding Description}"
                                    Classes="option-description"
-                                   IsVisible="{Binding HasDescription}"
+                                   IsVisible="{Binding Description, Converter={x:Static conv:NotNullOrEmptyConverter.Instance}}"
                                    Margin="16,0,0,0"/>
                       </StackPanel>
                     </DataTemplate>
@@ -109,7 +109,7 @@
                               <TextBlock Text="{Binding DisplayName}" Classes="option-label"/>
                               <TextBlock Text="{Binding Description}"
                                          Classes="option-description"
-                                         IsVisible="{Binding HasDescription}"/>
+                                         IsVisible="{Binding Description, Converter={x:Static conv:NotNullOrEmptyConverter.Instance}}"/>
                             </StackPanel>
 
                             <Panel Grid.Column="1">

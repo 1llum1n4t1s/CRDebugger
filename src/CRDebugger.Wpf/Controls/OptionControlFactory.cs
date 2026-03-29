@@ -354,25 +354,6 @@ public static class OptionControlFactory
     }
 
     /// <summary>
-    /// アクション実行用ボタンを生成する
-    /// </summary>
-    /// <param name="actionItem">ボタンのラベルとコマンドを持つ ActionItemViewModel</param>
-    /// <returns>コマンドにバインドされた Button</returns>
-    private static FrameworkElement CreateActionButton(ActionItemViewModel actionItem)
-    {
-        // アクション名をラベルとし、ExecuteCommand をコマンドとして設定
-        var button = new Button
-        {
-            Content = actionItem.Label,
-            Command = actionItem.ExecuteCommand,
-            Margin = new Thickness(0, 4, 0, 4),
-            Padding = new Thickness(16, 8, 16, 8),
-            HorizontalAlignment = HorizontalAlignment.Stretch
-        };
-        return button;
-    }
-
-    /// <summary>
     /// 項目名表示用の共通ラベルを生成するヘルパーメソッド
     /// </summary>
     /// <param name="text">ラベルに表示するテキスト</param>

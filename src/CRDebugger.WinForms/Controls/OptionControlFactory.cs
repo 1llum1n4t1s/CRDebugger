@@ -333,18 +333,12 @@ public static class OptionControlFactory
     }
 
     /// <summary>
-    /// アクション項目用のボタンコントロールを生成する。
+    /// アクション項目用のボタンコントロールを外部から生成する公開メソッド。
     /// クリック時に <see cref="ActionItemViewModel.ExecuteCommand"/> を実行する。
     /// </summary>
-    /// <param name="action">アクション項目 ViewModel。</param>
-    /// <param name="colors">適用するテーマカラー情報。</param>
-    /// <returns>アクション実行ボタン。</returns>
-    /// <summary>
-    /// アクション項目用のボタンコントロールを外部から生成する公開メソッド。
-    /// </summary>
-    /// <param name="action">アクション項目 ViewModel。</param>
-    /// <param name="colors">適用するテーマカラー情報。</param>
-    /// <returns>アクション実行ボタン。</returns>
+    /// <param name="action">アクション項目 ViewModel</param>
+    /// <param name="colors">適用するテーマカラー情報</param>
+    /// <returns>アクション実行ボタン</returns>
     public static Control CreateAction(ActionItemViewModel action, ThemeColors colors)
         => CreateActionButton(action, colors);
 

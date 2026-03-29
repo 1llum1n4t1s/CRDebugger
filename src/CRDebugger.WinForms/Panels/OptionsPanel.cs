@@ -126,6 +126,9 @@ public sealed class OptionsPanel : Panel
     /// <param name="e">コレクション変更イベント引数。</param>
     private void OnCategoriesChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
+        // Add/Remove の個別通知をスキップし、Reset（Clear後の一括再構築）のみ処理する。
+        // ApplyFilter() が Clear+複数Add を行うため、Reset 以外で再構築すると N+1 回のフル再構築が走る。
+        if (e.Action != System.Collections.Specialized.NotifyCollectionChangedAction.Reset) return;
         this.SafeInvoke(RebuildControls);
     }
 

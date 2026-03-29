@@ -235,33 +235,49 @@ public sealed class NotNullOrEmptyConverter : IValueConverter
 }
 
 /// <summary>
-/// <see cref="OptionKind"/> 列挙値とパラメーターが一致するか bool で返すコンバーター。
-/// オプション種別に応じた UI 要素の表示切り替えに使用する。
+/// 任意の列挙値とパラメーター文字列が一致するか bool で返す汎用コンバーター。
+/// <see cref="OptionKind"/> / <see cref="ActionStatus"/> 等の列挙型で共通利用する。
+/// パラメーター文字列は初回パース結果をキャッシュするため、ホットパスでも低コスト。
+/// </summary>
+public sealed class EnumEqualsConverter : IValueConverter
+{
+    /// <summary>シングルトンインスタンス。XAML から参照する際に使用する</summary>
+    public static EnumEqualsConverter Instance { get; } = new();
+
+    /// <summary>(列挙型, パラメーター文字列) → パース済み列挙値のキャッシュ</summary>
+    private static readonly Dictionary<(Type, string), object?> _parseCache = new();
+
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        if (value == null || parameter is not string name) return false;
+        var enumType = value.GetType();
+
+        // キャッシュから取得、なければパースしてキャッシュに追加
+        var key = (enumType, name);
+        if (!_parseCache.TryGetValue(key, out var parsed))
+        {
+            parsed = Enum.TryParse(enumType, name, out var result) ? result : null;
+            _parseCache[key] = parsed;
+        }
+
+        return parsed != null && value.Equals(parsed);
+    }
+
+    /// <summary>逆変換は非サポート</summary>
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
+/// <summary>
+/// 後方互換エイリアス。既存の XAML リソース参照 (<c>OptionKindEqualsConverter</c>) を維持するために残す。
+/// 内部では <see cref="EnumEqualsConverter"/> と同一のロジックを使用する。
 /// </summary>
 public sealed class OptionKindEqualsConverter : IValueConverter
 {
-    /// <summary>シングルトンインスタンス。XAML から参照する際に使用する</summary>
     public static OptionKindEqualsConverter Instance { get; } = new();
-
-    /// <summary>
-    /// オプション種別がパラメーターと一致するか bool で返す。
-    /// </summary>
-    /// <param name="value">現在の <see cref="OptionKind"/> 値</param>
-    /// <param name="targetType">バインディングのターゲット型</param>
-    /// <param name="parameter">比較対象の OptionKind 名文字列</param>
-    /// <param name="culture">カルチャー情報（未使用）</param>
-    /// <returns>OptionKind が一致すれば true、それ以外は false</returns>
+    private static readonly EnumEqualsConverter _inner = EnumEqualsConverter.Instance;
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
-    {
-        if (value is OptionKind kind && parameter is string kindName)
-        {
-            // パラメーターの文字列を OptionKind 列挙値にパースして比較する
-            return Enum.TryParse<OptionKind>(kindName, out var target) && kind == target;
-        }
-        return false;
-    }
-
-    /// <summary>逆変換は非サポート。呼び出すと例外をスローする</summary>
+        => _inner.Convert(value, targetType, parameter, culture);
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
         => throw new NotSupportedException();
 }
@@ -295,43 +311,48 @@ public sealed class CountToVisibilityConverter : IValueConverter
 }
 
 /// <summary>
-/// <see cref="ActionStatus"/> がパラメーター文字列と一致するか bool で返すコンバーター。
-/// アクションボタンのステータスアイコン表示切���替えに使用する。
+/// 後方互換エイリアス。既存の XAML リソース参照 (<c>ActionStatusEqualsConverter</c>) を維持するために残す。
 /// </summary>
 public sealed class ActionStatusEqualsConverter : IValueConverter
 {
-    /// <summary>���ングルトンインスタンス</summary>
     public static ActionStatusEqualsConverter Instance { get; } = new();
-
+    private static readonly EnumEqualsConverter _inner = EnumEqualsConverter.Instance;
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
-    {
-        if (value is ActionStatus status && parameter is string statusName)
-            return Enum.TryParse<ActionStatus>(statusName, out var target) && status == target;
-        return false;
-    }
-
+        => _inner.Convert(value, targetType, parameter, culture);
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
         => throw new NotSupportedException();
 }
 
 /// <summary>
 /// "#RRGGBB" 形式の文字列を <see cref="SolidColorBrush"/> に変換するコンバーター。
-/// カラーピッカーのプレビュースウォッチ���使用する。
+/// カラーピッカーのプレビュースウォッチに使用する。
+/// 直前の変換結果をキャッシュして同じ色の連続変換でのヒープ割り当てを回避する。
 /// </summary>
 public sealed class HexToColorBrushConverter : IValueConverter
 {
-    /// <summary>シングル���ンインスタンス</summary>
     public static HexToColorBrushConverter Instance { get; } = new();
 
     /// <summary>パース失敗時のフォールバック色（ダークグレー）</summary>
     private static readonly SolidColorBrush FallbackBrush = new(Color.FromRgb(0x33, 0x33, 0x33));
+
+    /// <summary>直前の変換結果キャッシュ（同じ色の連続呼び出しで new SolidColorBrush を避ける）</summary>
+    private Color _cachedColor;
+    private SolidColorBrush? _cachedBrush;
 
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         if (value is string hex && hex.Length >= 4 && hex[0] == '#')
         {
             if (Color.TryParse(hex, out var c))
-                return new SolidColorBrush(c);
+            {
+                // 前回と同じ色ならキャッシュを返す（キー入力中の連続呼び出し最適化）
+                if (_cachedBrush != null && _cachedColor == c)
+                    return _cachedBrush;
+
+                _cachedColor = c;
+                _cachedBrush = new SolidColorBrush(c);
+                return _cachedBrush;
+            }
         }
         return FallbackBrush;
     }

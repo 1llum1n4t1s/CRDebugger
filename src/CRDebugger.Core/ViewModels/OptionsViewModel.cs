@@ -9,39 +9,28 @@ namespace CRDebugger.Core.ViewModels;
 /// <see cref="OptionsEngine"/> が管理する全コンテナをスキャンし、
 /// カテゴリ別にグループ化されたオプション項目を提供する。
 /// 検索フィルタリングとカテゴリ折りたたみ機能を含む。
-/// コンテナの変更イベントを購読し、自動的に再スキャンを行う。
 /// </summary>
 public sealed class OptionsViewModel : ViewModelBase
 {
-    /// <summary>オプションコンテナのスキャンを担うエンジン</summary>
     private readonly OptionsEngine _engine;
 
-    /// <summary>
-    /// カテゴリの展開/折りたたみ状態をリフレッシュ間で保持するための辞書。
-    /// キーはカテゴリ名、値は展開状態（true=展開、false=折りたたみ）。
-    /// <see cref="Refresh"/> 後も前回の展開状態を復元するために使用する。
-    /// </summary>
+    /// <summary>カテゴリの展開/折りたたみ状態をリフレッシュ間で保持する辞書</summary>
     private readonly Dictionary<string, bool> _expandedState = new();
 
-    /// <summary>検索テキストのバッキングフィールド</summary>
     private string _searchText = string.Empty;
 
-    /// <summary>
-    /// 全カテゴリ一覧（フィルタ前の完全なリスト）。
-    /// <see cref="ApplyFilter"/> のソースとして使用し、
-    /// 検索テキストに応じて <see cref="FilteredCategories"/> を再構築する。
-    /// </summary>
+    /// <summary>フィルタ前の完全なカテゴリ一覧（ApplyFilter のソース）</summary>
     private readonly List<OptionCategoryViewModel> _allCategories = new();
 
-    /// <summary>
-    /// フィルタ適用後のカテゴリ一覧。
-    /// UIのリストに直接バインドされる。検索テキストが空の場合は全カテゴリを含む。
-    /// </summary>
+    /// <summary>前回の ApplyFilter で使用したクエリ（同値ガード用）</summary>
+    private string _lastAppliedQuery = string.Empty;
+
+    /// <summary>フィルタ適用後のカテゴリ一覧。UIのリストに直接バインドされる。</summary>
     public ObservableCollection<OptionCategoryViewModel> FilteredCategories { get; } = new();
 
     /// <summary>
     /// 検索テキスト。変更時に自動でフィルタリングを実行する。
-    /// カテゴリ名、オプション表示名、アクションラベル、説明テキストが検索対象となる。
+    /// カテゴリ名・オプション表示名・アクションラベル・説明テキストが検索対象。
     /// </summary>
     public string SearchText
     {
@@ -49,75 +38,64 @@ public sealed class OptionsViewModel : ViewModelBase
         set { SetProperty(ref _searchText, value); ApplyFilter(); }
     }
 
-    /// <summary>
-    /// オプション一覧を手動で再スキャンするコマンド。
-    /// コンテナの登録/解除後にUIを更新したい場合に使用する。
-    /// </summary>
+    /// <summary>オプション一覧を手動で再スキャンするコマンド</summary>
     public ICommand RefreshCommand { get; }
 
-    /// <summary>
-    /// <see cref="OptionsViewModel"/> のインスタンスを生成する。
-    /// </summary>
-    /// <param name="engine">オプションコンテナのスキャンを担うエンジン</param>
     public OptionsViewModel(OptionsEngine engine)
     {
         _engine = engine;
         RefreshCommand = new RelayCommand(Refresh);
-        // コンテナの登録/解除イベントを購読して自動再スキャン
         _engine.ContainersChanged += (_, _) => Refresh();
-        // 初期スキャンを実行してオプション一覧を構築
         Refresh();
     }
 
     /// <summary>
     /// エンジンを通じてコンテナを再スキャンし、カテゴリ一覧を更新する。
-    /// 展開状態は <see cref="_expandedState"/> に保持され、リフレッシュ後も復元される。
+    /// 展開状態は保持される。
     /// </summary>
     public void Refresh()
     {
-        // 現在の展開状態を保存（リフレッシュ後に復元するため）
         foreach (var cat in _allCategories)
             _expandedState[cat.Name] = cat.IsExpanded;
 
-        // 全カテゴリをクリアして再構築
         _allCategories.Clear();
-        var cats = _engine.ScanAll();
-        foreach (var cat in cats)
+        foreach (var cat in _engine.ScanAll())
         {
             var vm = new OptionCategoryViewModel(cat);
-            // 展開状態を復元（初回登録時はデフォルトの展開状態を維持）
             if (_expandedState.TryGetValue(vm.Name, out var expanded))
                 vm.IsExpanded = expanded;
             _allCategories.Add(vm);
         }
 
-        // 検索フィルタを再適用して FilteredCategories を更新
+        // Refresh 後は必ずフィルタを再適用する（同値ガードをリセット）
+        _lastAppliedQuery = "\0";
         ApplyFilter();
     }
 
     /// <summary>
-    /// 検索テキストに基づいてフィルタリングを適用し、<see cref="FilteredCategories"/> を更新する。
-    /// フィルタロジック:
-    /// 1. 検索テキストが空 → 全カテゴリ・全アイテムを表示
-    /// 2. カテゴリ名がヒット → そのカテゴリの全アイテムを表示
-    /// 3. アイテム/アクション名がヒット → ヒットしたアイテムのみ表示
+    /// 検索テキストに基づいてフィルタリングを適用する。
+    /// 同一クエリの連続呼び出しは早期リターンでスキップする。
     /// </summary>
     private void ApplyFilter()
     {
-        FilteredCategories.Clear();
         var query = _searchText.Trim();
+
+        // 同一クエリの連続呼び出しをスキップ（キーストローク最適化）
+        if (query == _lastAppliedQuery) return;
+        _lastAppliedQuery = query;
+
+        FilteredCategories.Clear();
 
         foreach (var cat in _allCategories)
         {
             if (string.IsNullOrEmpty(query))
             {
-                // 検索テキストが空 → フィルタなしで全カテゴリを表示
                 cat.ApplyFilter(null);
                 FilteredCategories.Add(cat);
                 continue;
             }
 
-            // カテゴリ名が検索テキストを含む → カテゴリ丸ごと表示（アイテムはフィルタしない）
+            // カテゴリ名ヒットでカテゴリ丸ごと表示
             if (cat.Name.Contains(query, StringComparison.OrdinalIgnoreCase))
             {
                 cat.ApplyFilter(null);
@@ -125,9 +103,8 @@ public sealed class OptionsViewModel : ViewModelBase
                 continue;
             }
 
-            // カテゴリ名にヒットしない → アイテム/アクション単位でフィルタ
+            // アイテム/アクション単位でフィルタ
             cat.ApplyFilter(query);
-            // 1件でもヒットしたアイテムまたはアクションがあればカテゴリを表示
             if (cat.FilteredItems.Count > 0 || cat.FilteredActions.Count > 0)
                 FilteredCategories.Add(cat);
         }
@@ -136,108 +113,79 @@ public sealed class OptionsViewModel : ViewModelBase
 
 /// <summary>
 /// オプションカテゴリのViewModel。
-/// 同一カテゴリに属するオプション項目とアクション項目をまとめて保持する。
 /// 折りたたみ機能と検索フィルタリング機能を含む。
 /// </summary>
 public sealed class OptionCategoryViewModel : ViewModelBase
 {
-    /// <summary>折りたたみ状態のバッキングフィールド（デフォルト: 展開）</summary>
     private bool _isExpanded = true;
 
     /// <summary>カテゴリ名。UIのグループヘッダーとして表示される。</summary>
     public string Name { get; }
 
-    /// <summary>
-    /// このカテゴリに属するオプション項目の完全一覧。
-    /// 検索フィルタの有無に関わらず全アイテムを保持する（フィルタのソース）。
-    /// </summary>
-    public ObservableCollection<OptionItemViewModel> Items { get; } = new();
+    /// <summary>全オプション項目（フィルタのソース。UI からは参照しない）</summary>
+    private readonly IReadOnlyList<OptionItemViewModel> _allItems;
 
-    /// <summary>
-    /// このカテゴリに属するアクション項目の完全一覧。
-    /// 検索フィルタの有無に関わらず全アクションを保持する（フィルタのソース）。
-    /// </summary>
-    public ObservableCollection<ActionItemViewModel> Actions { get; } = new();
+    /// <summary>全アクション項目（フィルタのソース。UI からは参照しない）</summary>
+    private readonly IReadOnlyList<ActionItemViewModel> _allActions;
 
-    /// <summary>
-    /// フィルタ適用後のオプション項目一覧。
-    /// UIにバインドされ、検索テキストに一致するアイテムのみ含む。
-    /// </summary>
+    /// <summary>フィルタ適用後のオプション項目一覧（UIバインド用）</summary>
     public ObservableCollection<OptionItemViewModel> FilteredItems { get; } = new();
 
-    /// <summary>
-    /// フィルタ適用後のアクション項目一覧。
-    /// UIにバインドされ、検索テキストに一致するアクションのみ含む。
-    /// </summary>
+    /// <summary>フィルタ適用後のアクション項目一覧（UIバインド用）</summary>
     public ObservableCollection<ActionItemViewModel> FilteredActions { get; } = new();
 
-    /// <summary>
-    /// カテゴリの展開/折りたたみ状態。
-    /// <c>true</c> で展開（アイテム表示）、<c>false</c> で折りたたみ（ヘッダーのみ表示）。
-    /// </summary>
+    /// <summary>カテゴリの展開/折りたたみ状態</summary>
     public bool IsExpanded
     {
         get => _isExpanded;
         set => SetProperty(ref _isExpanded, value);
     }
 
-    /// <summary>展開/折りたたみをトグルするコマンド。カテゴリヘッダーのクリックにバインドされる。</summary>
+    /// <summary>展開/折りたたみをトグルするコマンド</summary>
     public ICommand ToggleExpandCommand { get; }
 
-    /// <summary>
-    /// <see cref="OptionCategoryViewModel"/> のインスタンスを生成する。
-    /// </summary>
-    /// <param name="category">元となるオプションカテゴリデータ</param>
     public OptionCategoryViewModel(OptionCategory category)
     {
         Name = category.Name;
-        // ヘッダークリックで IsExpanded を反転するトグルコマンド
         ToggleExpandCommand = new RelayCommand(() => IsExpanded = !IsExpanded);
 
-        // オプション項目を OptionDescriptor → OptionItemViewModel に変換
+        var items = new List<OptionItemViewModel>(category.Options.Count);
         foreach (var opt in category.Options)
-            Items.Add(new OptionItemViewModel(opt));
-        // アクション項目を ActionDescriptor → ActionItemViewModel に変換
-        foreach (var act in category.Actions)
-            Actions.Add(new ActionItemViewModel(act));
+            items.Add(new OptionItemViewModel(opt));
+        _allItems = items;
 
-        // 初期状態ではフィルタなし（全アイテム表示）
+        var actions = new List<ActionItemViewModel>(category.Actions.Count);
+        foreach (var act in category.Actions)
+            actions.Add(new ActionItemViewModel(act));
+        _allActions = actions;
+
         ApplyFilter(null);
     }
 
     /// <summary>
-    /// 検索クエリに基づいてフィルタリングを適用し、
-    /// <see cref="FilteredItems"/> と <see cref="FilteredActions"/> を再構築する。
+    /// 検索クエリに基づいてフィルタリングを適用する。
+    /// null で全アイテム表示。大文字小文字を区別しない部分一致検索。
     /// </summary>
-    /// <param name="query">
-    /// 検索クエリ文字列。<c>null</c> または空文字列の場合は全アイテムを表示する。
-    /// 大文字小文字を区別しない部分一致検索を行う。
-    /// </param>
     public void ApplyFilter(string? query)
     {
-        // 既存のフィルタ結果をクリアして再構築
         FilteredItems.Clear();
         FilteredActions.Clear();
 
         if (string.IsNullOrEmpty(query))
         {
-            // フィルタなし → 全アイテム・全アクションを表示
-            foreach (var item in Items) FilteredItems.Add(item);
-            foreach (var action in Actions) FilteredActions.Add(action);
+            foreach (var item in _allItems) FilteredItems.Add(item);
+            foreach (var action in _allActions) FilteredActions.Add(action);
             return;
         }
 
-        // オプション項目を表示名で部分一致検索
-        foreach (var item in Items)
+        foreach (var item in _allItems)
         {
             if (item.DisplayName.Contains(query, StringComparison.OrdinalIgnoreCase))
                 FilteredItems.Add(item);
         }
 
-        // アクション項目をラベルと説明テキストで部分一致検索
-        foreach (var action in Actions)
+        foreach (var action in _allActions)
         {
-            // ラベルまたは説明テキストのいずれかにヒットすれば表示する
             if (action.Label.Contains(query, StringComparison.OrdinalIgnoreCase) ||
                 (action.Description?.Contains(query, StringComparison.OrdinalIgnoreCase) ?? false))
                 FilteredActions.Add(action);
@@ -248,56 +196,24 @@ public sealed class OptionCategoryViewModel : ViewModelBase
 /// <summary>
 /// 個別オプション項目のViewModel。
 /// <see cref="OptionDescriptor"/> をラップし、値の取得・設定・型変換を担う。
-/// Boolean / Integer / Float / String / Enum / Color / ReadOnly の各 Kind に対応する。
 /// </summary>
 public class OptionItemViewModel : ViewModelBase
 {
-    /// <summary>オプションのメタデータ（表示名・種類・バリデーション情報等）を保持する記述子</summary>
     private readonly OptionDescriptor _descriptor;
 
-    /// <summary>UI上の表示名。<see cref="OptionDescriptor.DisplayName"/> から取得する。</summary>
     public string DisplayName => _descriptor.DisplayName;
-
-    /// <summary>
-    /// オプションの種類（bool / int / float / enum / string / Color / ReadOnly）。
-    /// UI側でこの値に応じて表示コントロールを切り替える。
-    /// </summary>
     public OptionKind Kind => _descriptor.Kind;
-
-    /// <summary>
-    /// 読み取り専用かどうか。<c>true</c> の場合はUIの入力コントロールを無効化する。
-    /// セッターが <c>null</c> のプロパティは自動的に読み取り専用になる。
-    /// </summary>
     public bool IsReadOnly => _descriptor.IsReadOnly;
-
-    /// <summary>数値型オプションの最小値。範囲制約がない場合は <c>null</c>。</summary>
     public double? Min => _descriptor.Range?.Min;
-
-    /// <summary>数値型オプションの最大値。範囲制約がない場合は <c>null</c>。</summary>
     public double? Max => _descriptor.Range?.Max;
-
-    /// <summary>スライダーのステップ値（1目盛りの増減量）。範囲制約がない場合は <c>null</c>。</summary>
     public double? Step => _descriptor.Range?.Step;
-
-    /// <summary>enum型オプションの選択肢名一覧（ドロップダウン用）。enum以外の型では <c>null</c>。</summary>
     public string[]? EnumNames => _descriptor.EnumNames;
 
-    /// <summary>
-    /// オプションの説明テキスト。<see cref="Options.Attributes.CRDescriptionAttribute"/> から取得。
-    /// <c>null</c> の場合は UI に説明を表示しない。
-    /// </summary>
+    /// <summary>説明テキスト（null なら UI 非表示。NotNullOrEmptyConverter で判定する）</summary>
     public string? Description => _descriptor.Description;
 
     /// <summary>
-    /// 説明テキストが存在するかどうか。
-    /// Avalonia の IsVisible バインディングで使用する（compiled binding で null チェックを避けるため）。
-    /// </summary>
-    public bool HasDescription => _descriptor.Description != null;
-
-    /// <summary>
-    /// オプションの現在値。
-    /// getter は <see cref="OptionDescriptor.Getter"/> を呼び出して実際の値を取得し、
-    /// setter は型変換後に <see cref="OptionDescriptor.Setter"/> 経由で書き戻す。
+    /// オプションの現在値。setter は型変換後に書き戻す。
     /// </summary>
     public object? Value
     {
@@ -306,79 +222,52 @@ public class OptionItemViewModel : ViewModelBase
         {
             if (_descriptor.Setter != null)
             {
-                // 入力値をターゲット型に変換してからセッターで書き込む
                 _descriptor.Setter(ConvertValue(value));
-                // 変更をUIへ通知（PropertyChanged を発火）
                 OnPropertyChanged();
             }
         }
     }
 
-    /// <summary>
-    /// <see cref="OptionItemViewModel"/> のインスタンスを生成する。
-    /// </summary>
-    /// <param name="descriptor">オプションのメタデータを保持する記述子</param>
     public OptionItemViewModel(OptionDescriptor descriptor)
     {
         _descriptor = descriptor;
     }
 
     /// <summary>
-    /// UI入力値をオプションのターゲット型に変換するヘルパー。
-    /// enum型かつ文字列入力の場合は <see cref="Enum.Parse(Type, string)"/> を使用し、
-    /// それ以外は <see cref="Convert.ChangeType(object, Type)"/> でキャストする。
+    /// UI入力値をターゲット型に変換する。
+    /// enum は文字列からパース、その他は Convert.ChangeType でキャスト。
     /// </summary>
-    /// <param name="value">変換前の値（UI入力値）</param>
-    /// <returns>ターゲット型に変換された値</returns>
     private object? ConvertValue(object? value)
     {
-        // null は変換せずそのまま返す
         if (value == null) return null;
         var targetType = _descriptor.ValueType;
 
-        // enum型かつ文字列入力の場合は名前から列挙値にパース（ComboBox の SelectedItem が string のため）
+        // ComboBox の SelectedItem が string のため enum 名からパースが必要
         if (targetType.IsEnum && value is string s)
             return Enum.Parse(targetType, s);
 
-        // その他は汎用型変換を使用（NumericUpDown の decimal → int 等）
         return Convert.ChangeType(value, targetType);
     }
 }
 
 /// <summary>
 /// ボタンアクション項目のViewModel。
-/// <see cref="ActionDescriptor"/> をラップし、非同期実行のステータス管理を担う。
-/// 実行中はスピナー表示、完了後に成功(✓)/失敗(×)のフィードバックアイコンを 2 秒間表示する。
+/// 非同期実行のステータス管理（スピナー・成功/失敗フィードバック）を含む。
 /// <see cref="OptionItemViewModel"/> とは独立したクラス（継承関係なし）。
 /// </summary>
 public sealed class ActionItemViewModel : ViewModelBase
 {
-    /// <summary>アクションの記述子。ラベル・実行デリゲート・説明テキストを保持する。</summary>
     private readonly ActionDescriptor _action;
-
-    /// <summary>現在の実行状態のバッキングフィールド</summary>
     private ActionStatus _status = ActionStatus.Idle;
 
-    /// <summary>UIのボタン上に表示されるラベルテキスト</summary>
     public string Label => _action.Label;
 
-    /// <summary>
-    /// アクションの説明テキスト。<see cref="Options.Attributes.CRDescriptionAttribute"/> から取得。
-    /// <c>null</c> の場合は UI に説明を表示しない。
-    /// </summary>
+    /// <summary>説明テキスト（null なら UI 非表示。NotNullOrEmptyConverter で判定する）</summary>
     public string? Description => _action.Description;
 
     /// <summary>
-    /// 説明テキストが存在するかどうか。
-    /// Avalonia の IsVisible バインディングで使用する。
-    /// </summary>
-    public bool HasDescription => _action.Description != null;
-
-    /// <summary>
-    /// 現在の実行状態。
-    /// <see cref="ActionStatus.Idle"/> → <see cref="ActionStatus.Running"/> →
-    /// <see cref="ActionStatus.Success"/> or <see cref="ActionStatus.Failed"/> →
-    /// 2秒後に <see cref="ActionStatus.Idle"/> に戻る。
+    /// 現在の実行状態。変更時に IsRunning も連動通知する。
+    /// Idle → Running → Success/Failed → 2秒後 Idle。
     /// </summary>
     public ActionStatus Status
     {
@@ -386,62 +275,42 @@ public sealed class ActionItemViewModel : ViewModelBase
         private set
         {
             if (SetProperty(ref _status, value))
-            {
-                // IsRunning も連動して変更通知を発火（ボタンの IsEnabled バインディング用）
                 OnPropertyChanged(nameof(IsRunning));
-            }
         }
     }
 
-    /// <summary>
-    /// アクションが実行中かどうか。
-    /// <c>true</c> の場合はボタンを無効化してスピナーを表示する。
-    /// </summary>
+    /// <summary>実行中かどうか（ボタン無効化とスピナー表示に使用）</summary>
     public bool IsRunning => Status == ActionStatus.Running;
 
-    /// <summary>ボタン押下時に実行するコマンド。<see cref="OnExecute"/> をラップする。</summary>
     public ICommand ExecuteCommand { get; }
 
-    /// <summary>
-    /// <see cref="ActionItemViewModel"/> のインスタンスを生成する。
-    /// </summary>
-    /// <param name="action">アクション記述子（ラベル・実行デリゲート・説明テキストを含む）</param>
     public ActionItemViewModel(ActionDescriptor action)
     {
         _action = action;
-        // RelayCommand で非同期実行メソッドをラップ（async void パターン）
         ExecuteCommand = new RelayCommand(OnExecute);
     }
 
     /// <summary>
-    /// アクションを非同期で実行し、ステータスを管理する。
-    /// ICommand.Execute は void を返すため async void を使用するが、
-    /// try/catch で例外を確実に捕捉するため安全に動作する。
+    /// アクションを非同期実行し、ステータスを管理する。
+    /// async void は ICommand.Execute が void を返すため使用。
+    /// try/catch で例外を確実に捕捉するため安全。
     /// </summary>
     private async void OnExecute()
     {
-        // 実行中は再実行を防止（連打対策）
         if (Status == ActionStatus.Running) return;
 
-        // ステータスを Running に変更 → UI がスピナーを表示しボタンを無効化
         Status = ActionStatus.Running;
         try
         {
-            // ActionDescriptor.ExecuteAsync を await する
-            // （同期メソッドの場合は Task.CompletedTask が即座に返る）
             await _action.ExecuteAsync();
-            // 正常完了 → 成功アイコン（緑✓）を表示
             Status = ActionStatus.Success;
         }
         catch
         {
-            // 例外発生 → 失敗アイコン（赤×）を表示
             Status = ActionStatus.Failed;
         }
 
-        // 2秒間フィードバックアイコンを表示した後、通常状態に戻す
         await Task.Delay(2000);
-        // 2秒待機中に新たな実行が始まっていなければ Idle に戻す
         if (Status != ActionStatus.Running)
             Status = ActionStatus.Idle;
     }
