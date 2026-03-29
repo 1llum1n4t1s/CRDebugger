@@ -2,12 +2,15 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:CRDebugger.Core.ViewModels"
              xmlns:conv="using:CRDebugger.Avalonia.Converters"
+             xmlns:opt="using:CRDebugger.Core.Options"
              x:Class="CRDebugger.Avalonia.Views.OptionsView"
              x:DataType="vm:OptionsViewModel">
 
   <UserControl.Resources>
     <conv:OptionKindEqualsConverter x:Key="KindEquals"/>
     <conv:CountToVisibilityConverter x:Key="CountToVis"/>
+    <conv:ActionStatusEqualsConverter x:Key="StatusEquals"/>
+    <conv:HexToColorBrushConverter x:Key="HexToColor"/>
   </UserControl.Resources>
 
   <UserControl.Styles>
@@ -18,93 +21,166 @@
     <!-- ヘッダー -->
     <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
       <TextBlock Text="Options" Classes="header" DockPanel.Dock="Left"/>
-      <Button Content="Refresh" Command="{Binding RefreshCommand}"
-              Classes="refresh-btn"
-              HorizontalAlignment="Right"/>
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+        <!-- 検索ボックス -->
+        <TextBox Text="{Binding SearchText}"
+                 Watermark="Search..."
+                 Classes="search-box"
+                 Width="180"/>
+        <Button Content="Refresh" Command="{Binding RefreshCommand}"
+                Classes="refresh-btn"/>
+      </StackPanel>
     </DockPanel>
 
     <!-- オプションカテゴリリスト -->
     <ScrollViewer VerticalScrollBarVisibility="Auto">
-      <ItemsControl ItemsSource="{Binding Categories}">
+      <ItemsControl ItemsSource="{Binding FilteredCategories}">
         <ItemsControl.ItemTemplate>
           <DataTemplate x:DataType="vm:OptionCategoryViewModel">
             <StackPanel Margin="0,0,0,8">
-              <TextBlock Text="{Binding Name}" Classes="category-header"/>
-              <!-- アクションボタン群 -->
-              <ItemsControl ItemsSource="{Binding Actions}" Margin="0,0,0,4">
-                <ItemsControl.ItemTemplate>
-                  <DataTemplate x:DataType="vm:ActionItemViewModel">
-                    <Button Content="{Binding Label}"
-                            Command="{Binding ExecuteCommand}"
-                            Classes="action-btn"/>
-                  </DataTemplate>
-                </ItemsControl.ItemTemplate>
-              </ItemsControl>
+              <!-- クリック可能なカテゴリヘッダー（折りたたみトグル） -->
+              <Button Command="{Binding ToggleExpandCommand}" Classes="category-toggle-btn">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <!-- 展開矢印（▼） -->
+                  <Path Data="M0,0 L6,5 L12,0" Stroke="#7C8FFF" StrokeThickness="2"
+                        VerticalAlignment="Center"
+                        IsVisible="{Binding IsExpanded}"/>
+                  <!-- 折りたたみ矢印（▶） -->
+                  <Path Data="M0,0 L5,6 L0,12" Stroke="#7C8FFF" StrokeThickness="2"
+                        VerticalAlignment="Center"
+                        IsVisible="{Binding !IsExpanded}"/>
+                  <TextBlock Text="{Binding Name}" Classes="category-header" Margin="0"/>
+                </StackPanel>
+              </Button>
 
-              <!-- オプション（Items が空なら非表示） -->
-              <Border Classes="cr-card"
-                      IsVisible="{Binding Items.Count, Converter={StaticResource CountToVis}}">
-                <ItemsControl ItemsSource="{Binding Items}">
+              <!-- 折りたたみ対象コンテンツ -->
+              <StackPanel IsVisible="{Binding IsExpanded}">
+                <!-- アクションボタン群 -->
+                <ItemsControl ItemsSource="{Binding FilteredActions}" Margin="0,0,0,4">
                   <ItemsControl.ItemTemplate>
-                    <DataTemplate x:DataType="vm:OptionItemViewModel">
-                      <Panel>
-                        <!-- オプション表示 (Action以外のKindのみ表示) -->
-                        <Grid ColumnDefinitions="200,*" Margin="0,6" MinHeight="28">
-                          <TextBlock Grid.Column="0" Text="{Binding DisplayName}" Classes="option-label"/>
-
-                          <Panel Grid.Column="1">
-                            <!-- Boolean: ToggleSwitch -->
-                            <ToggleSwitch IsChecked="{Binding Value}"
-                                          IsEnabled="{Binding IsReadOnly, Converter={x:Static conv:InverseBoolConverter.Instance}}"
-                                          IsVisible="{Binding Kind, Converter={StaticResource KindEquals}, ConverterParameter=Boolean}"
-                                          OnContent="ON" OffContent="OFF"/>
-
-                            <!-- Integer: NumericUpDown -->
-                            <NumericUpDown Value="{Binding Value}"
-                                           Minimum="{Binding Min}" Maximum="{Binding Max}"
-                                           Increment="{Binding Step}"
-                                           IsReadOnly="{Binding IsReadOnly}"
-                                           IsVisible="{Binding Kind, Converter={StaticResource KindEquals}, ConverterParameter=Integer}"
-                                           Background="#252538" Foreground="#C0C0D5"
-                                           BorderBrush="#28283C" Width="160" FontSize="12"/>
-
-                            <!-- Float: NumericUpDown (decimal) -->
-                            <NumericUpDown Value="{Binding Value}"
-                                           Minimum="{Binding Min}" Maximum="{Binding Max}"
-                                           Increment="{Binding Step}"
-                                           IsReadOnly="{Binding IsReadOnly}"
-                                           IsVisible="{Binding Kind, Converter={StaticResource KindEquals}, ConverterParameter=Float}"
-                                           Background="#252538" Foreground="#C0C0D5"
-                                           BorderBrush="#28283C" Width="160" FontSize="12"
-                                           FormatString="F2"/>
-
-                            <!-- String: TextBox -->
-                            <TextBox Text="{Binding Value}"
-                                     IsReadOnly="{Binding IsReadOnly}"
-                                     IsVisible="{Binding Kind, Converter={StaticResource KindEquals}, ConverterParameter=String}"
-                                     Background="#252538" Foreground="#C0C0D5"
-                                     BorderBrush="#28283C" MaxWidth="300" FontSize="12"
-                                     CornerRadius="8" Padding="10,6"/>
-
-                            <!-- Enum: ComboBox -->
-                            <ComboBox ItemsSource="{Binding EnumNames}"
-                                      SelectedItem="{Binding Value}"
-                                      IsVisible="{Binding Kind, Converter={StaticResource KindEquals}, ConverterParameter=Enum}"
-                                      Background="#252538" Foreground="#C0C0D5"
-                                      BorderBrush="#28283C" MaxWidth="200" FontSize="12"/>
-
-                            <!-- ReadOnly: 表示のみ -->
-                            <TextBlock Text="{Binding Value}"
-                                       IsVisible="{Binding Kind, Converter={StaticResource KindEquals}, ConverterParameter=ReadOnly}"
-                                       Foreground="#606075" FontSize="12"
-                                       VerticalAlignment="Center"/>
-                          </Panel>
-                        </Grid>
-                      </Panel>
+                    <DataTemplate x:DataType="vm:ActionItemViewModel">
+                      <StackPanel Margin="0,2">
+                        <Button Command="{Binding ExecuteCommand}"
+                                Classes="action-btn"
+                                IsEnabled="{Binding IsRunning, Converter={x:Static conv:InverseBoolConverter.Instance}}">
+                          <StackPanel Orientation="Horizontal" Spacing="8">
+                            <!-- スピナー（Running 時のみ表示） -->
+                            <Border Width="14" Height="14"
+                                    IsVisible="{Binding Status, Converter={StaticResource StatusEquals}, ConverterParameter=Running}">
+                              <Border Width="14" Height="14" BorderThickness="2"
+                                      BorderBrush="#7C8FFF" CornerRadius="7"
+                                      ClipToBounds="True">
+                                <Border.RenderTransform>
+                                  <RotateTransform/>
+                                </Border.RenderTransform>
+                              </Border>
+                            </Border>
+                            <!-- 成功アイコン（✓） -->
+                            <Path Data="M1,7 L5,11 L13,3" Stroke="#4CAF50" StrokeThickness="2"
+                                  Width="14" Height="14"
+                                  IsVisible="{Binding Status, Converter={StaticResource StatusEquals}, ConverterParameter=Success}"/>
+                            <!-- 失敗アイコン（×） -->
+                            <Path Data="M2,2 L12,12 M12,2 L2,12" Stroke="#E05252" StrokeThickness="2"
+                                  Width="14" Height="14"
+                                  IsVisible="{Binding Status, Converter={StaticResource StatusEquals}, ConverterParameter=Failed}"/>
+                            <TextBlock Text="{Binding Label}" VerticalAlignment="Center"/>
+                          </StackPanel>
+                        </Button>
+                        <!-- アクション説明テキスト -->
+                        <TextBlock Text="{Binding Description}"
+                                   Classes="option-description"
+                                   IsVisible="{Binding HasDescription}"
+                                   Margin="16,0,0,0"/>
+                      </StackPanel>
                     </DataTemplate>
                   </ItemsControl.ItemTemplate>
                 </ItemsControl>
-              </Border>
+
+                <!-- オプション（FilteredItems が空なら非表示） -->
+                <Border Classes="cr-card"
+                        IsVisible="{Binding FilteredItems.Count, Converter={StaticResource CountToVis}}">
+                  <ItemsControl ItemsSource="{Binding FilteredItems}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="vm:OptionItemViewModel">
+                        <Panel>
+                          <Grid ColumnDefinitions="200,*" Margin="0,6" MinHeight="28">
+                            <!-- ラベル + 説明テキスト -->
+                            <StackPanel Grid.Column="0" Spacing="1">
+                              <TextBlock Text="{Binding DisplayName}" Classes="option-label"/>
+                              <TextBlock Text="{Binding Description}"
+                                         Classes="option-description"
+                                         IsVisible="{Binding HasDescription}"/>
+                            </StackPanel>
+
+                            <Panel Grid.Column="1">
+                              <!-- Boolean: ToggleSwitch -->
+                              <ToggleSwitch IsChecked="{Binding Value}"
+                                            IsEnabled="{Binding IsReadOnly, Converter={x:Static conv:InverseBoolConverter.Instance}}"
+                                            IsVisible="{Binding Kind, Converter={StaticResource KindEquals}, ConverterParameter=Boolean}"
+                                            OnContent="ON" OffContent="OFF"/>
+
+                              <!-- Integer: NumericUpDown -->
+                              <NumericUpDown Value="{Binding Value}"
+                                             Minimum="{Binding Min}" Maximum="{Binding Max}"
+                                             Increment="{Binding Step}"
+                                             IsReadOnly="{Binding IsReadOnly}"
+                                             IsVisible="{Binding Kind, Converter={StaticResource KindEquals}, ConverterParameter=Integer}"
+                                             Background="#252538" Foreground="#C0C0D5"
+                                             BorderBrush="#28283C" Width="160" FontSize="12"/>
+
+                              <!-- Float: NumericUpDown (decimal) -->
+                              <NumericUpDown Value="{Binding Value}"
+                                             Minimum="{Binding Min}" Maximum="{Binding Max}"
+                                             Increment="{Binding Step}"
+                                             IsReadOnly="{Binding IsReadOnly}"
+                                             IsVisible="{Binding Kind, Converter={StaticResource KindEquals}, ConverterParameter=Float}"
+                                             Background="#252538" Foreground="#C0C0D5"
+                                             BorderBrush="#28283C" Width="160" FontSize="12"
+                                             FormatString="F2"/>
+
+                              <!-- String: TextBox -->
+                              <TextBox Text="{Binding Value}"
+                                       IsReadOnly="{Binding IsReadOnly}"
+                                       IsVisible="{Binding Kind, Converter={StaticResource KindEquals}, ConverterParameter=String}"
+                                       Background="#252538" Foreground="#C0C0D5"
+                                       BorderBrush="#28283C" MaxWidth="300" FontSize="12"
+                                       CornerRadius="8" Padding="10,6"/>
+
+                              <!-- Enum: ComboBox -->
+                              <ComboBox ItemsSource="{Binding EnumNames}"
+                                        SelectedItem="{Binding Value}"
+                                        IsVisible="{Binding Kind, Converter={StaticResource KindEquals}, ConverterParameter=Enum}"
+                                        Background="#252538" Foreground="#C0C0D5"
+                                        BorderBrush="#28283C" MaxWidth="200" FontSize="12"/>
+
+                              <!-- Color: スウォッチ + HEXテキスト入力 -->
+                              <StackPanel Orientation="Horizontal" Spacing="8"
+                                          IsVisible="{Binding Kind, Converter={StaticResource KindEquals}, ConverterParameter=Color}">
+                                <!-- カラープレビュー四角形 -->
+                                <Border Width="24" Height="24" CornerRadius="4"
+                                        BorderBrush="#28283C" BorderThickness="1"
+                                        Background="{Binding Value, Converter={StaticResource HexToColor}}"/>
+                                <!-- HEX テキスト入力 -->
+                                <TextBox Text="{Binding Value}"
+                                         Background="#252538" Foreground="#C0C0D5"
+                                         BorderBrush="#28283C" Width="90" FontSize="12"
+                                         CornerRadius="8" Padding="10,6"
+                                         MaxLength="7"/>
+                              </StackPanel>
+
+                              <!-- ReadOnly: 表示のみ -->
+                              <TextBlock Text="{Binding Value}"
+                                         IsVisible="{Binding Kind, Converter={StaticResource KindEquals}, ConverterParameter=ReadOnly}"
+                                         Foreground="#606075" FontSize="12"
+                                         VerticalAlignment="Center"/>
+                            </Panel>
+                          </Grid>
+                        </Panel>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </Border>
+              </StackPanel>
             </StackPanel>
           </DataTemplate>
         </ItemsControl.ItemTemplate>

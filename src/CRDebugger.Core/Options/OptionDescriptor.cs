@@ -20,7 +20,9 @@ public enum OptionKind
     /// <summary>ドロップダウン選択リスト（enum 型用）</summary>
     Enum,
     /// <summary>読み取り専用の値表示（セッターなし、またはサポート外の型用）</summary>
-    ReadOnly
+    ReadOnly,
+    /// <summary>カラーピッカー（#RRGGBB 形式の string 型用）</summary>
+    Color
 }
 
 /// <summary>
@@ -71,6 +73,12 @@ public sealed class OptionDescriptor
     /// enum 型以外では <c>null</c>。
     /// </summary>
     public string[]? EnumNames { get; init; }
+
+    /// <summary>
+    /// オプションの説明テキスト。<see cref="CRDescriptionAttribute"/> から取得。
+    /// <c>null</c> の場合は UI に説明を表示しない。
+    /// </summary>
+    public string? Description { get; init; }
 }
 
 /// <summary>
@@ -91,8 +99,20 @@ public sealed class ActionDescriptor
     /// <summary>カテゴリ内の表示順（昇順、デフォルトは 0）</summary>
     public int SortOrder { get; init; }
 
-    /// <summary>ボタン押下時に実行するデリゲート</summary>
+    /// <summary>ボタン押下時に実行するデリゲート（同期）</summary>
     public Action Execute { get; init; } = () => { };
+
+    /// <summary>
+    /// ボタン押下時に実行する非同期デリゲート。
+    /// 同期メソッドの場合は Task.CompletedTask を返すラッパーが設定される。
+    /// </summary>
+    public Func<Task> ExecuteAsync { get; init; } = () => Task.CompletedTask;
+
+    /// <summary>
+    /// アクションの説明テキスト。<see cref="CRDescriptionAttribute"/> から取得。
+    /// <c>null</c> の場合は UI に説明を表示しない。
+    /// </summary>
+    public string? Description { get; init; }
 }
 
 /// <summary>

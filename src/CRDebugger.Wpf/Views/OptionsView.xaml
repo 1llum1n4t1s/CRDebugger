@@ -20,7 +20,7 @@
 
         <!-- オプションカテゴリ一覧 -->
         <ScrollViewer VerticalScrollBarVisibility="Auto">
-            <ItemsControl ItemsSource="{Binding Categories}">
+            <ItemsControl ItemsSource="{Binding FilteredCategories}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate DataType="{x:Type vm:OptionCategoryViewModel}">
                         <Border Background="{DynamicResource SurfaceBrush}"
@@ -37,7 +37,7 @@
 
                                 <!-- オプション項目（動的コントロール） -->
                                 <ItemsControl x:Name="OptionItems"
-                                              ItemsSource="{Binding Items}"
+                                              ItemsSource="{Binding FilteredItems}"
                                               Loaded="OnOptionItemsLoaded">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>

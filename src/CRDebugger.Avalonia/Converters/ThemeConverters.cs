@@ -295,7 +295,53 @@ public sealed class CountToVisibilityConverter : IValueConverter
 }
 
 /// <summary>
-/// 値が <see cref="ActionItemViewModel"/> のインスタンスかどうかを bool で返すコンバーター。
+/// <see cref="ActionStatus"/> がパラメーター文字列と一致するか bool で返すコンバーター。
+/// アクションボタンのステータスアイコン表示切���替えに使用する。
+/// </summary>
+public sealed class ActionStatusEqualsConverter : IValueConverter
+{
+    /// <summary>���ングルトンインスタンス</summary>
+    public static ActionStatusEqualsConverter Instance { get; } = new();
+
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        if (value is ActionStatus status && parameter is string statusName)
+            return Enum.TryParse<ActionStatus>(statusName, out var target) && status == target;
+        return false;
+    }
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
+/// <summary>
+/// "#RRGGBB" 形式の文字列を <see cref="SolidColorBrush"/> に変換するコンバーター。
+/// カラーピッカーのプレビュースウォッチ���使用する。
+/// </summary>
+public sealed class HexToColorBrushConverter : IValueConverter
+{
+    /// <summary>シングル���ンインスタンス</summary>
+    public static HexToColorBrushConverter Instance { get; } = new();
+
+    /// <summary>パース失敗時のフォールバック色（ダークグレー）</summary>
+    private static readonly SolidColorBrush FallbackBrush = new(Color.FromRgb(0x33, 0x33, 0x33));
+
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        if (value is string hex && hex.Length >= 4 && hex[0] == '#')
+        {
+            if (Color.TryParse(hex, out var c))
+                return new SolidColorBrush(c);
+        }
+        return FallbackBrush;
+    }
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
+/// <summary>
+/// 値が <see cref="ActionItemViewModel"/> のイン��タンスかどう���を bool で返��コンバーター。
 /// アクションアイテムの DataTemplate 切り替えに使用する。
 /// </summary>
 public sealed class IsActionItemConverter : IValueConverter

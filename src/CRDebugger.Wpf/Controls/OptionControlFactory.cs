@@ -21,12 +21,6 @@ public static class OptionControlFactory
     /// <returns>Kind に対応した WPF FrameworkElement</returns>
     public static FrameworkElement CreateControl(OptionItemViewModel item)
     {
-        // ActionItemViewModel の場合はボタンを生成（Kind によるスイッチより優先）
-        if (item is ActionItemViewModel actionItem)
-        {
-            return CreateActionButton(actionItem);
-        }
-
         // Kind に応じたコントロール生成メソッドへ振り分け
         return item.Kind switch
         {

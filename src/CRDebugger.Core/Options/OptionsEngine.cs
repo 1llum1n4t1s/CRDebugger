@@ -135,14 +135,25 @@ public sealed class OptionsEngine
             // CRSortOrderAttribute がなければソート順は 0（先頭）とする
             var sortOrder = prop.GetCustomAttribute<CRSortOrderAttribute>()?.Order ?? 0;
 
+            // CRDescriptionAttribute から説明テキストを取得する
+            var description = prop.GetCustomAttribute<CRDescriptionAttribute>()?.Description;
+
             // 数値範囲制約アトリビュートを取得する（スライダーの min/max/step に使用）
             var range = prop.GetCustomAttribute<CRRangeAttribute>();
+
+            // CRColorAttribute が付いた string プロパティは Color ピッカーとして扱う
+            var isColor = prop.GetCustomAttribute<CRColorAttribute>() != null;
 
             // Expression ツリーを使ってコンパイル済みのゲッターを生成する（ボクシングを最小化）
             var getter = CreateGetter(container, prop);
 
             // 書き込み可能なプロパティのみセッターを生成し、読み取り専用は null にする
             var setter = prop.CanWrite ? CreateSetter(container, prop) : null;
+
+            // CRColorAttribute + string + 書き込み可能 → Color Kind、それ以外は型から判定
+            var kind = isColor && prop.PropertyType == typeof(string) && setter != null
+                ? OptionKind.Color
+                : ResolveKind(prop.PropertyType, setter == null);
 
             results.Add(new OptionDescriptor
             {
@@ -151,14 +162,14 @@ public sealed class OptionsEngine
                 DisplayName = displayName,
                 Category = category,
                 SortOrder = sortOrder,
-                // セッターが null かどうかでも ReadOnly 判定を行う
-                Kind = ResolveKind(prop.PropertyType, setter == null),
+                Kind = kind,
                 ValueType = prop.PropertyType,
                 Getter = getter,
                 Setter = setter,
                 Range = range,
                 // enum 型の場合は選択肢の名前一覧を取得する（ドロップダウン用）
-                EnumNames = prop.PropertyType.IsEnum ? Enum.GetNames(prop.PropertyType) : null
+                EnumNames = prop.PropertyType.IsEnum ? Enum.GetNames(prop.PropertyType) : null,
+                Description = description,
             });
         }
     }
@@ -186,8 +197,9 @@ public sealed class OptionsEngine
             // 引数ありのメソッドは実行できないためスキップする
             if (method.GetParameters().Length > 0) continue;
 
-            // 戻り値がある（void 以外の）メソッドはスキップする
-            if (method.ReturnType != typeof(void)) continue;
+            // void または Task 戻り値のメソッドのみボタン化する
+            var isAsync = method.ReturnType == typeof(Task);
+            if (method.ReturnType != typeof(void) && !isAsync) continue;
 
             // ラベルの優先順位：CRActionAttribute.Label → CRDisplayNameAttribute.Name → キャメルケース変換したメソッド名
             var label = actionAttr.Label
@@ -200,9 +212,29 @@ public sealed class OptionsEngine
             // CRSortOrderAttribute がなければソート順は 0（先頭）とする
             var sortOrder = method.GetCustomAttribute<CRSortOrderAttribute>()?.Order ?? 0;
 
+            // CRDescriptionAttribute から説明テキストを取得する
+            var description = method.GetCustomAttribute<CRDescriptionAttribute>()?.Description;
+
             // ラムダキャプチャ用にローカル変数へコピーしてクロージャの参照ずれを防ぐ
             var target = container;
             var m = method;
+
+            // 同期/非同期に応じた ExecuteAsync デリゲートを生成する
+            Func<Task> executeAsync;
+            Action execute;
+            if (isAsync)
+            {
+                // Task 戻り値のメソッドはそのまま Task にキャストして返す
+                executeAsync = () => (Task)m.Invoke(target, null)!;
+                execute = () => executeAsync();
+            }
+            else
+            {
+                // void メソッドは Task.CompletedTask を返すラッパーで包む
+                execute = () => m.Invoke(target, null);
+                executeAsync = () => { execute(); return Task.CompletedTask; };
+            }
+
             results.Add(new ActionDescriptor
             {
                 // 型の完全名とメソッド名を組み合わせて一意の ID を生成する
@@ -210,8 +242,9 @@ public sealed class OptionsEngine
                 Label = label,
                 Category = category,
                 SortOrder = sortOrder,
-                // ボタン押下時にリフレクション経由でメソッドを呼び出す
-                Execute = () => m.Invoke(target, null)
+                Execute = execute,
+                ExecuteAsync = executeAsync,
+                Description = description,
             });
         }
     }

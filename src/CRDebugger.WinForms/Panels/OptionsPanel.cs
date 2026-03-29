@@ -87,7 +87,7 @@ public sealed class OptionsPanel : Panel
         Controls.Add(_scrollPanel);
 
         // ViewModelのカテゴリコレクション変更を監視してコントロールを再構築
-        _viewModel.Categories.CollectionChanged += OnCategoriesChanged;
+        _viewModel.FilteredCategories.CollectionChanged += OnCategoriesChanged;
         RebuildControls();
         ApplyTheme(colors);
     }
@@ -147,19 +147,31 @@ public sealed class OptionsPanel : Panel
 
             // カテゴリごとにグループを構築
             // Dock.Top は後から追加したものが上になるため、逆順で追加して正しい表示順を実現
-            var categories = _viewModel.Categories.ToList();
+            var categories = _viewModel.FilteredCategories.ToList();
             categories.Reverse();
 
             foreach (var category in categories)
             {
                 // オプションコントロールも同様に逆順で追加
-                var items = category.Items.ToList();
+                var items = category.FilteredItems.ToList();
                 items.Reverse();
 
                 foreach (var item in items)
                 {
                     // OptionControlFactory でオプション種別に応じたコントロールを生成
                     var control = OptionControlFactory.Create(item, _colors);
+                    control.Dock = DockStyle.Top;
+                    control.Margin = new Padding(0, 2, 0, 2);
+                    _scrollPanel.Controls.Add(control);
+                }
+
+                // アクションボタンも逆順で追加
+                var actions = category.FilteredActions.ToList();
+                actions.Reverse();
+
+                foreach (var action in actions)
+                {
+                    var control = OptionControlFactory.CreateAction(action, _colors);
                     control.Dock = DockStyle.Top;
                     control.Margin = new Padding(0, 2, 0, 2);
                     _scrollPanel.Controls.Add(control);
@@ -197,7 +209,7 @@ public sealed class OptionsPanel : Panel
         if (disposing)
         {
             // カテゴリコレクション変更イベントの購読を解除
-            _viewModel.Categories.CollectionChanged -= OnCategoriesChanged;
+            _viewModel.FilteredCategories.CollectionChanged -= OnCategoriesChanged;
         }
         base.Dispose(disposing);
     }

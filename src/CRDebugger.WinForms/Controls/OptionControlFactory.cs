@@ -22,10 +22,6 @@ public static class OptionControlFactory
     /// <returns>オプション種別に対応した <see cref="Control"/>。</returns>
     public static Control Create(OptionItemViewModel item, ThemeColors colors)
     {
-        // ActionItemの場合はボタンを生成して早期リターン
-        if (item is ActionItemViewModel actionItem)
-            return CreateActionButton(actionItem, colors);
-
         // オプション種別に応じてコントロールを切り替え
         return item.Kind switch
         {
@@ -343,6 +339,15 @@ public static class OptionControlFactory
     /// <param name="action">アクション項目 ViewModel。</param>
     /// <param name="colors">適用するテーマカラー情報。</param>
     /// <returns>アクション実行ボタン。</returns>
+    /// <summary>
+    /// アクション項目用のボタンコントロールを外部から生成する公開メソッド。
+    /// </summary>
+    /// <param name="action">アクション項目 ViewModel。</param>
+    /// <param name="colors">適用するテーマカラー情報。</param>
+    /// <returns>アクション実行ボタン。</returns>
+    public static Control CreateAction(ActionItemViewModel action, ThemeColors colors)
+        => CreateActionButton(action, colors);
+
     private static Control CreateActionButton(ActionItemViewModel action, ThemeColors colors)
     {
         // フラットスタイルのアクションボタンを生成

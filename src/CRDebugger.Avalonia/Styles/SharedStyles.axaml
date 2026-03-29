@@ -140,4 +140,63 @@
     <Setter Property="VerticalAlignment" Value="Center"/>
   </Style>
 
+  <!-- ═══════════════════════════════════ -->
+  <!-- オプション説明テキスト -->
+  <!-- ═══════════════════════════════════ -->
+  <Style Selector="TextBlock.option-description">
+    <Setter Property="FontSize" Value="11"/>
+    <Setter Property="Foreground" Value="{DynamicResource CRTextMutedBrush}"/>
+    <Setter Property="TextWrapping" Value="Wrap"/>
+  </Style>
+
+  <!-- ═══════════════════════════════════ -->
+  <!-- カテゴリ折りたたみトグルボタン -->
+  <!-- ═══════════════════════════════════ -->
+  <Style Selector="Button.category-toggle-btn">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="HorizontalAlignment" Value="Left"/>
+    <Setter Property="HorizontalContentAlignment" Value="Left"/>
+  </Style>
+  <Style Selector="Button.category-toggle-btn /template/ ContentPresenter">
+    <Setter Property="Background" Value="Transparent"/>
+  </Style>
+  <Style Selector="Button.category-toggle-btn:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="Transparent"/>
+  </Style>
+
+  <!-- ═══════════════════════════════════ -->
+  <!-- 検索ボックス -->
+  <!-- ═══════════════════════════════════ -->
+  <Style Selector="TextBox.search-box">
+    <Setter Property="Background" Value="{DynamicResource CRSurfaceBrush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource CRTextPrimaryBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource CRBorderBrush}"/>
+    <Setter Property="CornerRadius" Value="8"/>
+    <Setter Property="Padding" Value="10,6"/>
+    <Setter Property="FontSize" Value="12"/>
+  </Style>
+
+  <!-- ═══════════════════════════════════ -->
+  <!-- カラーピッカーボタン -->
+  <!-- ═══════════════════════════════════ -->
+  <Style Selector="Button.color-picker-btn">
+    <Setter Property="Background" Value="{DynamicResource CRSurfaceBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource CRBorderBrush}"/>
+    <Setter Property="Padding" Value="6,4"/>
+    <Setter Property="CornerRadius" Value="4"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="FontSize" Value="11"/>
+    <Setter Property="Foreground" Value="{DynamicResource CRTextSecondaryBrush}"/>
+  </Style>
+  <Style Selector="Button.color-picker-btn /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource CRSurfaceBrush}"/>
+  </Style>
+  <Style Selector="Button.color-picker-btn:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource CRBorderStrongBrush}"/>
+  </Style>
+
 </Styles>

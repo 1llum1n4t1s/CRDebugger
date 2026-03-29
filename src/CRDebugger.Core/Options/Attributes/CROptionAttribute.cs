@@ -119,6 +119,7 @@ public sealed class CRContainerAttribute : Attribute
 /// 引数なし void メソッドをボタンとして Options タブに表示するアトリビュート。
 /// ボタンを押すとそのメソッドが実行される。
 /// 引数あり・void 以外のメソッドには効果がない。
+/// Task 戻り値のメソッドにも対応し、非同期実行中はスピナーを表示する。
 /// </summary>
 [AttributeUsage(AttributeTargets.Method)]
 public sealed class CRActionAttribute : Attribute
@@ -129,3 +130,27 @@ public sealed class CRActionAttribute : Attribute
     /// </summary>
     public string? Label { get; set; }
 }
+
+/// <summary>
+/// プロパティまたはメソッドに説明テキストを付与するアトリビュート。
+/// Options タブで表示名の下にサブテキストとして表示される。
+/// </summary>
+[AttributeUsage(AttributeTargets.Property | AttributeTargets.Method)]
+public sealed class CRDescriptionAttribute : Attribute
+{
+    /// <summary>説明テキスト</summary>
+    public string Description { get; }
+
+    /// <summary>
+    /// 説明テキストを指定する。
+    /// </summary>
+    /// <param name="description">説明テキスト</param>
+    public CRDescriptionAttribute(string description) => Description = description;
+}
+
+/// <summary>
+/// string 型プロパティをカラーピッカーとして Options タブに表示するアトリビュート。
+/// 値は "#RRGGBB" 形式の文字列として扱われる。
+/// </summary>
+[AttributeUsage(AttributeTargets.Property)]
+public sealed class CRColorAttribute : Attribute { }
