@@ -75,7 +75,7 @@
         <!-- メールアドレス -->
         <TextBlock Text="メールアドレス (任意)" Classes="field-label"/>
         <TextBox Text="{Binding UserEmail}"
-                 Watermark="your@email.com"
+                 PlaceholderText="your@email.com"
                  Classes="form-input"
                  Margin="0,0,0,14"
                  IsEnabled="{Binding IsSending, Converter={StaticResource InverseBool}}"/>
@@ -83,7 +83,7 @@
         <!-- メッセージ -->
         <TextBlock Text="バグの説明 *" Classes="field-label"/>
         <TextBox Text="{Binding UserMessage}"
-                 Watermark="発生した問題を詳しく記述してください..."
+                 PlaceholderText="発生した問題を詳しく記述してください..."
                  AcceptsReturn="True"
                  TextWrapping="Wrap"
                  Height="150"

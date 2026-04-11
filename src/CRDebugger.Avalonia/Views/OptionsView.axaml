@@ -24,7 +24,7 @@
       <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
         <!-- 検索ボックス -->
         <TextBox Text="{Binding SearchText}"
-                 Watermark="Search..."
+                 PlaceholderText="Search..."
                  Classes="search-box"
                  Width="180"/>
         <Button Content="Refresh" Command="{Binding RefreshCommand}"

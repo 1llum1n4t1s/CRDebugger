@@ -116,7 +116,7 @@
 
           <!-- 検索ボックス - モダン -->
           <TextBox Text="{Binding SearchText}"
-                   Watermark="&#x1F50D; Search..."
+                   PlaceholderText="&#x1F50D; Search..."
                    Width="220" FontSize="12"
                    Background="#252538" Foreground="#C0C0D0"
                    BorderBrush="#2E2E44" BorderThickness="1"

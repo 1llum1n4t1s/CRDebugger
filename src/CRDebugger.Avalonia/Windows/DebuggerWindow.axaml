@@ -13,7 +13,7 @@
         Topmost="False"
         WindowStartupLocation="CenterScreen"
         CanResize="True"
-        SystemDecorations="Full"
+        WindowDecorations="Full"
         Background="#1E1E2E">
 
   <Window.Resources>
