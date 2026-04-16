@@ -79,6 +79,13 @@ FluentTheme の ToggleButton/Button がアクセントカラーを使う問題�
 - `DWMWA_USE_IMMERSIVE_DARK_MODE` — ダークモードキャプションボタン
 - `WS_EX_DLGMODALFRAME` + `WM_SETICON` — タイトルバーアイコン非表示
 
+### SuperLightLogger 統合
+
+CRDebugger は **SuperLightLogger** を使用してファイルログ出力をサポート。ログの流れ:
+- `CRDebugger.Log()` → LogStore（コンソールUI） + SuperLightLogger（ファイル出力）
+- `CRDebugger.GetLogger<T>()` で SuperLightLogger の ILog を直接取得可能
+- `CRDebuggerOptions.FileLogPath` でファイル出力先を設定（null ならファイル出力なし）
+
 ## Version Rules
 
 - パッチバージョンは **偶数のみ** 使用（1.0.0, 1.0.2, 1.0.4, ...）

@@ -59,8 +59,8 @@ public sealed class OperationMetrics
     /// <summary>スレッドセーフなアクセスを保証するための排他ロックオブジェクト</summary>
     private readonly object _lock = new();
 
-    /// <summary>直近サンプルを保持するリスト（最大 MaxSamples 件）</summary>
-    private readonly List<OperationSample> _samples = new();
+    /// <summary>直近サンプルを保持するキュー（最大 MaxSamples 件、O(1)でDequeue）</summary>
+    private readonly Queue<OperationSample> _samples = new(MaxSamples);
 
     /// <summary>保持するサンプルの最大件数。超過した場合は古いものから削除される</summary>
     private const int MaxSamples = 500;
@@ -155,10 +155,10 @@ public sealed class OperationMetrics
             if (sample.CpuTime > MaxCpuTime) MaxCpuTime = sample.CpuTime;
             if (sample.MemoryDeltaBytes > MaxMemoryDelta) MaxMemoryDelta = sample.MemoryDeltaBytes;
 
-            // 直近サンプルをリストに追加し、MaxSamples を超えた場合は先頭（最古）を削除
-            _samples.Add(sample);
+            // 直近サンプルをキューに追加し、MaxSamples を超えた場合は先頭（最古）を O(1) で削除
+            _samples.Enqueue(sample);
             if (_samples.Count > MaxSamples)
-                _samples.RemoveAt(0);
+                _samples.Dequeue();
         }
     }
 
@@ -170,7 +170,7 @@ public sealed class OperationMetrics
     public IReadOnlyList<OperationSample> GetRecentSamples()
     {
         // ロック中にコピーを返すことでスレッドセーフを維持
-        lock (_lock) { return _samples.ToList(); }
+        lock (_lock) { return [.. _samples]; }
     }
 
     /// <summary>

@@ -18,6 +18,9 @@ public sealed class ConsoleViewModel : ViewModelBase
     /// <summary>UIスレッドマーシャリング用インターフェース</summary>
     private readonly IUiThread _uiThread;
 
+    /// <summary>現在のフィルタ条件のキャッシュ（フィルタ変更時のみ再生成、OnEntryAdded毎の生成を回避）</summary>
+    private LogFilter _cachedFilter;
+
     /// <summary>現在選択中のログエントリ（バッキングフィールド）</summary>
     private LogEntry? _selectedEntry;
 
@@ -48,11 +51,19 @@ public sealed class ConsoleViewModel : ViewModelBase
     /// <summary>Errorログ件数（バッキングフィールド）</summary>
     private int _errorCount;
 
+    /// <summary>表示用ログエントリ一覧のバッキングフィールド</summary>
+    private ObservableCollection<LogEntry> _displayEntries = new();
+
     /// <summary>
     /// フィルタ適用後の表示用ログエントリ一覧。
     /// UIのリストビューにバインドされる。
+    /// RefreshFilter時はコレクション丸ごと差し替えで単一PropertyChanged通知に最適化。
     /// </summary>
-    public ObservableCollection<LogEntry> DisplayEntries { get; } = new();
+    public ObservableCollection<LogEntry> DisplayEntries
+    {
+        get => _displayEntries;
+        private set => SetProperty(ref _displayEntries, value);
+    }
 
     /// <summary>
     /// リストビューで現在選択中のログエントリ。
@@ -153,6 +164,7 @@ public sealed class ConsoleViewModel : ViewModelBase
     {
         _logStore = logStore;
         _uiThread = uiThread;
+        _cachedFilter = CreateFilter();
         ClearCommand = new RelayCommand(Clear);
 
         // 新規ログ追加時にUIを更新するイベントハンドラを登録
@@ -176,9 +188,8 @@ public sealed class ConsoleViewModel : ViewModelBase
             // レベル別カウントをインクリメント
             UpdateCount(entry.Level, 1);
 
-            // フィルタ条件に合致するエントリのみ表示リストへ追加
-            var filter = CreateFilter();
-            if (filter.Matches(entry))
+            // キャッシュ済みフィルタでチェック（毎回の LogFilter 生成を回避）
+            if (_cachedFilter.Matches(entry))
             {
                 DisplayEntries.Add(entry);
             }
@@ -191,13 +202,14 @@ public sealed class ConsoleViewModel : ViewModelBase
     /// </summary>
     private void RefreshFilter()
     {
-        // 表示リストをいったんクリアして再構築
-        DisplayEntries.Clear();
-        var filter = CreateFilter();
-        // ストアからフィルタ適用済みエントリを取得して表示リストに追加
-        var entries = _logStore.GetFiltered(filter);
-        foreach (var entry in entries)
-            DisplayEntries.Add(entry);
+        // フィルタキャッシュを更新（OnEntryAdded でも使われる）
+        _cachedFilter = CreateFilter();
+        // ストアからフィルタ適用済みエントリを取得
+        var entries = _logStore.GetFiltered(_cachedFilter);
+
+        // コレクション丸ごと差し替えで単一 PropertyChanged 通知に最適化
+        // （Clear + n回Add の n+1 通知 → 1回の PropertyChanged に削減）
+        DisplayEntries = new ObservableCollection<LogEntry>(entries);
 
         // レベル別カウントをストアの最新値に同期
         var counts = _logStore.GetCounts();

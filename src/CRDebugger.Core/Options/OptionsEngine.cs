@@ -1,5 +1,6 @@
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using CRDebugger.Core.Options.Attributes;
 
 namespace CRDebugger.Core.Options;
@@ -9,7 +10,7 @@ namespace CRDebugger.Core.Options;
 /// <see cref="AddContainer"/> で登録されたオブジェクトの public プロパティ・メソッドを
 /// スキャンし、<see cref="OptionDescriptor"/> / <see cref="ActionDescriptor"/> に変換する。
 /// </summary>
-public sealed class OptionsEngine
+public sealed partial class OptionsEngine
 {
     /// <summary>登録済みオプションコンテナの一覧</summary>
     private readonly List<object> _containers = new();
@@ -331,24 +332,25 @@ public sealed class OptionsEngine
         return OptionKind.ReadOnly;
     }
 
+    /// <summary>サポート対象のプリミティブ型セット（O(1)ルックアップ用）</summary>
+    private static readonly HashSet<Type> s_supportedTypes =
+    [
+        typeof(bool), typeof(int), typeof(long), typeof(short), typeof(byte),
+        typeof(uint), typeof(ushort), typeof(sbyte), typeof(float),
+        typeof(double), typeof(decimal), typeof(string)
+    ];
+
     /// <summary>
     /// 指定された型が Options エンジンでサポートされているかどうかを判定する。
     /// </summary>
     /// <param name="type">判定する型</param>
     /// <returns>サポートされている場合は <c>true</c>、それ以外は <c>false</c></returns>
-    private static bool IsSupportedType(Type type)
-    {
-        // プリミティブ型・string・enum のみをサポート対象とする
-        return type == typeof(bool) || type == typeof(int) || type == typeof(long) ||
-               type == typeof(short) || type == typeof(byte) || type == typeof(uint) ||
-               type == typeof(ushort) || type == typeof(sbyte) || type == typeof(float) ||
-               type == typeof(double) || type == typeof(decimal) || type == typeof(string) ||
-               type.IsEnum;
-    }
+    private static bool IsSupportedType(Type type) =>
+        s_supportedTypes.Contains(type) || type.IsEnum;
 
-    /// <summary>キャメルケースを検出する正規表現（コンパイル済みでパフォーマンス最適化）</summary>
-    private static readonly System.Text.RegularExpressions.Regex CamelCaseRegex =
-        new("([a-z])([A-Z])", System.Text.RegularExpressions.RegexOptions.Compiled);
+    /// <summary>キャメルケースを検出するソースジェネレーター生成正規表現（起動時JITコンパイル不要）</summary>
+    [GeneratedRegex("([a-z])([A-Z])")]
+    private static partial Regex CamelCaseRegex();
 
     /// <summary>
     /// キャメルケースの文字列をスペース区切りに変換する。
@@ -357,5 +359,5 @@ public sealed class OptionsEngine
     /// <param name="input">変換するキャメルケース文字列</param>
     /// <returns>スペース区切りに変換された文字列</returns>
     private static string SplitCamelCase(string input) =>
-        CamelCaseRegex.Replace(input, "$1 $2");
+        CamelCaseRegex().Replace(input, "$1 $2");
 }

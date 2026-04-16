@@ -84,7 +84,7 @@ public sealed class RichTextBuilder
     /// 構築されたスパンリストを返す
     /// </summary>
     /// <returns>追加順に並んだリッチテキストスパンの読み取り専用リスト</returns>
-    public IReadOnlyList<RichTextSpan> Build() => _spans.ToList();
+    public IReadOnlyList<RichTextSpan> Build() => _spans.AsReadOnly();
 }
 
 /// <summary>

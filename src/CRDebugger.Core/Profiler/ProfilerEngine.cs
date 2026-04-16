@@ -15,8 +15,8 @@ public sealed class ProfilerEngine : IDisposable
     /// <summary>スナップショット取得の間隔</summary>
     private readonly TimeSpan _interval;
 
-    /// <summary>スナップショット履歴のリスト（最大 <see cref="MaxHistorySize"/> 件）</summary>
-    private readonly List<ProfilerSnapshot> _history = new();
+    /// <summary>スナップショット履歴のキュー（最大 <see cref="MaxHistorySize"/> 件、O(1)でDequeue）</summary>
+    private readonly Queue<ProfilerSnapshot> _history = new(MaxHistorySize);
 
     /// <summary>履歴リストへのスレッドセーフアクセスを保証する排他ロックオブジェクト</summary>
     private readonly object _lock = new();
@@ -26,6 +26,9 @@ public sealed class ProfilerEngine : IDisposable
 
     /// <summary>GPU情報を取得するプロバイダー</summary>
     private readonly IGpuMonitor _gpuMonitor;
+
+    /// <summary>最新スナップショットのキャッシュ（Queue.Last() の O(n) 走査を回避）</summary>
+    private ProfilerSnapshot? _latestSnapshot;
 
     /// <summary>直近のサンプリング間隔中に記録されたフレーム数（Interlocked で操作）</summary>
     private int _frameCount;
@@ -38,6 +41,11 @@ public sealed class ProfilerEngine : IDisposable
 
     /// <summary>前回のCPU時間タイムスタンプ（CPU使用率計算用）</summary>
     private DateTimeOffset _previousCpuTimestamp;
+
+#if NET9_0_OR_GREATER
+    /// <summary>前回のGCポーズ時間（差分計算でインターバル中のポーズ時間を求める）</summary>
+    private TimeSpan _previousGcPauseTime;
+#endif
 
     /// <summary>スナップショット履歴の最大保持件数</summary>
     public const int MaxHistorySize = 120;
@@ -65,7 +73,9 @@ public sealed class ProfilerEngine : IDisposable
     /// </summary>
     public void Start()
     {
-        // FPS計測用ストップウォッチを起動
+        // 二重 Start() 時の前回タイマーリークを防止する
+        _timer?.Dispose();
+
         _fpsStopwatch.Start();
 
         // CPU使用率計算の基準値を初期化
@@ -76,6 +86,11 @@ public sealed class ProfilerEngine : IDisposable
         }
         catch { _previousCpuTime = TimeSpan.Zero; }
         _previousCpuTimestamp = DateTimeOffset.Now;
+
+#if NET9_0_OR_GREATER
+        // GCポーズ時間の基準値を初期化（.NET 9+ で利用可能）
+        _previousGcPauseTime = GC.GetTotalPauseDuration();
+#endif
 
         // 初回は即座に実行し、以降は _interval ごとに OnTick を呼び出す
         _timer = new System.Threading.Timer(OnTick, null, TimeSpan.Zero, _interval);
@@ -99,7 +114,7 @@ public sealed class ProfilerEngine : IDisposable
     public IReadOnlyList<ProfilerSnapshot> GetHistory()
     {
         // ロック中にコピーを返すことでスレッドセーフを維持
-        lock (_lock) { return _history.ToList(); }
+        lock (_lock) { return [.. _history]; }
     }
 
     /// <summary>
@@ -108,7 +123,7 @@ public sealed class ProfilerEngine : IDisposable
     /// <returns>CPU使用率のリスト（最大 <see cref="MaxHistorySize"/> 件）</returns>
     public IReadOnlyList<double> GetCpuHistory()
     {
-        lock (_lock) { return _history.Select(s => s.CpuUsagePercent).ToList(); }
+        lock (_lock) { return _history.Select(s => s.CpuUsagePercent).ToArray(); }
     }
 
     /// <summary>
@@ -118,11 +133,7 @@ public sealed class ProfilerEngine : IDisposable
     {
         get
         {
-            lock (_lock)
-            {
-                // 履歴がある場合は末尾の要素（最新）を返す
-                return _history.Count > 0 ? _history[^1] : null;
-            }
+            lock (_lock) { return _latestSnapshot; }
         }
     }
 
@@ -200,8 +211,7 @@ public sealed class ProfilerEngine : IDisposable
             Gen0Collections: GC.CollectionCount(0),
             Gen1Collections: GC.CollectionCount(1),
             Gen2Collections: GC.CollectionCount(2),
-            // TODO: .NET 9+ の GC.GetGCMemoryInfo().PauseTimePercentage 等でGCポーズ時間を取得する
-            GcPauseTimeMs: 0,
+                GcPauseTimeMs: GetGcPauseDeltaMs(),
             GpuUsagePercent: gpuUsage,
             GpuDedicatedMemoryBytes: gpuDedicated,
             GpuSharedMemoryBytes: gpuShared,
@@ -212,10 +222,10 @@ public sealed class ProfilerEngine : IDisposable
 
         lock (_lock)
         {
-            // 履歴に追加し、MaxHistorySize を超えた場合は最古エントリを削除
-            _history.Add(snapshot);
+            _history.Enqueue(snapshot);
             if (_history.Count > MaxHistorySize)
-                _history.RemoveAt(0);
+                _history.Dequeue();
+            _latestSnapshot = snapshot;
         }
 
         try
@@ -227,6 +237,22 @@ public sealed class ProfilerEngine : IDisposable
         {
             // Timer コールバック内の未処理例外はプロセスをクラッシュさせるため、ここで必ずキャッチする
         }
+    }
+
+    /// <summary>
+    /// サンプリング間隔中のGCポーズ時間（ミリ秒）を返す。
+    /// .NET 9+ では GC.GetTotalPauseDuration() の差分、それ以前は常に 0。
+    /// </summary>
+    private long GetGcPauseDeltaMs()
+    {
+#if NET9_0_OR_GREATER
+        var current = GC.GetTotalPauseDuration();
+        var delta = (long)(current - _previousGcPauseTime).TotalMilliseconds;
+        _previousGcPauseTime = current;
+        return delta;
+#else
+        return 0;
+#endif
     }
 
     /// <inheritdoc/>

@@ -9,6 +9,9 @@ namespace CRDebugger.Core.BugReporter;
 /// </summary>
 public sealed class DefaultConsoleBugReportSender : IBugReportSender
 {
+    /// <summary>JSON シリアライズ用オプション（スレッドセーフ・再利用推奨）</summary>
+    private static readonly JsonSerializerOptions s_jsonOptions = new() { WriteIndented = true };
+
     /// <summary>
     /// バグレポートの概要を JSON 形式でコンソールに出力する
     /// </summary>
@@ -30,7 +33,7 @@ public sealed class DefaultConsoleBugReportSender : IBugReportSender
         };
 
         // 匿名オブジェクトをインデント付き JSON にシリアライズして可読性を高める
-        var json = JsonSerializer.Serialize(summary, new JsonSerializerOptions { WriteIndented = true });
+        var json = JsonSerializer.Serialize(summary, s_jsonOptions);
 
         // [CRDebugger] プレフィックスを付けてコンソールに出力することで他のログと区別しやすくする
         Console.WriteLine($"[CRDebugger] バグレポート送信:\n{json}");

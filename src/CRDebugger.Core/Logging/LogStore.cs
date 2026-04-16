@@ -58,6 +58,9 @@ public sealed class LogStore
     public void Append(CRLogLevel level, string channel, string message,
         string? stackTrace = null, IReadOnlyList<RichTextSpan>? richSpans = null)
     {
+        // ロック外でイベント発火するため、ロック内で生成したエントリをキャプチャする変数
+        LogEntry? addedEntry = null;
+
         _lock.EnterWriteLock();
         try
         {
@@ -67,25 +70,22 @@ public sealed class LogStore
                 _lastEntry.Channel == channel &&
                 _lastEntry.Message == message)
             {
-                // 重複カウントを +1 してタイムスタンプを更新した新エントリを生成する（イミュータブル更新）
                 var updated = _lastEntry with
                 {
                     DuplicateCount = _lastEntry.DuplicateCount + 1,
                     Timestamp = DateTimeOffset.Now
                 };
 
-                // バッファ内の最後のエントリを更新する
                 _buffer.UpdateLast(updated);
                 _lastEntry = updated;
 
-                // イベント発火前にロックを解放してデッドロックを回避する
+                // デッドロック回避のためロック解放後にイベントを発火する
                 _lock.ExitWriteLock();
                 try { EntryUpdated?.Invoke(this, updated); }
                 catch { /* イベントハンドラの例外でログ記録が失敗しないようにする */ }
                 return;
             }
 
-            // 新規エントリを生成してバッファに追加する
             var entry = new LogEntry(
                 Id: Interlocked.Increment(ref _nextId),
                 Timestamp: DateTimeOffset.Now,
@@ -98,10 +98,10 @@ public sealed class LogStore
 
             _buffer.Add(entry);
             _lastEntry = entry;
+            addedEntry = entry; // ロック内でキャプチャ（レースコンディション回避）
         }
         finally
         {
-            // 重複折りたたみの早期リターンでロックを解放済みの場合は二重解放しない
             if (_lock.IsWriteLockHeld)
                 _lock.ExitWriteLock();
         }
@@ -109,7 +109,8 @@ public sealed class LogStore
         // ロック外で EntryAdded イベントを発火する
         try
         {
-            EntryAdded?.Invoke(this, _lastEntry!);
+            if (addedEntry != null)
+                EntryAdded?.Invoke(this, addedEntry);
         }
         catch
         {
@@ -138,7 +139,8 @@ public sealed class LogStore
         _lock.EnterReadLock();
         try
         {
-            var result = new List<LogEntry>();
+            // バッファサイズを上限容量として事前確保し、再アロケーションを回避する
+            var result = new List<LogEntry>(_buffer.Count);
             // バッファを順に走査してフィルタに合致するものだけ収集する
             foreach (var entry in _buffer)
             {

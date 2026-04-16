@@ -8,6 +8,8 @@ using CRDebugger.Core.Profiler;
 using CRDebugger.Core.SystemInfo;
 using CRDebugger.Core.Theming;
 using CRDebugger.Core.ViewModels;
+using Microsoft.Extensions.Logging;
+using SuperLightLogger;
 
 namespace CRDebugger.Core;
 
@@ -41,6 +43,9 @@ internal sealed class CRDebuggerContext : IDisposable
 
     /// <summary>Microsoft.Extensions.Logging 統合用のLoggerProvider</summary>
     public CRLoggerProvider LoggerProvider { get; }
+
+    /// <summary>SuperLightLogger のアプリケーション用ロガー（CRDebugger.Log等で使用）</summary>
+    public ILog AppLogger { get; }
 
     /// <summary>キーボードショートカットの登録・処理を管理するマネージャー</summary>
     public KeyboardShortcutManager ShortcutManager { get; }
@@ -79,6 +84,17 @@ internal sealed class CRDebuggerContext : IDisposable
         BugReporter = new BugReportEngine(LogStore, SystemInfo, options.BugReportSender);
         ThemeManager = new ThemeManager(options.Theme);
         LoggerProvider = new CRLoggerProvider(LogStore);
+
+        // SuperLightLogger を構成（ファイル出力専用、LogStoreへの転送はCRDebugger.Log()が直接行う）
+        LogManager.Configure(builder =>
+        {
+            // ファイルログが設定されている場合はSuperLightFileターゲットを追加
+            if (!string.IsNullOrEmpty(options.FileLogPath))
+                builder.AddSuperLightFile(options.FileLogPath);
+        });
+
+        // アプリケーション用の SuperLightLogger ロガーを取得
+        AppLogger = LogManager.GetLogger(typeof(CRDebuggerContext));
 
         // キーボードショートカットマネージャーを生成し、初期有効状態をオプションから設定
         ShortcutManager = new KeyboardShortcutManager

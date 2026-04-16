@@ -22,10 +22,10 @@
     </Style>
     <!-- GC Collectボタン（Profiler固有） -->
     <Style Selector="Button.gc-btn">
-      <Setter Property="Background" Value="#E0525220"/>
+      <Setter Property="Background" Value="#2E2028"/>
       <Setter Property="Foreground" Value="#E05252"/>
       <Setter Property="BorderThickness" Value="1"/>
-      <Setter Property="BorderBrush" Value="#E0525230"/>
+      <Setter Property="BorderBrush" Value="#3A2230"/>
       <Setter Property="Padding" Value="18,7"/>
       <Setter Property="CornerRadius" Value="8"/>
       <Setter Property="FontSize" Value="12"/>
@@ -38,7 +38,7 @@
       </Setter>
     </Style>
     <Style Selector="Button.gc-btn:pointerover /template/ ContentPresenter">
-      <Setter Property="Background" Value="#E0525235"/>
+      <Setter Property="Background" Value="#3E2432"/>
     </Style>
   </UserControl.Styles>
 

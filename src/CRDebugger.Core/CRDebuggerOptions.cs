@@ -50,6 +50,14 @@ public sealed class CRDebuggerOptions
     /// <summary>GPU監視プロバイダー（プラットフォーム固有実装を注入）</summary>
     public IGpuMonitor? GpuMonitor { get; set; }
 
+    /// <summary>
+    /// SuperLightLogger のファイルログ出力先パス。
+    /// ${shortdate} 等のNLogレイアウト変数が使用可能。
+    /// nullの場合はファイルログ出力を行わない。
+    /// 例: "logs/app_${shortdate}.log"
+    /// </summary>
+    public string? FileLogPath { get; set; }
+
     // UIフレームワーク層が設定（内部使用）
     internal IDebuggerWindow? Window { get; set; }
     internal IUiThread? UiThread { get; set; }

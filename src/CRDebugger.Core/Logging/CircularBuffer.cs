@@ -95,26 +95,40 @@ internal sealed class CircularBuffer<T> : IReadOnlyList<T>
     }
 
     /// <summary>
-    /// バッファの内容を新しいリストとして返す
+    /// バッファの内容を新しいリストとして返す。
+    /// Array.Copy で最大2セグメント分を一括コピーし、indexer の per-element bounds check + modulo を回避。
     /// </summary>
     /// <returns>論理順序で並んだ要素のリスト</returns>
     public List<T> ToList()
     {
+        if (_count == 0) return [];
+
+        // Array.Copy で最大2セグメントを一括コピー（indexer の per-element modulo を回避）
         var list = new List<T>(_count);
-        // 論理インデックス順にインデクサ経由で取り出す
-        for (var i = 0; i < _count; i++)
-            list.Add(this[i]);
+        var firstLen = Math.Min(_count, _buffer.Length - _head);
+        // Span スライスで AddRange するより CollectionsMarshal は冗長なため、2回の AddRange で対応
+        list.AddRange(new ArraySegment<T>(_buffer, _head, firstLen));
+        if (firstLen < _count)
+            list.AddRange(new ArraySegment<T>(_buffer, 0, _count - firstLen));
+
         return list;
     }
 
     /// <summary>
-    /// 論理順序でバッファを列挙するイテレータを返す
+    /// 論理順序でバッファを列挙するイテレータを返す。
+    /// 内部配列を直接走査してindexer のオーバーヘッドを回避。
     /// </summary>
     /// <returns>要素を論理順に返す列挙子</returns>
     public IEnumerator<T> GetEnumerator()
     {
-        for (var i = 0; i < _count; i++)
-            yield return this[i];
+        // head から配列末尾までの第1セグメント
+        var firstLen = Math.Min(_count, _buffer.Length - _head);
+        for (var i = 0; i < firstLen; i++)
+            yield return _buffer[_head + i];
+        // 折り返し後の第2セグメント
+        var secondLen = _count - firstLen;
+        for (var i = 0; i < secondLen; i++)
+            yield return _buffer[i];
     }
 
     /// <inheritdoc/>

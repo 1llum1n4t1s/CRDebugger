@@ -58,7 +58,7 @@
       </Setter>
     </Style>
     <Style Selector="TextBox.form-input:focus">
-      <Setter Property="BorderBrush" Value="#7C8FFF40"/>
+      <Setter Property="BorderBrush" Value="#3A3C5E"/>
     </Style>
   </UserControl.Styles>
 

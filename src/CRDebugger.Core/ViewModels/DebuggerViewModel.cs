@@ -18,6 +18,12 @@ public sealed class DebuggerViewModel : ViewModelBase
     /// <summary>無効化されているタブの集合。HashSetで高速な存在確認を実現</summary>
     private readonly HashSet<CRTab> _disabledTabs = new();
 
+    /// <summary>Enum.GetValues のキャッシュ（毎回の配列生成を回避）</summary>
+    private static readonly CRTab[] s_allTabs = Enum.GetValues<CRTab>();
+
+    /// <summary>EnabledTabs のキャッシュ（SetTabEnabled時のみ再生成）</summary>
+    private IReadOnlyList<CRTab> _enabledTabsCache = null!;
+
     /// <summary>システム情報タブのViewModel</summary>
     public SystemInfoViewModel SystemInfo { get; }
 
@@ -76,10 +82,9 @@ public sealed class DebuggerViewModel : ViewModelBase
 
     /// <summary>
     /// 現在有効なタブの一覧。
-    /// UIのタブヘッダー生成に使用される。
+    /// UIのタブヘッダー生成に使用される。キャッシュ済みで毎アクセスのアロケーションなし。
     /// </summary>
-    public IReadOnlyList<CRTab> EnabledTabs =>
-        Enum.GetValues<CRTab>().Where(t => !_disabledTabs.Contains(t)).ToList();
+    public IReadOnlyList<CRTab> EnabledTabs => _enabledTabsCache;
 
     /// <summary>
     /// 指定したタブの有効/無効状態を設定する。
@@ -99,15 +104,24 @@ public sealed class DebuggerViewModel : ViewModelBase
         // 現在選択中のタブが無効化された場合、最初の有効タブに自動切替
         if (!enabled && _selectedTab == tab)
         {
-            var firstEnabled = Enum.GetValues<CRTab>().FirstOrDefault(t => !_disabledTabs.Contains(t));
+            var firstEnabled = s_allTabs.FirstOrDefault(t => !_disabledTabs.Contains(t));
             SelectedTab = firstEnabled;
         }
 
+        // キャッシュを再生成してからUI通知を発火
+        _enabledTabsCache = BuildEnabledTabs();
+
         // タブ状態変更を通知してUI側に再描画を促す
         TabStateChanged?.Invoke(this, EventArgs.Empty);
-        // EnabledTabs は計算プロパティなので手動で変更通知を発火
+        // EnabledTabs プロパティ変更通知を発火
         OnPropertyChanged(nameof(EnabledTabs));
     }
+
+    /// <summary>
+    /// 現在の _disabledTabs から有効タブのリストを構築する
+    /// </summary>
+    private IReadOnlyList<CRTab> BuildEnabledTabs() =>
+        s_allTabs.Where(t => !_disabledTabs.Contains(t)).ToArray();
 
     /// <summary>
     /// <see cref="DebuggerViewModel"/> のインスタンスを生成する
@@ -149,8 +163,11 @@ public sealed class DebuggerViewModel : ViewModelBase
 
         // デフォルトタブが無効化されている場合は最初の有効タブを選択
         _selectedTab = _disabledTabs.Contains(defaultTab)
-            ? Enum.GetValues<CRTab>().FirstOrDefault(t => !_disabledTabs.Contains(t))
+            ? s_allTabs.FirstOrDefault(t => !_disabledTabs.Contains(t))
             : defaultTab;
+
+        // EnabledTabs キャッシュを初期化
+        _enabledTabsCache = BuildEnabledTabs();
 
         // テーマ変更イベントを購読してThemeColorsプロパティを自動更新
         themeManager.ThemeChanged += (_, colors) => ThemeColors = colors;

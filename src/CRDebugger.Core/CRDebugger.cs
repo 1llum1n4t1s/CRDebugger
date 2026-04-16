@@ -2,6 +2,7 @@ using CRDebugger.Core.Input;
 using CRDebugger.Core.Logging;
 using CRDebugger.Core.Profiler;
 using Microsoft.Extensions.Logging;
+using SuperLightLogger;
 
 namespace CRDebugger.Core;
 
@@ -117,24 +118,47 @@ public static class CRDebugger
     /// <summary>Infoレベルでログを記録する</summary>
     /// <param name="message">ログメッセージ</param>
     public static void Log(string message) =>
-        SafeExecute(() => GetContext().LogStore.Append(CRLogLevel.Info, "App", message));
+        SafeExecute(() =>
+        {
+            var ctx = GetContext();
+            ctx.LogStore.Append(CRLogLevel.Info, "App", message);
+            ctx.AppLogger.Info(message);
+        });
 
     /// <summary>指定レベルでログを記録する</summary>
     /// <param name="message">ログメッセージ</param>
     /// <param name="level">ログレベル</param>
     public static void Log(string message, CRLogLevel level) =>
-        SafeExecute(() => GetContext().LogStore.Append(level, "App", message));
+        SafeExecute(() =>
+        {
+            var ctx = GetContext();
+            ctx.LogStore.Append(level, "App", message);
+            LogWithLevel(ctx.AppLogger, level, message);
+        });
 
     /// <summary>Warningレベルでログを記録する</summary>
     /// <param name="message">ログメッセージ</param>
     public static void LogWarning(string message) =>
-        SafeExecute(() => GetContext().LogStore.Append(CRLogLevel.Warning, "App", message));
+        SafeExecute(() =>
+        {
+            var ctx = GetContext();
+            ctx.LogStore.Append(CRLogLevel.Warning, "App", message);
+            ctx.AppLogger.Warn(message);
+        });
 
     /// <summary>Errorレベルでログを記録する</summary>
     /// <param name="message">ログメッセージ</param>
     /// <param name="ex">関連する例外（省略可）</param>
     public static void LogError(string message, Exception? ex = null) =>
-        SafeExecute(() => GetContext().LogStore.Append(CRLogLevel.Error, "App", message, ex?.StackTrace));
+        SafeExecute(() =>
+        {
+            var ctx = GetContext();
+            ctx.LogStore.Append(CRLogLevel.Error, "App", message, ex?.StackTrace);
+            if (ex != null)
+                ctx.AppLogger.Error(message, ex);
+            else
+                ctx.AppLogger.Error(message);
+        });
 
     /// <summary>リッチテキスト付きログを記録する</summary>
     /// <param name="message">プレーンテキストメッセージ</param>
@@ -153,7 +177,7 @@ public static class CRDebugger
             var b = new RichTextBuilder();
             builder(b); // 呼び出し元がビルダーにスパンを追加する
             var spans = b.Build(); // スパンのリストを確定させる
-            var message = string.Concat(spans.Select(s => s.Text)); // プレーンテキストを連結してメッセージを生成
+            var message = string.Concat(spans.Select(s => s.Text));
             GetContext().LogStore.Append(level, "App", message, richSpans: spans);
         });
     }
@@ -165,13 +189,13 @@ public static class CRDebugger
     {
         SafeExecute(() =>
         {
-            var spans = RichTextParser.Parse(markup); // マークアップ文字列をリッチテキストスパンに変換
-            var message = string.Concat(spans.Select(s => s.Text)); // スパンのテキスト部分を連結してプレーンテキストを生成
+            var spans = RichTextParser.Parse(markup);
+            var message = string.Concat(spans.Select(s => s.Text));
             GetContext().LogStore.Append(level, "App", message, richSpans: spans);
         });
     }
 
-    // ── ILogger統合 ──
+    // ── ILogger / SuperLightLogger 統合 ──
 
     /// <summary>Microsoft.Extensions.Logging用プロバイダーを取得する</summary>
     /// <returns>CRDebuggerに統合されたILoggerProvider</returns>
@@ -185,6 +209,24 @@ public static class CRDebugger
     /// <exception cref="CRDebuggerNotInitializedException">未初期化の場合</exception>
     public static ILogger CreateLogger(string categoryName) =>
         GetContext().LoggerProvider.CreateLogger(categoryName);
+
+    /// <summary>
+    /// SuperLightLogger の ILog を取得する。
+    /// CRDebugger のコンソールUIとファイルログの両方に出力される。
+    /// </summary>
+    /// <typeparam name="T">ロガーのカテゴリとなる型</typeparam>
+    /// <returns>SuperLightLogger の ILog インスタンス</returns>
+    public static ILog GetLogger<T>() =>
+        LogManager.GetLogger<T>();
+
+    /// <summary>
+    /// SuperLightLogger の ILog を取得する。
+    /// CRDebugger のコンソールUIとファイルログの両方に出力される。
+    /// </summary>
+    /// <param name="type">ロガーのカテゴリとなる型</param>
+    /// <returns>SuperLightLogger の ILog インスタンス</returns>
+    public static ILog GetLogger(Type type) =>
+        LogManager.GetLogger(type);
 
     // ── Options ──
 
@@ -373,6 +415,31 @@ public static class CRDebugger
     }
 
     // ── 内部ヘルパー ──
+
+    /// <summary>
+    /// CRLogLevel に応じて SuperLightLogger の適切なログメソッドを呼び出す。
+    /// </summary>
+    /// <param name="logger">SuperLightLogger の ILog</param>
+    /// <param name="level">CRDebugger のログレベル</param>
+    /// <param name="message">ログメッセージ</param>
+    private static void LogWithLevel(ILog logger, CRLogLevel level, string message)
+    {
+        switch (level)
+        {
+            case CRLogLevel.Debug:
+                logger.Debug(message);
+                break;
+            case CRLogLevel.Info:
+                logger.Info(message);
+                break;
+            case CRLogLevel.Warning:
+                logger.Warn(message);
+                break;
+            case CRLogLevel.Error:
+                logger.Error(message);
+                break;
+        }
+    }
 
     /// <summary>
     /// 初期化済みコンテキストを取得する。未初期化の場合は例外をスローする。
