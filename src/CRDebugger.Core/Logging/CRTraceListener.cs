@@ -13,8 +13,10 @@ public sealed class CRTraceListener : TraceListener
     /// <summary>
     /// <see cref="Write"/> で蓄積中の断片メッセージ。
     /// <see cref="WriteLine"/> が呼ばれた時点でフラッシュされる。
+    /// 複数スレッドから断片が混ざらないよう <see cref="ThreadStaticAttribute"/> でスレッド毎に持つ。
     /// </summary>
-    private System.Text.StringBuilder? _messageBuilder;
+    [ThreadStatic]
+    private static System.Text.StringBuilder? _messageBuilder;
 
     /// <summary>
     /// <see cref="CRTraceListener"/> のインスタンスを生成する
@@ -29,6 +31,13 @@ public sealed class CRTraceListener : TraceListener
     }
 
     /// <summary>
+    /// このリスナーがスレッドセーフであることを示す。
+    /// <c>true</c> を返すと <see cref="TraceListener"/> 既定の <c>lock(this)</c> をスキップでき、
+    /// ロック競合によるホスト側のデッドロックを回避できる（内部のスレッド安全性は本実装で確保）。
+    /// </summary>
+    public override bool IsThreadSafe => true;
+
+    /// <summary>
     /// 改行なしの断片メッセージを蓄積する
     /// </summary>
     /// <param name="message">追記するメッセージ断片。<c>null</c> の場合は何もしない</param>
@@ -36,9 +45,16 @@ public sealed class CRTraceListener : TraceListener
     {
         // null メッセージは無視する
         if (message == null) return;
-        // 初回呼び出し時に StringBuilder を遅延生成する
-        _messageBuilder ??= new System.Text.StringBuilder();
-        _messageBuilder.Append(message);
+        try
+        {
+            // ThreadStatic のため初回呼び出し時にスレッド毎の StringBuilder を遅延生成する
+            _messageBuilder ??= new System.Text.StringBuilder();
+            _messageBuilder.Append(message);
+        }
+        catch
+        {
+            // CRDebugger 内部の例外は絶対にホスト側に伝播させない（Trace 経路は全プロセス共有の脆弱経路）
+        }
     }
 
     /// <summary>
@@ -48,23 +64,31 @@ public sealed class CRTraceListener : TraceListener
     /// <param name="message">行末に追記するメッセージ。<c>null</c> の場合は空文字扱い</param>
     public override void WriteLine(string? message)
     {
-        string fullMessage;
-        if (_messageBuilder != null)
+        try
         {
-            // 蓄積済み断片がある場合は行末メッセージを結合して完成させる
-            if (message != null) _messageBuilder.Append(message);
-            fullMessage = _messageBuilder.ToString();
-            // StringBuilder を再利用するためにクリアする
-            _messageBuilder.Clear();
-        }
-        else
-        {
-            // 断片がない場合はそのまま使用する
-            fullMessage = message ?? string.Empty;
-        }
+            string fullMessage;
+            var builder = _messageBuilder;
+            if (builder != null)
+            {
+                // 蓄積済み断片がある場合は行末メッセージを結合して完成させる
+                if (message != null) builder.Append(message);
+                fullMessage = builder.ToString();
+                // StringBuilder を再利用するためにクリアする
+                builder.Clear();
+            }
+            else
+            {
+                // 断片がない場合はそのまま使用する
+                fullMessage = message ?? string.Empty;
+            }
 
-        // Debug チャネルとして LogStore に記録する
-        _logStore.Append(CRLogLevel.Debug, "Trace", fullMessage);
+            // Debug チャネルとして LogStore に記録する
+            _logStore.Append(CRLogLevel.Debug, "Trace", fullMessage);
+        }
+        catch
+        {
+            // CRDebugger 内部の例外は絶対にホスト側に伝播させない
+        }
     }
 
     /// <summary>
@@ -78,16 +102,23 @@ public sealed class CRTraceListener : TraceListener
     public override void TraceEvent(TraceEventCache? eventCache, string source,
         TraceEventType eventType, int id, string? message)
     {
-        // TraceEventType を CRLogLevel にマッピングする
-        var level = eventType switch
+        try
         {
-            TraceEventType.Critical or TraceEventType.Error => CRLogLevel.Error,
-            TraceEventType.Warning => CRLogLevel.Warning,
-            TraceEventType.Information => CRLogLevel.Info,
-            // Verbose / Start / Stop / Transfer などは Debug 扱い
-            _ => CRLogLevel.Debug
-        };
-        _logStore.Append(level, source, message ?? string.Empty);
+            // TraceEventType を CRLogLevel にマッピングする
+            var level = eventType switch
+            {
+                TraceEventType.Critical or TraceEventType.Error => CRLogLevel.Error,
+                TraceEventType.Warning => CRLogLevel.Warning,
+                TraceEventType.Information => CRLogLevel.Info,
+                // Verbose / Start / Stop / Transfer などは Debug 扱い
+                _ => CRLogLevel.Debug
+            };
+            _logStore.Append(level, source, message ?? string.Empty);
+        }
+        catch
+        {
+            // CRDebugger 内部の例外は絶対にホスト側に伝播させない
+        }
     }
 
     /// <summary>
@@ -102,10 +133,31 @@ public sealed class CRTraceListener : TraceListener
     public override void TraceEvent(TraceEventCache? eventCache, string source,
         TraceEventType eventType, int id, string? format, params object?[]? args)
     {
-        // 引数がある場合は書式展開し、ない場合はそのまま使う
-        var message = args != null && format != null
-            ? string.Format(format, args)
-            : format ?? string.Empty;
+        // 引数がある場合は書式展開し、ない場合はそのまま使う。
+        // string.Format は引数不一致等で FormatException をスローし得るため、
+        // 失敗時は生の format をフォールバックとして記録し、ホスト側に例外を逆流させない (#A2-002)
+        string message;
+        if (args != null && format != null)
+        {
+            try
+            {
+                message = string.Format(format, args);
+            }
+            catch (FormatException)
+            {
+                // 書式展開に失敗した場合は生の format をログに残し、Trace 経路を切らさない
+                message = format;
+            }
+            catch
+            {
+                // 想定外例外も握りつぶし、format を生のまま記録する
+                message = format;
+            }
+        }
+        else
+        {
+            message = format ?? string.Empty;
+        }
         // 展開済みメッセージを単一メッセージ版のオーバーロードに委譲する
         TraceEvent(eventCache, source, eventType, id, message);
     }

@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+
 namespace CRDebugger.Core.Input;
 
 /// <summary>
@@ -139,7 +141,8 @@ public sealed record KeyCombination(CRKey Key, CRModifierKeys Modifiers = CRModi
 /// </summary>
 public sealed class KeyboardShortcutManager
 {
-    private readonly Dictionary<KeyCombination, Action> _shortcuts = new();
+    /// <summary>登録済みショートカット辞書。Register/Unregister/HandleKeyDown を別スレッドから安全に呼び出せるよう ConcurrentDictionary を使用する</summary>
+    private readonly ConcurrentDictionary<KeyCombination, Action> _shortcuts = new();
     private bool _enabled = true;
 
     /// <summary>ショートカットの有効/無効</summary>
@@ -155,14 +158,17 @@ public sealed class KeyboardShortcutManager
     /// <exception cref="ArgumentNullException"><paramref name="action"/> が <c>null</c> の場合</exception>
     public void Register(KeyCombination combination, Action action)
     {
-        _shortcuts[combination] = action ?? throw new ArgumentNullException(nameof(action));
+        if (action == null) throw new ArgumentNullException(nameof(action));
+        // 上書き挙動を維持するため AddOrUpdate を使う（TryAdd だと既存キーの再登録が失敗する）
+        _shortcuts.AddOrUpdate(combination, action, (_, _) => action);
     }
 
     /// <summary>ショートカットを解除する</summary>
     /// <param name="combination">解除するキーの組み合わせ</param>
     public void Unregister(KeyCombination combination)
     {
-        _shortcuts.Remove(combination);
+        // 戻り値は使用しない（未登録キーの解除はノーオペ扱い）
+        _shortcuts.TryRemove(combination, out _);
     }
 
     /// <summary>キー押下を処理する。ショートカットが見つかった場合 <c>true</c> を返す。</summary>
@@ -184,6 +190,14 @@ public sealed class KeyboardShortcutManager
 
     /// <summary>登録済みショートカット一覧を取得する</summary>
     /// <returns>キーの組み合わせとアクションのディクショナリ</returns>
-    public IReadOnlyDictionary<KeyCombination, Action> GetAll() =>
-        new Dictionary<KeyCombination, Action>(_shortcuts);
+    public IReadOnlyDictionary<KeyCombination, Action> GetAll()
+    {
+        // ConcurrentDictionary はスナップショット取得を ToArray() で安全に行える。
+        // 取得後の辞書は通常 Dictionary としてコピーしてイミュータブルに見せる
+        var snapshot = _shortcuts.ToArray();
+        var dict = new Dictionary<KeyCombination, Action>(snapshot.Length);
+        foreach (var kvp in snapshot)
+            dict[kvp.Key] = kvp.Value;
+        return dict;
+    }
 }

@@ -22,4 +22,20 @@ public static class CRDebuggerWpfExtensions
         options.ThemeProvider = new WpfThemeProvider();
         return options;
     }
+
+    /// <summary>
+    /// WPF 向けの初期設定を適用し、追加のオプションをコールバックで設定して CRDebugger を初期化する便利メソッド。
+    /// Avalonia / WinForms と統一されたエントリポイントを提供する。
+    /// </summary>
+    /// <param name="configure">追加の設定を行うコールバック</param>
+    public static void Initialize(Action<CRDebuggerOptions> configure)
+    {
+        // WPF 用の初期設定を適用した options を生成する
+        var options = new CRDebuggerOptions();
+        options.UseWpf();
+        // 呼び出し元からの追加設定を反映する
+        configure(options);
+        // CRDebugger 本体を初期化する
+        Core.CRDebugger.Initialize(options);
+    }
 }

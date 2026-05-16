@@ -2,23 +2,23 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <!-- モダンライトテーマ -->
-    <Color x:Key="BackgroundColor">#FFF0F0F5</Color>
+    <Color x:Key="BackgroundColor">#FFF5F5FA</Color>
     <Color x:Key="SurfaceColor">#FFFFFFFF</Color>
-    <Color x:Key="SurfaceAltColor">#FFE8E8F0</Color>
-    <Color x:Key="PrimaryColor">#FF5B6BDF</Color>
+    <Color x:Key="SurfaceAltColor">#FFF0F0F5</Color>
+    <Color x:Key="PrimaryColor">#FF4A6CF7</Color>
     <Color x:Key="OnBackgroundColor">#FF1A1A2E</Color>
-    <Color x:Key="OnSurfaceColor">#FF2A2A40</Color>
-    <Color x:Key="OnSurfaceMutedColor">#FF6A6A80</Color>
+    <Color x:Key="OnSurfaceColor">#FF333344</Color>
+    <Color x:Key="OnSurfaceMutedColor">#FF707085</Color>
     <Color x:Key="BorderColor">#FFD0D0DD</Color>
-    <Color x:Key="SidebarBackgroundColor">#FFE0E0EC</Color>
-    <Color x:Key="SidebarTextColor">#FF5A5A70</Color>
-    <Color x:Key="SelectedTabColor">#FF5B6BDF</Color>
-    <Color x:Key="LogDebugColor">#FF2E7DD6</Color>
-    <Color x:Key="LogInfoColor">#FF6A6A80</Color>
-    <Color x:Key="LogWarningColor">#FFD4860A</Color>
-    <Color x:Key="LogErrorColor">#FFC62828</Color>
+    <Color x:Key="SidebarBackgroundColor">#FFE8E8F0</Color>
+    <Color x:Key="SidebarTextColor">#FF505068</Color>
+    <Color x:Key="SelectedTabColor">#FF4A6CF7</Color>
+    <Color x:Key="LogDebugColor">#FF1565C0</Color>
+    <Color x:Key="LogInfoColor">#FF555566</Color>
+    <Color x:Key="LogWarningColor">#FFE65100</Color>
+    <Color x:Key="LogErrorColor">#FFB71C1C</Color>
     <Color x:Key="SuccessColor">#FF2E7D32</Color>
-    <Color x:Key="HeaderCRColor">#FF5B6BDF</Color>
+    <Color x:Key="HeaderCRColor">#FF4A6CF7</Color>
     <Color x:Key="HeaderDebuggerColor">#FF8888A0</Color>
     <Color x:Key="MutedTextColor">#FF8888A0</Color>
 
@@ -164,7 +164,7 @@
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsChecked" Value="True">
                             <Setter TargetName="Bd" Property="Background"
-                                    Value="#1A5B6BDF" />
+                                    Value="#1A4A6CF7" />
                             <Setter Property="Foreground"
                                     Value="{StaticResource SelectedTabBrush}" />
                             <Setter TargetName="ActiveIndicator" Property="Background"
@@ -172,7 +172,7 @@
                         </Trigger>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="Bd" Property="Background"
-                                    Value="#0D5B6BDF" />
+                                    Value="#0D4A6CF7" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>

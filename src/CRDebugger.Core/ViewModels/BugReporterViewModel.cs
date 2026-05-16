@@ -29,6 +29,9 @@ public sealed class BugReporterViewModel : ViewModelBase
     /// <summary>送信処理中フラグ（バッキングフィールド）</summary>
     private bool _isSending;
 
+    /// <summary>送信処理のキャンセル制御用 CTS（送信のたびに作り直し、Dispose で解放）</summary>
+    private CancellationTokenSource? _sendCts;
+
     /// <summary>
     /// ユーザーが入力したバグの説明。
     /// 送信前に空文字チェックが行われる。
@@ -92,6 +95,7 @@ public sealed class BugReporterViewModel : ViewModelBase
     /// バグレポートを非同期で送信する内部処理。
     /// メッセージが空の場合はバリデーションエラーを表示して処理を中断する。
     /// スクリーンショットの取得、エンジンによるレポート作成・送信を順に行う。
+    /// 60 秒のタイムアウト CancellationToken を内部生成し、ハング時に強制的に送信を打ち切る (#20)。
     /// </summary>
     private async Task SendAsync()
     {
@@ -106,19 +110,32 @@ public sealed class BugReporterViewModel : ViewModelBase
         IsSending = true;
         StatusMessage = "送信中...";
 
+        // 前回の CTS が残っていれば破棄してから新規生成（連打対策＋リソースリーク防止）
+        _sendCts?.Dispose();
+        _sendCts = new CancellationTokenSource();
+        _sendCts.CancelAfter(TimeSpan.FromSeconds(60));
+
         try
         {
             // エンジン経由でスクリーンショット付きバグレポートを作成・送信
+            // .ConfigureAwait(false) は付けない — UI スレッドに戻って StatusMessage / IsSending を
+            // 更新する必要があるため（INotifyPropertyChanged の発火は UI スレッドが望ましい）(#19)
             await _engine.CreateAndSendAsync(
                 UserMessage,
                 UserEmail,
-                () => _window.CaptureScreenshotAsync()
-            ).ConfigureAwait(false);
+                () => _window.CaptureScreenshotAsync(),
+                _sendCts.Token
+            );
 
             // 送信成功時の状態更新
             StatusMessage = "バグレポートを送信しました！";
             // 送信済みメッセージをクリア（メールアドレスは保持）
             UserMessage = string.Empty;
+        }
+        catch (OperationCanceledException)
+        {
+            // タイムアウト or 明示的キャンセル時の状態更新
+            StatusMessage = "送信がタイムアウトまたはキャンセルされました。";
         }
         catch (Exception ex)
         {
@@ -130,5 +147,19 @@ public sealed class BugReporterViewModel : ViewModelBase
             // 成功・失敗にかかわらず送信中フラグを解除
             IsSending = false;
         }
+    }
+
+    /// <inheritdoc />
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            // 進行中の送信があれば中断＆ CTS を解放
+            try { _sendCts?.Cancel(); } catch { /* 解放経路で握りつぶし */ }
+            _sendCts?.Dispose();
+            _sendCts = null;
+        }
+
+        base.Dispose(disposing);
     }
 }

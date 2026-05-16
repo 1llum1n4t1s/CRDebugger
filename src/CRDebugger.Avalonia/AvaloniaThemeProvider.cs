@@ -52,13 +52,15 @@ public sealed class AvaloniaThemeProvider : IThemeProvider
     /// </summary>
     public void StopMonitoring()
     {
+        // Avalonia のイベント購読解除を先に行い、新たな OnColorValuesChanged の発火を遮断する (#24)。
+        // この順序を守らないと、_callback = null した後に既発火イベントが Post され NRE になる可能性がある
         var app = Application.Current;
         if (app?.PlatformSettings != null)
         {
             // イベントハンドラーを解除してメモリリークを防ぐ
             app.PlatformSettings.ColorValuesChanged -= OnColorValuesChanged;
         }
-        // コールバック参照をクリアする
+        // 購読解除後にコールバック参照をクリアする
         _callback = null;
     }
 
@@ -72,10 +74,14 @@ public sealed class AvaloniaThemeProvider : IThemeProvider
     {
         // 新しいテーマがダークかどうかを判定する
         var isDark = e.ThemeVariant == PlatformThemeVariant.Dark;
-        if (_callback != null)
+        // ローカル変数キャプチャで Post 実行時の _callback = null race を防ぐ (#24)。
+        // 直接 _callback を Post 内のクロージャから参照すると、StopMonitoring 経由で
+        // フィールドが null 化された直後に Post が走り NullReferenceException が発生する
+        var cb = _callback;
+        if (cb != null)
         {
-            // UIスレッドでコールバックを実行する
-            Dispatcher.UIThread.Post(() => _callback(isDark));
+            // UIスレッドでローカル参照経由でコールバックを実行する
+            Dispatcher.UIThread.Post(() => cb(isDark));
         }
     }
 }

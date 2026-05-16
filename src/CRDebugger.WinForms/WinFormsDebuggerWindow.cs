@@ -16,9 +16,6 @@ public sealed class WinFormsDebuggerWindow : IDebuggerWindow
     /// <summary>管理対象の <see cref="DebuggerForm"/> インスタンス。未生成または破棄済みの場合は null。</summary>
     private DebuggerForm? _form;
 
-    /// <summary>現在バインドされている <see cref="DebuggerViewModel"/>。</summary>
-    private DebuggerViewModel? _viewModel;
-
     /// <summary>
     /// デバッガーウィンドウが現在表示されているかどうかを取得する。
     /// フォームが存在し、Visible が true で、破棄されていない場合に true を返す。
@@ -32,9 +29,6 @@ public sealed class WinFormsDebuggerWindow : IDebuggerWindow
     /// <param name="viewModel">デバッガーUIにバインドする <see cref="DebuggerViewModel"/>。</param>
     public void Show(DebuggerViewModel viewModel)
     {
-        // ViewModelを保持
-        _viewModel = viewModel;
-
         // 既存フォームが生きている場合は前面に表示して終了
         if (_form != null && !_form.IsDisposed)
         {
@@ -76,32 +70,93 @@ public sealed class WinFormsDebuggerWindow : IDebuggerWindow
 
     /// <summary>
     /// デバッガーウィンドウのスクリーンショットをPNG形式のバイト配列として非同期に取得する。
+    /// DrawToBitmap は UI スレッド必須なので Invoke で UI スレッドに戻して実行し、
+    /// PNG エンコードはバックグラウンドスレッドにオフロードして UI のブロックを避ける。
     /// フォームが存在しない場合や取得に失敗した場合は null を返す。
     /// </summary>
     /// <returns>PNGバイト配列。取得できない場合は null。</returns>
-    public Task<byte[]?> CaptureScreenshotAsync()
+    public async Task<byte[]?> CaptureScreenshotAsync()
     {
         // フォームが存在しない場合は null を返す
         if (_form == null || _form.IsDisposed)
-            return Task.FromResult<byte[]?>(null);
+            return null;
 
+        Bitmap? bitmap = null;
         try
         {
-            // フォームの境界矩形を取得してビットマップに描画
-            var bounds = _form.Bounds;
-            using var bitmap = new Bitmap(bounds.Width, bounds.Height);
-            _form.DrawToBitmap(bitmap, new Rectangle(0, 0, bounds.Width, bounds.Height));
+            // ----- Phase 1: UI スレッドで DrawToBitmap を実行してビットマップを取得 -----
+            // DrawToBitmap は WinForms ハンドルにアクセスするため UI スレッドからの呼び出しが必須
+            bitmap = await InvokeOnUiThreadAsync(() =>
+            {
+                if (_form == null || _form.IsDisposed) return null;
+                var bounds = _form.Bounds;
+                if (bounds.Width <= 0 || bounds.Height <= 0) return null;
 
-            // MemoryStream に PNG 形式で保存してバイト配列に変換
-            using var ms = new MemoryStream();
-            bitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
-            return Task.FromResult<byte[]?>(ms.ToArray());
+                var bmp = new Bitmap(bounds.Width, bounds.Height);
+                _form.DrawToBitmap(bmp, new Rectangle(0, 0, bounds.Width, bounds.Height));
+                return bmp;
+            }).ConfigureAwait(false);
+
+            if (bitmap == null) return null;
+
+            // ----- Phase 2: PNG エンコードをバックグラウンドスレッドにオフロード -----
+            var localBitmap = bitmap;
+            return await Task.Run<byte[]?>(() =>
+            {
+                try
+                {
+                    using var ms = new MemoryStream();
+                    localBitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+                    return ms.ToArray();
+                }
+                catch
+                {
+                    return null;
+                }
+            }).ConfigureAwait(false);
         }
         catch
         {
             // スクリーンショット取得失敗時は null を返す
-            return Task.FromResult<byte[]?>(null);
+            return null;
         }
+        finally
+        {
+            bitmap?.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// 指定したデリゲートをフォームの UI スレッド上で実行する。
+    /// 既に UI スレッド上なら直接呼び、別スレッドなら <see cref="Control.BeginInvoke(Delegate)"/> でマーシャリングする。
+    /// </summary>
+    /// <typeparam name="T">戻り値の型。</typeparam>
+    /// <param name="func">UI スレッドで実行する関数。</param>
+    /// <returns>関数の戻り値を含む <see cref="Task{T}"/>。</returns>
+    private Task<T?> InvokeOnUiThreadAsync<T>(Func<T?> func) where T : class
+    {
+        if (_form == null || _form.IsDisposed)
+            return Task.FromResult<T?>(null);
+
+        if (!_form.InvokeRequired)
+        {
+            return Task.FromResult(func());
+        }
+
+        var tcs = new TaskCompletionSource<T?>();
+        try
+        {
+            _form.BeginInvoke(() =>
+            {
+                try { tcs.SetResult(func()); }
+                catch (Exception ex) { tcs.SetException(ex); }
+            });
+        }
+        catch (Exception ex)
+        {
+            tcs.SetException(ex);
+        }
+        return tcs.Task;
     }
 
     /// <summary>

@@ -48,6 +48,10 @@ public static class CRDebugger
             if (_context != null)
                 throw new CRDebuggerAlreadyInitializedException();
 
+            // 明示的に無効化されている場合はコンテキストを構築せず no-op で初期化扱い
+            if (!options.IsEnabled)
+                return;
+
             try
             {
                 // 全サービスを生成・配線するコンテキストを構築
@@ -411,6 +415,10 @@ public static class CRDebugger
                 RaiseInternalError("Shutdown中にエラーが発生しました。", ex);
             }
             _context = null; // コンテキストをnullにして未初期化状態に戻す
+
+            // 静的イベントの購読者を全クリア（Re-Initialize 時の重複発火を防止）
+            PanelVisibilityChanged = null;
+            InternalError = null;
         }
     }
 

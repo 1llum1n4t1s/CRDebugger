@@ -153,6 +153,11 @@
 
             <!-- ホットスポットリスト -->
             <ItemsControl ItemsSource="{Binding CpuHotspots}" IsVisible="{Binding HasHotspots}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <VirtualizingStackPanel />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
               <ItemsControl.DataTemplates>
                 <DataTemplate x:DataType="vm:HotspotItem">
                   <Border Padding="0,4" BorderThickness="0,1,0,0" BorderBrush="{DynamicResource CRBorderBrush}">
@@ -229,6 +234,11 @@
 
             <!-- メモリホットスポットリスト -->
             <ItemsControl ItemsSource="{Binding MemoryHotspots}" IsVisible="{Binding HasMemoryHotspots}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <VirtualizingStackPanel />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
               <ItemsControl.DataTemplates>
                 <DataTemplate x:DataType="vm:MemoryHotspotItem">
                   <Border Padding="0,4" BorderThickness="0,1,0,0" BorderBrush="{DynamicResource CRBorderBrush}">

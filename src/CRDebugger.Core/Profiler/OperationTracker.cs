@@ -11,8 +11,17 @@ namespace CRDebugger.Core.Profiler;
 /// </summary>
 public sealed class OperationTracker
 {
+    /// <summary>
+    /// _metrics に保持できる最大操作数。これを超えると最古エントリを LRU 風に追い出す。
+    /// 永続リーク（攻撃的に毎回ユニークな操作名を渡されるケース）を防ぐためのガード。
+    /// </summary>
+    public const int MaxOperations = 1024;
+
     /// <summary>操作名をキーとしてメトリクスを保持するスレッドセーフな辞書</summary>
     private readonly ConcurrentDictionary<string, OperationMetrics> _metrics = new();
+
+    /// <summary>_metrics に追加された操作名の挿入順を追跡する FIFO キュー（LRU 風 eviction 用）</summary>
+    private readonly ConcurrentQueue<string> _orderTracking = new();
 
     /// <summary>手動記録されたネットワーク受信バイト数の累計（Interlocked で操作）</summary>
     private long _manualNetworkRead;
@@ -25,6 +34,18 @@ public sealed class OperationTracker
 
     /// <summary>手動記録されたストレージ書き込みバイト数の累計（Interlocked で操作）</summary>
     private long _manualStorageWrite;
+
+    /// <summary>キャッシュ済みネットワーク受信総バイト数（OS API 呼び出しを <see cref="UpdateCounterSnapshot"/> 経由に集約）</summary>
+    private long _cachedNetworkRead;
+
+    /// <summary>キャッシュ済みネットワーク送信総バイト数</summary>
+    private long _cachedNetworkWrite;
+
+    /// <summary>キャッシュ済みストレージ読み込み総バイト数（プロセスのワーキングセット近似）</summary>
+    private long _cachedStorageRead;
+
+    /// <summary>キャッシュ済みストレージ書き込み総バイト数</summary>
+    private long _cachedStorageWrite;
 
     /// <summary>
     /// いずれかの操作のメトリクスが更新された時に発火するイベント。
@@ -128,64 +149,81 @@ public sealed class OperationTracker
     }
 
     /// <summary>
-    /// 現在のネットワークI/Oカウンター値を取得する。
-    /// OSレベルの統計値と手動記録値を合算して返す。
+    /// ネットワーク／ストレージカウンタのキャッシュを最新化する。
+    /// OS API（<see cref="NetworkInterface.GetAllNetworkInterfaces"/> や
+    /// <see cref="Process.GetCurrentProcess"/>）を呼ぶ唯一のポイント。
+    /// <see cref="ProfilerEngine"/> から定期 Tick (例: 500ms 毎) で呼び出すことで、
+    /// <see cref="GetNetworkCounters"/> / <see cref="GetStorageCounters"/> の OS 呼び出しオーバーヘッドを排除する (#22)。
     /// </summary>
-    /// <returns>（受信バイト数, 送信バイト数）のタプル</returns>
-    internal (long Read, long Write) GetNetworkCounters()
+    public void UpdateCounterSnapshot()
     {
+        // ネットワーク総量を集計してキャッシュに書き込む
+        long netRead = 0, netWrite = 0;
         try
         {
-            // アクティブな全ネットワークインターフェースのOSレベル統計を集計
             var interfaces = NetworkInterface.GetAllNetworkInterfaces();
-            long totalRead = 0, totalWrite = 0;
             foreach (var ni in interfaces)
             {
                 // 稼働中のインターフェースのみを対象にする
                 if (ni.OperationalStatus != OperationalStatus.Up) continue;
                 var stats = ni.GetIPStatistics();
-                totalRead += stats.BytesReceived;
-                totalWrite += stats.BytesSent;
+                netRead += stats.BytesReceived;
+                netWrite += stats.BytesSent;
             }
-            // OS統計値に手動記録分を加算して返す
-            return (
-                totalRead + Interlocked.Read(ref _manualNetworkRead),
-                totalWrite + Interlocked.Read(ref _manualNetworkWrite)
-            );
         }
         catch
         {
-            // OS統計の取得に失敗した場合は手動記録分のみを返す
-            return (
-                Interlocked.Read(ref _manualNetworkRead),
-                Interlocked.Read(ref _manualNetworkWrite)
-            );
+            // OS 統計取得失敗時は前回値を維持するため、加算前にゼロ初期化済みの値で上書きしない（後段の Volatile.Write をスキップ）
+            netRead = Interlocked.Read(ref _cachedNetworkRead) - Interlocked.Read(ref _manualNetworkRead);
+            netWrite = Interlocked.Read(ref _cachedNetworkWrite) - Interlocked.Read(ref _manualNetworkWrite);
+            if (netRead < 0) netRead = 0;
+            if (netWrite < 0) netWrite = 0;
         }
+
+        // 手動記録分を加算してキャッシュに反映（Interlocked.Exchange でアトミックに更新）
+        Interlocked.Exchange(ref _cachedNetworkRead, netRead + Interlocked.Read(ref _manualNetworkRead));
+        Interlocked.Exchange(ref _cachedNetworkWrite, netWrite + Interlocked.Read(ref _manualNetworkWrite));
+
+        // ストレージカウンタ（プロセスのワーキングセット近似）を取得してキャッシュに反映
+        long storageRead;
+        try
+        {
+            using var process = Process.GetCurrentProcess();
+            storageRead = process.WorkingSet64;
+        }
+        catch
+        {
+            // 取得失敗時は 0 として扱う（手動分のみ加算される）
+            storageRead = 0;
+        }
+        Interlocked.Exchange(ref _cachedStorageRead, storageRead + Interlocked.Read(ref _manualStorageRead));
+        Interlocked.Exchange(ref _cachedStorageWrite, Interlocked.Read(ref _manualStorageWrite));
     }
 
     /// <summary>
-    /// 現在のストレージI/Oカウンター値を取得する。
-    /// プロセスのワーキングセットを近似値として使用し、手動記録値を加算する。
+    /// 現在のネットワークI/Oカウンター値を取得する（キャッシュ値を返却し、OS API を呼ばない）。
+    /// 最新化は <see cref="UpdateCounterSnapshot"/> 経由で行う設計に変更 (#22 / #C1-001)。
+    /// </summary>
+    /// <returns>（受信バイト数, 送信バイト数）のタプル</returns>
+    internal (long Read, long Write) GetNetworkCounters()
+    {
+        return (
+            Interlocked.Read(ref _cachedNetworkRead),
+            Interlocked.Read(ref _cachedNetworkWrite)
+        );
+    }
+
+    /// <summary>
+    /// 現在のストレージI/Oカウンター値を取得する（キャッシュ値を返却し、OS API を呼ばない）。
+    /// 最新化は <see cref="UpdateCounterSnapshot"/> 経由で行う設計に変更 (#22 / #C1-001)。
     /// </summary>
     /// <returns>（読み込みバイト数, 書き込みバイト数）のタプル</returns>
     internal (long Read, long Write) GetStorageCounters()
     {
-        try
-        {
-            using var process = Process.GetCurrentProcess();
-            return (
-                process.WorkingSet64 + Interlocked.Read(ref _manualStorageRead),  // ワーキングセットを近似値として使用
-                Interlocked.Read(ref _manualStorageWrite)
-            );
-        }
-        catch
-        {
-            // プロセス情報の取得に失敗した場合は手動記録分のみを返す
-            return (
-                Interlocked.Read(ref _manualStorageRead),
-                Interlocked.Read(ref _manualStorageWrite)
-            );
-        }
+        return (
+            Interlocked.Read(ref _cachedStorageRead),
+            Interlocked.Read(ref _cachedStorageWrite)
+        );
     }
 
     /// <summary>
@@ -199,11 +237,39 @@ public sealed class OperationTracker
     internal void RecordSample(string operationName, string category, OperationSample sample)
     {
         // 既存メトリクスを取得、なければ新規作成して辞書に追加
-        var metrics = _metrics.GetOrAdd(operationName, name => new OperationMetrics(name, category));
+        var isNew = false;
+        var metrics = _metrics.GetOrAdd(operationName, name =>
+        {
+            isNew = true;
+            return new OperationMetrics(name, category);
+        });
+
+        if (isNew)
+        {
+            // 新規操作名は順序追跡キューに追加し、上限超過時に最古を追い出す
+            _orderTracking.Enqueue(operationName);
+            EvictIfOverCapacity();
+        }
+
         metrics.RecordSample(sample);
 
         try { MetricsUpdated?.Invoke(this, metrics); }
         catch { /* イベントハンドラの例外はプロファイリング処理に影響させないため握りつぶす */ }
+    }
+
+    /// <summary>
+    /// _metrics の件数が <see cref="MaxOperations"/> を超えている場合、
+    /// 最古エントリを <see cref="_orderTracking"/> から順番に取り出して削除する (#5)。
+    /// 攻撃的に毎回ユニークな操作名を渡されても _metrics が無限に膨張しないようにする。
+    /// </summary>
+    private void EvictIfOverCapacity()
+    {
+        // 上限を超過している間ループ（GetOrAdd と並行追加で多重超過する可能性に備える）
+        while (_metrics.Count > MaxOperations && _orderTracking.TryDequeue(out var oldest))
+        {
+            // キューの先頭が現存していれば削除する。既に削除済みなら次のエントリを処理
+            _metrics.TryRemove(oldest, out _);
+        }
     }
 
     /// <summary>
@@ -315,10 +381,19 @@ public sealed class OperationTracker
         // 操作メトリクス辞書を全消去
         _metrics.Clear();
 
+        // 順序追跡キューもまとめて空にする（同等の効果を得るため Dequeue ループで消費）
+        while (_orderTracking.TryDequeue(out _)) { }
+
         // 手動記録のI/Oカウンターをゼロリセット（Interlocked.Exchange でスレッドセーフに実施）
         Interlocked.Exchange(ref _manualNetworkRead, 0);
         Interlocked.Exchange(ref _manualNetworkWrite, 0);
         Interlocked.Exchange(ref _manualStorageRead, 0);
         Interlocked.Exchange(ref _manualStorageWrite, 0);
+
+        // キャッシュ済みカウンタもゼロ化（次回 UpdateCounterSnapshot で最新化される）
+        Interlocked.Exchange(ref _cachedNetworkRead, 0);
+        Interlocked.Exchange(ref _cachedNetworkWrite, 0);
+        Interlocked.Exchange(ref _cachedStorageRead, 0);
+        Interlocked.Exchange(ref _cachedStorageWrite, 0);
     }
 }

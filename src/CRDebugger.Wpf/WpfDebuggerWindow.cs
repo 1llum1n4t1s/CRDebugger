@@ -39,8 +39,6 @@ public sealed class WpfDebuggerWindow : IDebuggerWindow
     /// <param name="viewModel">ウィンドウに設定する DebuggerViewModel</param>
     public void Show(DebuggerViewModel viewModel)
     {
-        _viewModel = viewModel;
-
         // ウィンドウが未生成またはすでにアンロードされている場合は再生成
         if (_window == null || !_window.IsLoaded)
         {
@@ -53,11 +51,15 @@ public sealed class WpfDebuggerWindow : IDebuggerWindow
         _window.DataContext = viewModel;
         _window.ApplyThemeColors(viewModel.ThemeColors);
 
-        // 旧ハンドラを解除して重複購読によるメモリリークを防ぐ
-        if (_themeChangedHandler != null && _viewModel != null)
+        // 旧 ViewModel に対する PropertyChanged ハンドラを解除してメモリリークを防ぐ
+        // ※ _viewModel 代入よりも前にやらないと旧 ViewModel への参照が失われて解除できなくなる
+        if (_viewModel != null && _themeChangedHandler != null)
         {
             _viewModel.PropertyChanged -= _themeChangedHandler;
         }
+
+        // 旧 ViewModel の解除が終わってから新 ViewModel に切り替える
+        _viewModel = viewModel;
 
         // テーマ変更を監視して ViewModel の ThemeColors が変わった際に自動再適用
         _themeChangedHandler = (_, e) =>
@@ -103,10 +105,9 @@ public sealed class WpfDebuggerWindow : IDebuggerWindow
         if (_window == null || !_window.IsVisible)
             return null;
 
-        byte[]? result = null;
-
-        // UI スレッドで RenderTargetBitmap を使ってウィンドウを描画キャプチャ
-        await _window.Dispatcher.InvokeAsync(() =>
+        // ----- Phase 1: UI スレッドで描画してピクセル配列を取り出す -----
+        // RenderTargetBitmap.Render は UI スレッドからしか呼べないためここまでは Dispatcher 上で実行する
+        var pixelData = await _window.Dispatcher.InvokeAsync(() =>
         {
             try
             {
@@ -114,36 +115,81 @@ public sealed class WpfDebuggerWindow : IDebuggerWindow
                 var height = (int)_window.ActualHeight;
 
                 // ウィンドウサイズが無効な場合はスキップ
-                if (width <= 0 || height <= 0)
-                    return;
+                if (width <= 0 || height <= 0) return null;
 
                 // DPI スケールを考慮した実ピクセル数で RenderTargetBitmap を生成
                 var dpi = VisualTreeHelper.GetDpi(_window);
-                var renderTarget = new RenderTargetBitmap(
-                    (int)(width * dpi.DpiScaleX),   // DPI スケールを掛けた実幅
-                    (int)(height * dpi.DpiScaleY),  // DPI スケールを掛けた実高さ
-                    dpi.PixelsPerInchX,              // 水平 DPI
-                    dpi.PixelsPerInchY,              // 垂直 DPI
-                    PixelFormats.Pbgra32);           // アルファチャンネル付き 32bit フォーマット
+                var pixelWidth = (int)(width * dpi.DpiScaleX);
+                var pixelHeight = (int)(height * dpi.DpiScaleY);
 
-                // ウィンドウ全体をビットマップにレンダリング
+                var renderTarget = new RenderTargetBitmap(
+                    pixelWidth,
+                    pixelHeight,
+                    dpi.PixelsPerInchX,
+                    dpi.PixelsPerInchY,
+                    PixelFormats.Pbgra32);
+
+                // ウィンドウ全体をビットマップにレンダリング（UI スレッド必須）
                 renderTarget.Render(_window);
 
-                // PNG エンコーダーでビットマップを PNG に変換
-                var encoder = new PngBitmapEncoder();
-                encoder.Frames.Add(BitmapFrame.Create(renderTarget));
+                // バックグラウンドで再利用できるようピクセル配列に焼き出して凍結する
+                int stride = pixelWidth * 4; // Pbgra32 は 4 bytes/pixel
+                var buffer = new byte[stride * pixelHeight];
+                renderTarget.CopyPixels(buffer, stride, 0);
 
-                // MemoryStream を使って PNG バイト配列を取得
-                using var stream = new MemoryStream();
-                encoder.Save(stream);
-                result = stream.ToArray();
+                return new PixelSnapshot(buffer, pixelWidth, pixelHeight, stride,
+                    dpi.PixelsPerInchX, dpi.PixelsPerInchY);
             }
             catch
             {
-                // スクリーンショット取得に失敗した場合は null を返す（例外は握りつぶす）
+                // 描画に失敗した場合は null を返す（例外は握りつぶす）
+                return null;
             }
         });
 
-        return result;
+        if (pixelData == null) return null;
+
+        // ----- Phase 2: PNG エンコードをバックグラウンドスレッドにオフロード -----
+        // PngBitmapEncoder.Save は CPU バウンドで重いので UI スレッドを離す
+        return await Task.Run<byte[]?>(() =>
+        {
+            try
+            {
+                var bitmap = BitmapSource.Create(
+                    pixelData.PixelWidth,
+                    pixelData.PixelHeight,
+                    pixelData.DpiX,
+                    pixelData.DpiY,
+                    PixelFormats.Pbgra32,
+                    null,
+                    pixelData.Buffer,
+                    pixelData.Stride);
+                // BitmapSource をスレッド境界を越えて使えるように凍結
+                bitmap.Freeze();
+
+                var encoder = new PngBitmapEncoder();
+                encoder.Frames.Add(BitmapFrame.Create(bitmap));
+
+                using var stream = new MemoryStream();
+                encoder.Save(stream);
+                return stream.ToArray();
+            }
+            catch
+            {
+                // エンコードに失敗した場合は null を返す
+                return null;
+            }
+        });
     }
+
+    /// <summary>
+    /// UI スレッドで描画したピクセルバッファをバックグラウンドエンコードに引き渡すための DTO。
+    /// </summary>
+    private sealed record PixelSnapshot(
+        byte[] Buffer,
+        int PixelWidth,
+        int PixelHeight,
+        int Stride,
+        double DpiX,
+        double DpiY);
 }

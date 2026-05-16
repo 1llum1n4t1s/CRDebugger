@@ -16,6 +16,14 @@ public sealed class LogStore
     private int _nextId;
     /// <summary>直前に記録したログエントリ（重複検出に使用）</summary>
     private LogEntry? _lastEntry;
+    /// <summary>Debug レベルログの累積件数（書き込みロック保持中に更新）</summary>
+    private int _debugCount;
+    /// <summary>Info レベルログの累積件数（書き込みロック保持中に更新）</summary>
+    private int _infoCount;
+    /// <summary>Warning レベルログの累積件数（書き込みロック保持中に更新）</summary>
+    private int _warnCount;
+    /// <summary>Error レベルログの累積件数（書き込みロック保持中に更新）</summary>
+    private int _errorCount;
 
     /// <summary>新しいログエントリが追加された時に発火する</summary>
     public event EventHandler<LogEntry>? EntryAdded;
@@ -96,9 +104,16 @@ public sealed class LogStore
                 RichSpans: richSpans
             );
 
+            // 満杯時は最古エントリが追い出されるため、該当レベルカウントを先にデクリメントする
+            if (_buffer.Count == _buffer.Capacity)
+                DecrementLevelCount(_buffer[0].Level);
+
             _buffer.Add(entry);
             _lastEntry = entry;
             addedEntry = entry; // ロック内でキャプチャ（レースコンディション回避）
+
+            // 追加したエントリのレベル別カウントをインクリメント
+            IncrementLevelCount(level);
         }
         finally
         {
@@ -153,29 +168,19 @@ public sealed class LogStore
     }
 
     /// <summary>
-    /// レベル別のログ件数を取得する
+    /// レベル別のログ件数を O(1) で取得する。
+    /// インクリメンタルに維持した内部カウンタを返すため、バッファ全体を走査しない。
     /// </summary>
     /// <returns>Debug / Info / Warning / Error それぞれの件数をタプルで返す</returns>
     public (int Debug, int Info, int Warning, int Error) GetCounts()
     {
-        int d = 0, i = 0, w = 0, e = 0;
         _lock.EnterReadLock();
         try
         {
-            // 全エントリを1回走査してレベル別に集計する
-            foreach (var entry in _buffer)
-            {
-                switch (entry.Level)
-                {
-                    case CRLogLevel.Debug: d++; break;
-                    case CRLogLevel.Info: i++; break;
-                    case CRLogLevel.Warning: w++; break;
-                    case CRLogLevel.Error: e++; break;
-                }
-            }
+            // 4 つのカウンタを一貫したスナップショットで読み出す
+            return (_debugCount, _infoCount, _warnCount, _errorCount);
         }
         finally { _lock.ExitReadLock(); }
-        return (d, i, w, e);
     }
 
     /// <summary>
@@ -189,7 +194,40 @@ public sealed class LogStore
             _buffer.Clear();
             // 重複検出用の直前エントリもリセットする
             _lastEntry = null;
+            // レベル別カウンタもゼロリセット
+            _debugCount = 0;
+            _infoCount = 0;
+            _warnCount = 0;
+            _errorCount = 0;
         }
         finally { _lock.ExitWriteLock(); }
+    }
+
+    /// <summary>
+    /// 指定レベルのカウンタを 1 増やす（書き込みロック保持中に呼ぶ前提）。
+    /// </summary>
+    private void IncrementLevelCount(CRLogLevel level)
+    {
+        switch (level)
+        {
+            case CRLogLevel.Debug: _debugCount++; break;
+            case CRLogLevel.Info: _infoCount++; break;
+            case CRLogLevel.Warning: _warnCount++; break;
+            case CRLogLevel.Error: _errorCount++; break;
+        }
+    }
+
+    /// <summary>
+    /// 指定レベルのカウンタを 1 減らす（書き込みロック保持中に呼ぶ前提）。
+    /// </summary>
+    private void DecrementLevelCount(CRLogLevel level)
+    {
+        switch (level)
+        {
+            case CRLogLevel.Debug: _debugCount--; break;
+            case CRLogLevel.Info: _infoCount--; break;
+            case CRLogLevel.Warning: _warnCount--; break;
+            case CRLogLevel.Error: _errorCount--; break;
+        }
     }
 }

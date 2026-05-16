@@ -143,13 +143,6 @@ public sealed class DebuggerForm : Form
         // 初期タブを表示してテーマを適用
         SwitchToTab(_viewModel.SelectedTab);
         ApplyTheme(_colors);
-
-        // UIスレッドマーシャリング用コントロールを設定
-        if (_viewModel.ThemeManager != null)
-        {
-            var uiThread = FindUiThread();
-            uiThread?.SetMarshalControl(this);
-        }
     }
 
     /// <summary>
@@ -421,20 +414,6 @@ public sealed class DebuggerForm : Form
         g.DrawLine(borderPen,
             _sidebarPanel.Width - 1, 0,
             _sidebarPanel.Width - 1, _sidebarPanel.Height);
-    }
-
-    /// <summary>
-    /// WinFormsUiThread インスタンスを検索して返す。
-    /// 現在の実装では DebuggerWindow 側で設定するため null を返す。
-    /// </summary>
-    /// <returns>
-    /// <see cref="WinFormsUiThread"/> インスタンス。現在は常に null を返す。
-    /// </returns>
-    private WinFormsUiThread? FindUiThread()
-    {
-        // WinFormsUiThreadインスタンスを見つけてマーシャルコントロールを設定
-        // UseWinForms()で設定済みのインスタンスを探す
-        return null; // DebuggerWindow側で設定する
     }
 
     /// <summary>

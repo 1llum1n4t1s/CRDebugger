@@ -1,10 +1,30 @@
 namespace CRDebugger.Core.Options.Attributes;
 
 /// <summary>
-/// プロパティを CRDebugger の Options タブに表示するマーカーアトリビュート。
-/// このアトリビュートがなくても全 public プロパティはスキャン対象になるが、
-/// 将来的なフィルタリング用途として明示的な付与が推奨される。
+/// プロパティを CRDebugger の Options タブに表示する opt-in マーカーアトリビュート。
 /// </summary>
+/// <remarks>
+/// <para>
+/// デフォルト (<c>CRDebuggerOptions.RequireOptInAttribute = false</c>) では
+/// 全ての public プロパティがスキャン対象になるため、このアトリビュートは無視される。
+/// </para>
+/// <para>
+/// <c>CRDebuggerOptions.RequireOptInAttribute = true</c> を設定すると、
+/// このアトリビュートが付与された public プロパティ <b>だけ</b> が Options タブに表示される。
+/// 機密データや内部実装詳細プロパティをホワイトリスト方式で UI 露出制御したい場合に使用する。
+/// </para>
+/// <example>
+/// <code>
+/// options.RequireOptInAttribute = true;
+///
+/// public class MyOptions
+/// {
+///     [CROption] public int Visible { get; set; }   // ← 表示される
+///     public string Hidden { get; set; } = "secret"; // ← 表示されない
+/// }
+/// </code>
+/// </example>
+/// </remarks>
 [AttributeUsage(AttributeTargets.Property)]
 public sealed class CROptionAttribute : Attribute { }
 

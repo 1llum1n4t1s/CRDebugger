@@ -71,6 +71,41 @@ options.UseWpf();           // or UseWinForms(), UseAvalonia()
 CRDebugger.Initialize(options);
 ```
 
+または `Initialize(Action<CRDebuggerOptions>)` ヘルパー（Avalonia / WPF / WinForms で統一）:
+
+```csharp
+using CRDebugger.Wpf; // or CRDebugger.Avalonia / CRDebugger.WinForms
+
+CRDebuggerWpfExtensions.Initialize(options =>
+{
+    options.Theme = CRTheme.Dark;
+    options.IsEnabled = !System.Diagnostics.Debugger.IsAttached; // 本番ビルドで無効化
+});
+```
+
+#### 主要なオプション
+
+| プロパティ | 説明 | デフォルト |
+|---|---|---|
+| `IsEnabled` | `false` で CRDebugger 全体を no-op 化（Release ビルド向け） | `true` |
+| `RequireOptInAttribute` | `true` の場合、Options タブには `[CROption]` が付いたプロパティのみ表示 | `false` |
+| `SystemInfoCollectionLevel` | BugReport 収集情報の詳細度（`Minimal` / `Standard` / `Detailed`） | `Standard` |
+| `OptionsStore` | UI 変更値を永続化するストア（`JsonFileOptionsStore` 等。`null` で永続化なし） | `null` |
+| `FileLogPath` | SuperLightLogger によるファイル出力先（`null` でファイル出力なし） | `null` |
+
+```csharp
+// 例: Release で無効化 + Options 永続化
+var options = new CRDebuggerOptions
+{
+    IsEnabled = !System.Diagnostics.Debugger.IsAttached,
+    RequireOptInAttribute = true,
+    SystemInfoCollectionLevel = SystemInfoCollectionLevel.Detailed,
+    OptionsStore = new JsonFileOptionsStore("crdebugger-options.json"),
+};
+options.UseWpf();
+CRDebugger.Initialize(options);
+```
+
 ### 3. 使用
 
 ```csharp
@@ -178,6 +213,8 @@ CRDebugger.AddOptionContainer(dynamic);
 | `[CRAction(Label = "名前")]` | `void` / `Task` メソッド | ボタンとして UI に表示 |
 | `[CRColor]` | `string` プロパティ | カラースウォッチ＋HEX入力として表示 |
 | `[CRSortOrder(n)]` | プロパティ / メソッド | カテゴリ内の表示順を指定（昇順） |
+| `[CROption]` | プロパティ | `RequireOptInAttribute = true` 時のみ対象とする opt-in マーカー |
+| `[CRContainer(Group, SortOrder, IsVisible)]` | クラス | コンテナのグループ・ソート順・表示有無を指定 |
 
 ### 対応する型とコントロール
 
@@ -281,7 +318,7 @@ var options = new CRDebuggerOptions
 
 ## Requirements
 
-- .NET 6.0 以上
+- .NET 8.0 以上（.NET 8 / .NET 10 対応）
 - WinForms / WPF: Windows のみ
 - Avalonia: Windows / macOS / Linux
 

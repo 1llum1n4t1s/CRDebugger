@@ -314,13 +314,103 @@ public sealed class ConsolePanel : Panel
 
     /// <summary>
     /// DisplayEntries コレクション変更イベントハンドラー。
-    /// UIスレッド以外からの呼び出しは Invoke でマーシャリングしてリストを更新する。
+    /// 変更種別に応じて差分のみリストを更新し、毎回 RefreshLogList で全件再構築するのを避ける（O(N²) 回避）。
+    /// UIスレッド以外からの呼び出しは Invoke でマーシャリングする。
     /// </summary>
     /// <param name="sender">イベント発生元オブジェクト。</param>
     /// <param name="e">コレクション変更イベント引数。</param>
     private void OnDisplayEntriesChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        this.SafeInvoke(RefreshLogList);
+        this.SafeInvoke(() => ApplyCollectionChange(e));
+    }
+
+    /// <summary>
+    /// コレクション変更イベントを ListView に差分適用する。
+    /// Add/Remove/Replace は O(1) 単位の操作で済ませ、Reset や未知の操作はフル再構築にフォールバックする。
+    /// </summary>
+    /// <param name="e">コレクション変更イベント引数。</param>
+    private void ApplyCollectionChange(NotifyCollectionChangedEventArgs e)
+    {
+        switch (e.Action)
+        {
+            case NotifyCollectionChangedAction.Add:
+                if (e.NewItems == null)
+                {
+                    RefreshLogList();
+                    return;
+                }
+                _logListView.BeginUpdate();
+                try
+                {
+                    foreach (var item in e.NewItems)
+                    {
+                        if (item is LogEntry entry)
+                            AddLogItem(entry);
+                    }
+                    // 最新エントリが見えるようにリスト末尾にスクロール
+                    if (_logListView.Items.Count > 0)
+                        _logListView.EnsureVisible(_logListView.Items.Count - 1);
+                }
+                finally
+                {
+                    _logListView.EndUpdate();
+                }
+                break;
+
+            case NotifyCollectionChangedAction.Remove:
+                // OldStartingIndex が有効でアイテム数の範囲内なら該当行のみ削除
+                if (e.OldStartingIndex >= 0
+                    && e.OldStartingIndex < _logListView.Items.Count
+                    && e.OldItems != null)
+                {
+                    for (int i = e.OldItems.Count - 1; i >= 0; i--)
+                    {
+                        var index = e.OldStartingIndex + i;
+                        if (index >= 0 && index < _logListView.Items.Count)
+                            _logListView.Items.RemoveAt(index);
+                    }
+                }
+                else
+                {
+                    // インデックス不明の場合は安全側でフル再構築
+                    RefreshLogList();
+                }
+                break;
+
+            case NotifyCollectionChangedAction.Replace:
+                // 同じインデックスでサブアイテムを差し替える
+                if (e.NewItems != null
+                    && e.NewStartingIndex >= 0
+                    && e.NewStartingIndex < _logListView.Items.Count)
+                {
+                    for (int i = 0; i < e.NewItems.Count; i++)
+                    {
+                        var index = e.NewStartingIndex + i;
+                        if (index < _logListView.Items.Count && e.NewItems[i] is LogEntry entry)
+                        {
+                            var lvi = _logListView.Items[index];
+                            lvi.SubItems.Clear();
+                            lvi.Text = entry.Id.ToString();
+                            lvi.SubItems.Add(entry.Timestamp.ToString("HH:mm:ss.fff"));
+                            lvi.SubItems.Add(entry.Level.ToString().Substring(0, 3).ToUpper());
+                            lvi.SubItems.Add(entry.Channel);
+                            lvi.SubItems.Add(entry.Message.Replace("\r\n", " ").Replace("\n", " "));
+                            lvi.Tag = entry;
+                        }
+                    }
+                }
+                else
+                {
+                    RefreshLogList();
+                }
+                break;
+
+            case NotifyCollectionChangedAction.Reset:
+            default:
+                // Reset または Move 等の未対応操作は安全側でフル再構築
+                RefreshLogList();
+                break;
+        }
     }
 
     /// <summary>

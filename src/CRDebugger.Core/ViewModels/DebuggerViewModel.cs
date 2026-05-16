@@ -170,6 +170,38 @@ public sealed class DebuggerViewModel : ViewModelBase
         _enabledTabsCache = BuildEnabledTabs();
 
         // テーマ変更イベントを購読してThemeColorsプロパティを自動更新
-        themeManager.ThemeChanged += (_, colors) => ThemeColors = colors;
+        // 名前付きハンドラ経由にして Dispose 時に確実に -= で解除できるようにする
+        themeManager.ThemeChanged += OnThemeChanged;
+    }
+
+    /// <summary>
+    /// <see cref="ThemeManager.ThemeChanged"/> イベントハンドラ。
+    /// 新しいカラーセットを <see cref="ThemeColors"/> へ反映してUIに伝播する。
+    /// </summary>
+    /// <param name="sender">イベント送信元</param>
+    /// <param name="colors">新しいテーマカラー</param>
+    private void OnThemeChanged(object? sender, ThemeColors colors)
+    {
+        ThemeColors = colors;
+    }
+
+    /// <inheritdoc />
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            // ThemeManager のイベント購読を解除して GC ルートから切る
+            ThemeManager.ThemeChanged -= OnThemeChanged;
+
+            // 子 ViewModel を順に Dispose する（イベント購読・タイマー等の解放）
+            // try/catch で個別失敗が他の Dispose を阻害しないようにする
+            try { SystemInfo.Dispose(); } catch { /* 解放経路で握りつぶし */ }
+            try { Console.Dispose(); } catch { /* 解放経路で握りつぶし */ }
+            try { Options.Dispose(); } catch { /* 解放経路で握りつぶし */ }
+            try { Profiler.Dispose(); } catch { /* 解放経路で握りつぶし */ }
+            try { BugReporter.Dispose(); } catch { /* 解放経路で握りつぶし */ }
+        }
+
+        base.Dispose(disposing);
     }
 }

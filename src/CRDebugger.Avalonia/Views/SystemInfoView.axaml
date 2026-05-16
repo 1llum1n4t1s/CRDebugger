@@ -31,6 +31,11 @@
     <!-- システム情報リスト -->
     <ScrollViewer VerticalScrollBarVisibility="Auto">
       <ItemsControl ItemsSource="{Binding Groups}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <VirtualizingStackPanel />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
         <ItemsControl.ItemTemplate>
           <DataTemplate x:DataType="vm:SystemInfoGroup">
             <StackPanel Margin="0,0,0,8">
@@ -38,6 +43,11 @@
               <TextBlock Text="{Binding Category}" Classes="category-header"/>
               <Border Classes="cr-card">
                 <ItemsControl ItemsSource="{Binding Items}">
+                  <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                      <VirtualizingStackPanel />
+                    </ItemsPanelTemplate>
+                  </ItemsControl.ItemsPanel>
                   <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:SystemInfoItem">
                       <Grid ColumnDefinitions="180,*" Margin="0,4">

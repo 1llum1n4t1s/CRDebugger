@@ -37,12 +37,24 @@
 
                                 <!-- オプション項目（動的コントロール） -->
                                 <ItemsControl x:Name="OptionItems"
-                                              ItemsSource="{Binding FilteredItems}"
-                                              Loaded="OnOptionItemsLoaded">
+                                              ItemsSource="{Binding FilteredItems}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
                                             <ContentPresenter Content="{Binding}"
                                                               Loaded="OnOptionItemLoaded" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <!-- [CRAction] アクションボタン群 -->
+                                <ItemsControl ItemsSource="{Binding FilteredActions}" Margin="0,4,0,0">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate DataType="{x:Type vm:ActionItemViewModel}">
+                                            <Button Content="{Binding Label}"
+                                                    ToolTip="{Binding Description}"
+                                                    Command="{Binding ExecuteCommand}"
+                                                    HorizontalAlignment="Left"
+                                                    Margin="0,2,0,2" />
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>

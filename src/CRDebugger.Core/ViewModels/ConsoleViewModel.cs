@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 using System.Windows.Input;
 using CRDebugger.Core.Abstractions;
@@ -9,14 +10,31 @@ namespace CRDebugger.Core.ViewModels;
 /// コンソール（ログ）タブのViewModel。
 /// ログエントリの表示・フィルタリング・検索機能を提供する。
 /// ログストアの変更イベントを購読し、UIをリアルタイムで更新する。
+/// 大量の連続ログを 16ms ごとにバッチして UI スレッドへフラッシュし、
+/// 1 件ずつ Invoke する場合と比べてディスパッチコストを大幅削減する。
 /// </summary>
 public sealed class ConsoleViewModel : ViewModelBase
 {
+    /// <summary>UI フラッシュ間隔（約 60fps 相当）</summary>
+    private static readonly TimeSpan FlushInterval = TimeSpan.FromMilliseconds(16);
+
     /// <summary>ログストアへの参照（ログデータのソース）</summary>
     private readonly LogStore _logStore;
 
     /// <summary>UIスレッドマーシャリング用インターフェース</summary>
     private readonly IUiThread _uiThread;
+
+    /// <summary>追加待ちエントリのキュー（バッチング用、ロックフリー）</summary>
+    private readonly ConcurrentQueue<LogEntry> _pendingAdds = new();
+
+    /// <summary>更新待ちエントリのキュー（バッチング用、ロックフリー）</summary>
+    private readonly ConcurrentQueue<LogEntry> _pendingUpdates = new();
+
+    /// <summary>定期フラッシュタイマー（System.Threading.Timer を完全修飾で使用してWinFormsのTimerと衝突回避）</summary>
+    private readonly System.Threading.Timer _flushTimer;
+
+    /// <summary>フラッシュ実行中フラグ（同時実行を防ぐ）</summary>
+    private int _flushing;
 
     /// <summary>現在のフィルタ条件のキャッシュ（フィルタ変更時のみ再生成、OnEntryAdded毎の生成を回避）</summary>
     private LogFilter _cachedFilter;
@@ -167,33 +185,96 @@ public sealed class ConsoleViewModel : ViewModelBase
         _cachedFilter = CreateFilter();
         ClearCommand = new RelayCommand(Clear);
 
-        // 新規ログ追加時にUIを更新するイベントハンドラを登録
+        // 新規ログ追加・既存ログ更新（DuplicateCount 増加など）の両方を購読
         _logStore.EntryAdded += OnEntryAdded;
+        _logStore.EntryUpdated += OnEntryUpdated;
 
         // 既存ログを読み込んで初期表示を構築
         RefreshFilter();
+
+        // バッチフラッシュタイマー開始（16ms ごとに UI スレッドへ反映）
+        _flushTimer = new System.Threading.Timer(_ => FlushPending(), null, FlushInterval, FlushInterval);
     }
 
     /// <summary>
     /// 新しいログエントリが追加された際のイベントハンドラ。
-    /// UIスレッド上でカウント更新とフィルタ適用を行う。
+    /// 直接 UI スレッドへ Invoke せず、キューに積んでタイマーでバッチ反映する。
     /// </summary>
     /// <param name="sender">イベント発生元（<see cref="LogStore"/>）</param>
     /// <param name="entry">追加されたログエントリ</param>
     private void OnEntryAdded(object? sender, LogEntry entry)
     {
-        // UIスレッド外からの呼び出しを安全にUIスレッドへマーシャリング
-        _uiThread.Invoke(() =>
-        {
-            // レベル別カウントをインクリメント
-            UpdateCount(entry.Level, 1);
+        // ロックフリーキューにエントリを積んで即座にリターン（ログ呼び出し元をブロックしない）
+        _pendingAdds.Enqueue(entry);
+    }
 
-            // キャッシュ済みフィルタでチェック（毎回の LogFilter 生成を回避）
-            if (_cachedFilter.Matches(entry))
+    /// <summary>
+    /// 既存ログエントリが更新（重複折りたたみで DuplicateCount が増加など）された際のイベントハンドラ。
+    /// </summary>
+    /// <param name="sender">イベント発生元（<see cref="LogStore"/>）</param>
+    /// <param name="entry">更新後のログエントリ</param>
+    private void OnEntryUpdated(object? sender, LogEntry entry)
+    {
+        // 更新もキューに積んで一括処理（Id 一致で置換）
+        _pendingUpdates.Enqueue(entry);
+    }
+
+    /// <summary>
+    /// 蓄積された pending 追加・更新を UI スレッドにまとめて反映する。
+    /// 同時実行は <see cref="_flushing"/> CAS で 1 つに制限する。
+    /// </summary>
+    private void FlushPending()
+    {
+        // 同時実行ガード（フラッシュが詰まった場合にコールバックが重ならないようにする）
+        if (System.Threading.Interlocked.CompareExchange(ref _flushing, 1, 0) != 0) return;
+
+        try
+        {
+            // キューが両方空なら早期リターンして無駄な UI ディスパッチを避ける
+            if (_pendingAdds.IsEmpty && _pendingUpdates.IsEmpty) return;
+
+            // 一旦ローカルにドレインしてから UI へ Post する
+            var adds = new List<LogEntry>();
+            while (_pendingAdds.TryDequeue(out var e)) adds.Add(e);
+
+            var updates = new List<LogEntry>();
+            while (_pendingUpdates.TryDequeue(out var e)) updates.Add(e);
+
+            if (adds.Count == 0 && updates.Count == 0) return;
+
+            _uiThread.Invoke(() =>
             {
-                DisplayEntries.Add(entry);
-            }
-        });
+                // 追加分をまとめてカウント＆フィルタ適用
+                foreach (var entry in adds)
+                {
+                    UpdateCount(entry.Level, 1);
+                    if (_cachedFilter.Matches(entry))
+                        _displayEntries.Add(entry);
+                }
+
+                // 更新分は DisplayEntries 内の同一 Id を置換（線形探索だがバッチサイズは限定的）
+                if (updates.Count > 0)
+                {
+                    // 更新エントリの最新版を Id でまとめる（複数回更新された場合は最後の値を採用）
+                    var latest = new Dictionary<int, LogEntry>(updates.Count);
+                    foreach (var u in updates) latest[u.Id] = u;
+
+                    for (int i = 0; i < _displayEntries.Count; i++)
+                    {
+                        if (latest.TryGetValue(_displayEntries[i].Id, out var updated))
+                        {
+                            // ObservableCollection のインデクサ代入で Replace イベントを発火（UI が更新を検知できる）
+                            _displayEntries[i] = updated;
+                        }
+                    }
+                }
+            });
+        }
+        finally
+        {
+            // ガード解除
+            System.Threading.Interlocked.Exchange(ref _flushing, 0);
+        }
     }
 
     /// <summary>
@@ -228,6 +309,9 @@ public sealed class ConsoleViewModel : ViewModelBase
         _logStore.Clear();
         // 表示リストもクリア
         DisplayEntries.Clear();
+        // バッチング中のエントリも捨てる（クリア後に古いログが混入しないように）
+        while (_pendingAdds.TryDequeue(out _)) { }
+        while (_pendingUpdates.TryDequeue(out _)) { }
         // 各レベルのカウントをゼロにリセット
         DebugCount = 0;
         InfoCount = 0;
@@ -260,4 +344,20 @@ public sealed class ConsoleViewModel : ViewModelBase
     /// <returns>現在設定に対応した <see cref="LogFilter"/> インスタンス</returns>
     private LogFilter CreateFilter() => new(ShowDebug, ShowInfo, ShowWarning, ShowError,
         string.IsNullOrEmpty(SearchText) ? null : SearchText);
+
+    /// <inheritdoc />
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            // タイマー停止＆解放（バッチフラッシュのコールバック停止）
+            try { _flushTimer.Dispose(); } catch { /* 解放経路で握りつぶし */ }
+
+            // LogStore のイベント購読を解除して GC ルートから切る
+            _logStore.EntryAdded -= OnEntryAdded;
+            _logStore.EntryUpdated -= OnEntryUpdated;
+        }
+
+        base.Dispose(disposing);
+    }
 }

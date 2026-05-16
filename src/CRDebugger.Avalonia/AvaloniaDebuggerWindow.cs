@@ -1,3 +1,4 @@
+using System.IO;
 using Avalonia.Threading;
 using CRDebugger.Core.Abstractions;
 using CRDebugger.Core.Theming;
@@ -30,6 +31,8 @@ public sealed class AvaloniaDebuggerWindow : IDebuggerWindow
         if (_window == null || !_window.IsVisible)
         {
             _window = new Windows.DebuggerWindow { DataContext = viewModel };
+            // ウィンドウが実際に閉じられたら参照をクリアして次回 Show で再生成可能にする
+            _window.Closed += (_, _) => _window = null;
         }
         _window.Show();
     }
@@ -51,13 +54,33 @@ public sealed class AvaloniaDebuggerWindow : IDebuggerWindow
     }
 
     /// <summary>
-    /// ウィンドウのスクリーンショットを非同期で取得する。
-    /// 現時点では未実装のため常に null を返す。
+    /// ウィンドウのスクリーンショットを PNG バイト配列として非同期に取得する。
+    /// Avalonia の <see cref="global::Avalonia.Media.Imaging.RenderTargetBitmap"/> を使ってウィンドウをレンダリングし PNG エンコードする。
+    /// ウィンドウが存在しない・サイズが不正・例外発生時は null を返す。
     /// </summary>
-    /// <returns>PNG バイト配列。未実装のため常に null</returns>
+    /// <returns>PNG バイト配列。取得失敗時は null。</returns>
     public Task<byte[]?> CaptureScreenshotAsync()
     {
-        // スクリーンショットキャプチャのプレースホルダー
-        return Task.FromResult<byte[]?>(null);
+        if (_window == null) return Task.FromResult<byte[]?>(null);
+        try
+        {
+            var width = (int)_window.ClientSize.Width;
+            var height = (int)_window.ClientSize.Height;
+            // クライアントサイズが不正な場合（最小化など）はスキップ
+            if (width <= 0 || height <= 0) return Task.FromResult<byte[]?>(null);
+
+            var size = new global::Avalonia.PixelSize(width, height);
+            var dpi = new global::Avalonia.Vector(96, 96);
+            using var rtb = new global::Avalonia.Media.Imaging.RenderTargetBitmap(size, dpi);
+            rtb.Render(_window);
+            using var ms = new MemoryStream();
+            rtb.Save(ms);
+            return Task.FromResult<byte[]?>(ms.ToArray());
+        }
+        catch
+        {
+            // スクリーンショット取得失敗時は null を返す（例外を伝播させない）
+            return Task.FromResult<byte[]?>(null);
+        }
     }
 }

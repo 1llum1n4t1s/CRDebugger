@@ -155,87 +155,102 @@ public sealed class ProfilerEngine : IDisposable
     /// <param name="state">未使用のタイマー状態オブジェクト</param>
     private void OnTick(object? state)
     {
-        // FPS計算：経過時間中のフレーム数を測定し、フレームカウンターをリセット
-        var elapsed = _fpsStopwatch.Elapsed.TotalSeconds;
-        if (elapsed > 0)
-        {
-            // フレーム数をアトミックに0リセットし、FPSを算出
-            var frames = Interlocked.Exchange(ref _frameCount, 0);
-            _lastFps = frames / elapsed;
-            _fpsStopwatch.Restart();
-        }
-
-        // 現在のプロセス情報を取得（usingでリソースを確実に解放）
-        using var process = Process.GetCurrentProcess();
-
-        // CPU使用率計算：前回からの差分で算出
-        var now = DateTimeOffset.Now;
-        double cpuPercent = 0;
+        // Timer のコールバック内で発生した未処理例外はプロセスをクラッシュさせるため、
+        // OnTick 全体を try/catch で囲んでホスト側に逆流させない (#33)
         try
         {
-            var currentCpuTime = process.TotalProcessorTime;
-            var cpuDelta = (currentCpuTime - _previousCpuTime).TotalMilliseconds;
-            var timeDelta = (now - _previousCpuTimestamp).TotalMilliseconds;
-            if (timeDelta > 0)
+            // FPS計算：経過時間中のフレーム数を測定し、フレームカウンターをリセット
+            var elapsed = _fpsStopwatch.Elapsed.TotalSeconds;
+            if (elapsed > 0)
             {
-                cpuPercent = (cpuDelta / (timeDelta * Environment.ProcessorCount)) * 100;
-                cpuPercent = Math.Clamp(cpuPercent, 0, 100);
+                // フレーム数をアトミックに0リセットし、FPSを算出
+                var frames = Interlocked.Exchange(ref _frameCount, 0);
+                _lastFps = frames / elapsed;
+                _fpsStopwatch.Restart();
             }
-            _previousCpuTime = currentCpuTime;
-            _previousCpuTimestamp = now;
-        }
-        catch { /* CPU時間取得失敗時はデフォルト値0を使用 */ }
 
-        // GPU情報取得（取得失敗時はデフォルト値を使用し、処理を継続する）
-        double gpuUsage = 0;
-        long gpuDedicated = 0, gpuShared = 0;
-        double gpuTemp = -1;
-        string gpuName = "N/A";
-        try
-        {
-            gpuUsage = _gpuMonitor.GetUsagePercent();
-            gpuDedicated = _gpuMonitor.GetDedicatedMemoryBytes();
-            gpuShared = _gpuMonitor.GetSharedMemoryBytes();
-            gpuTemp = _gpuMonitor.GetTemperatureCelsius();
-            gpuName = _gpuMonitor.GetDeviceName();
-        }
-        catch { /* GPU情報取得失敗は無視（プラットフォーム非対応の場合もあるため） */ }
+            // 現在のプロセス情報を取得（usingでリソースを確実に解放）
+            using var process = Process.GetCurrentProcess();
 
-        // 取得した各指標をイミュータブルなスナップショットレコードにまとめる
-        var snapshot = new ProfilerSnapshot(
-            Timestamp: DateTimeOffset.Now,
-            FpsEstimate: Math.Round(_lastFps, 1),
-            WorkingSetBytes: process.WorkingSet64,
-            PrivateMemoryBytes: process.PrivateMemorySize64,
-            GcTotalMemoryBytes: GC.GetTotalMemory(false),
-            Gen0Collections: GC.CollectionCount(0),
-            Gen1Collections: GC.CollectionCount(1),
-            Gen2Collections: GC.CollectionCount(2),
-                GcPauseTimeMs: GetGcPauseDeltaMs(),
-            GpuUsagePercent: gpuUsage,
-            GpuDedicatedMemoryBytes: gpuDedicated,
-            GpuSharedMemoryBytes: gpuShared,
-            GpuTemperatureCelsius: gpuTemp,
-            GpuDeviceName: gpuName,
-            CpuUsagePercent: Math.Round(cpuPercent, 1)
-        );
+            // CPU使用率計算：前回からの差分で算出
+            var now = DateTimeOffset.Now;
+            double cpuPercent = 0;
+            try
+            {
+                var currentCpuTime = process.TotalProcessorTime;
+                var cpuDelta = (currentCpuTime - _previousCpuTime).TotalMilliseconds;
+                var timeDelta = (now - _previousCpuTimestamp).TotalMilliseconds;
+                if (timeDelta > 0)
+                {
+                    cpuPercent = (cpuDelta / (timeDelta * Environment.ProcessorCount)) * 100;
+                    cpuPercent = Math.Clamp(cpuPercent, 0, 100);
+                }
+                _previousCpuTime = currentCpuTime;
+                _previousCpuTimestamp = now;
+            }
+            catch { /* CPU時間取得失敗時はデフォルト値0を使用 */ }
 
-        lock (_lock)
-        {
-            _history.Enqueue(snapshot);
-            if (_history.Count > MaxHistorySize)
-                _history.Dequeue();
-            _latestSnapshot = snapshot;
-        }
+            // GPU情報取得（取得失敗時はデフォルト値を使用し、処理を継続する）
+            double gpuUsage = 0;
+            long gpuDedicated = 0, gpuShared = 0;
+            double gpuTemp = -1;
+            string gpuName = "N/A";
+            try
+            {
+                gpuUsage = _gpuMonitor.GetUsagePercent();
+                gpuDedicated = _gpuMonitor.GetDedicatedMemoryBytes();
+                gpuShared = _gpuMonitor.GetSharedMemoryBytes();
+                gpuTemp = _gpuMonitor.GetTemperatureCelsius();
+                gpuName = _gpuMonitor.GetDeviceName();
+            }
+            catch { /* GPU情報取得失敗は無視（プラットフォーム非対応の場合もあるため） */ }
 
-        try
-        {
-            // スナップショット取得完了を通知（イベントハンドラの例外がタイマースレッドをクラッシュさせないようキャッチ）
-            SnapshotTaken?.Invoke(this, snapshot);
+            // 取得した各指標をイミュータブルなスナップショットレコードにまとめる
+            var snapshot = new ProfilerSnapshot(
+                Timestamp: DateTimeOffset.Now,
+                FpsEstimate: Math.Round(_lastFps, 1),
+                WorkingSetBytes: process.WorkingSet64,
+                PrivateMemoryBytes: process.PrivateMemorySize64,
+                GcTotalMemoryBytes: GC.GetTotalMemory(false),
+                Gen0Collections: GC.CollectionCount(0),
+                Gen1Collections: GC.CollectionCount(1),
+                Gen2Collections: GC.CollectionCount(2),
+                    GcPauseTimeMs: GetGcPauseDeltaMs(),
+                GpuUsagePercent: gpuUsage,
+                GpuDedicatedMemoryBytes: gpuDedicated,
+                GpuSharedMemoryBytes: gpuShared,
+                GpuTemperatureCelsius: gpuTemp,
+                GpuDeviceName: gpuName,
+                CpuUsagePercent: Math.Round(cpuPercent, 1)
+            );
+
+            lock (_lock)
+            {
+                _history.Enqueue(snapshot);
+                if (_history.Count > MaxHistorySize)
+                    _history.Dequeue();
+                _latestSnapshot = snapshot;
+            }
+
+            // OperationTracker のネットワーク／ストレージカウンタキャッシュを最新化する (#22)。
+            // Snapshot 生成後に行うことで、初回 Tick が OS API 列挙でブロックして Snapshot 生成が遅延するのを防ぐ。
+            // NetworkInterface.GetAllNetworkInterfaces() は初回呼び出しが重いため、計測の主目的（Snapshot）を優先する。
+            try { Operations?.UpdateCounterSnapshot(); } catch { /* キャッシュ更新失敗は次回 Tick で再試行 */ }
+
+            try
+            {
+                // スナップショット取得完了を通知（イベントハンドラの例外がタイマースレッドをクラッシュさせないようキャッチ）
+                SnapshotTaken?.Invoke(this, snapshot);
+            }
+            catch
+            {
+                // Timer コールバック内の未処理例外はプロセスをクラッシュさせるため、ここで必ずキャッチする
+            }
         }
         catch
         {
-            // Timer コールバック内の未処理例外はプロセスをクラッシュさせるため、ここで必ずキャッチする
+            // OnTick の予期しない例外は CRDebugger 哲学に従いホスト側に逆流させない (#33)。
+            // ここで握りつぶすことで Timer スレッドの継続性を保証する
         }
     }
 
@@ -256,10 +271,29 @@ public sealed class ProfilerEngine : IDisposable
     }
 
     /// <inheritdoc/>
+    /// <inheritdoc/>
     public void Dispose()
     {
-        // タイマーを停止・解放し、参照をnullにする
-        _timer?.Dispose();
+        // Timer.Dispose(WaitHandle) を使い、進行中のコールバックが完了するまで待ってから解放する (#32)。
+        // 引数なしの Dispose だとコールバック実行中でも即座にリターンしてしまい、
+        // Dispose 後に OnTick の途中処理が走って状態破壊や ObjectDisposedException が発生するリスクがある。
+        var timer = _timer;
         _timer = null;
+        if (timer != null)
+        {
+            try
+            {
+                using var waitHandle = new ManualResetEvent(false);
+                if (timer.Dispose(waitHandle))
+                {
+                    // Dispose(WaitHandle) は true を返した場合のみシグナルされる
+                    waitHandle.WaitOne();
+                }
+            }
+            catch
+            {
+                // Dispose 中の例外は呼び出し元（ホストアプリ）に伝播させない
+            }
+        }
     }
 }

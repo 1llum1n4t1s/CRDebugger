@@ -27,7 +27,9 @@ public sealed class SystemInfoViewModel : ViewModelBase
     public ICommand RefreshCommand { get; }
 
     /// <summary>
-    /// <see cref="SystemInfoViewModel"/> のインスタンスを生成する
+    /// <see cref="SystemInfoViewModel"/> のインスタンスを生成する。
+    /// 初回 <see cref="Refresh"/> が WMI 等の例外で失敗してもコンストラクト自体は成功させ、
+    /// Groups 空の状態で続行する（#F-006 — 起動経路を SystemInfo の不安定さで止めない）。
     /// </summary>
     /// <param name="collector">OSやランタイムからシステム情報を収集するコレクター</param>
     public SystemInfoViewModel(SystemInfoCollector collector)
@@ -36,7 +38,16 @@ public sealed class SystemInfoViewModel : ViewModelBase
         RefreshCommand = new RelayCommand(Refresh);
 
         // 初期表示用にシステム情報を収集・構築
-        Refresh();
+        // 失敗時は Groups 空のまま続行（WMI 障害や権限エラーでウィンドウ全体を落とさないため）
+        try
+        {
+            Refresh();
+        }
+        catch
+        {
+            // SystemInfo の収集失敗は致命的ではないため握りつぶす
+            // Groups は new() 初期化済みの空コレクションのまま残る
+        }
     }
 
     /// <summary>
@@ -60,6 +71,14 @@ public sealed class SystemInfoViewModel : ViewModelBase
                 group.Select(e => new SystemInfoItem(e.Key, e.Value)).ToList()
             ));
         }
+    }
+
+    /// <inheritdoc />
+    protected override void Dispose(bool disposing)
+    {
+        // 現状 SystemInfoViewModel はイベント購読・タイマーを保持しないため特に解放処理は不要。
+        // 将来的にイベント購読を追加した場合に備えて Dispose パターンだけは整えておく。
+        base.Dispose(disposing);
     }
 }
 

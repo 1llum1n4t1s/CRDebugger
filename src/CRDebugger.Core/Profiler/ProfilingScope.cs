@@ -62,7 +62,9 @@ public sealed class ProfilingScope : IDisposable
         _operationName = operationName;
         _category = category;
 
-        // 開始時点の各メトリクス値をキャプチャ（終了時の差分計算に使用）
+        // 開始時点の各メトリクス値をキャプチャ（終了時の差分計算に使用）。
+        // GetNetworkCounters / GetStorageCounters は OS API を呼ばずキャッシュ値を返す軽量実装に変更済み (#22 / #C1-001)。
+        // 実際のキャッシュ更新は ProfilerEngine.OnTick から OperationTracker.UpdateCounterSnapshot() 経由で 500ms 毎に行われる。
         _startCpuTime = GetProcessCpuTime();
         _startMemory = GC.GetTotalMemory(false);
         (_startNetworkRead, _startNetworkWrite) = tracker.GetNetworkCounters();

@@ -13,13 +13,18 @@ if (-not $apiKey)
 }
 
 $folder = "$PSScriptRoot\artifacts"
-$packages = Get-ChildItem -Path $folder -Filter "*.nupkg" -Recurse | Sort-Object LastWriteTime
+# ホワイトリスト方式: 公式パッケージ名のみ対象（誤って他の .nupkg を公開しないため）
+$packages = Get-ChildItem -Path $folder -Filter "*.nupkg" -Recurse |
+  Where-Object { $_.Name -match '^CRDebugger\.(WinForms|Wpf|Avalonia)\.\d' } |
+  Sort-Object LastWriteTime
 
 if (-not $packages)
 {
     Write-Error "パッケージが見つかりません: $folder"
     exit 1
 }
+
+Write-Host "About to publish: $($packages.Name -join ', ')" -ForegroundColor Cyan
 
 $failed = 0
 foreach ($pkg in $packages)

@@ -4,12 +4,16 @@ using System.Runtime.CompilerServices;
 namespace CRDebugger.Core.ViewModels;
 
 /// <summary>
-/// <see cref="INotifyPropertyChanged"/> を実装した ViewModel 基底クラス。
+/// <see cref="INotifyPropertyChanged"/> および <see cref="IDisposable"/> を実装した ViewModel 基底クラス。
 /// WPF・Avalonia の両フレームワークで共通利用できる。
 /// <see cref="SetProperty{T}"/> によりボイラープレートコードを最小化する。
+/// 子クラスは <see cref="Dispose(bool)"/> をオーバーライドしてイベント購読解除等を行う。
 /// </summary>
-public abstract class ViewModelBase : INotifyPropertyChanged
+public abstract class ViewModelBase : INotifyPropertyChanged, IDisposable
 {
+    /// <summary>Dispose 済みフラグ（多重 Dispose 防止）</summary>
+    private bool _disposed;
+
     /// <summary>
     /// プロパティの値が変更されたときに発火するイベント。
     /// UIバインディングエンジンがこのイベントを購読して表示を更新する。
@@ -53,5 +57,27 @@ public abstract class ViewModelBase : INotifyPropertyChanged
     {
         // 購読者が存在する場合のみイベントを発火（null条件演算子でスレッドセーフに呼び出し）
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+
+    /// <summary>
+    /// マネージドリソースを解放する。
+    /// 子クラスは <see cref="Dispose(bool)"/> をオーバーライドしてイベント購読解除・タイマー停止等を行う。
+    /// </summary>
+    public void Dispose()
+    {
+        Dispose(disposing: true);
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// 子クラス向けの破棄パターン。
+    /// <paramref name="disposing"/> が <c>true</c> のときマネージドリソースを解放する。
+    /// </summary>
+    /// <param name="disposing"><c>true</c> ならマネージドリソースを解放する</param>
+    protected virtual void Dispose(bool disposing)
+    {
+        // 二重 Dispose を防止する（子クラスの Dispose 経路から複数回呼ばれても安全）
+        if (_disposed) return;
+        _disposed = true;
     }
 }

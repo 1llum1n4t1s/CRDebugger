@@ -1,10 +1,13 @@
 using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using CRDebugger.Core;
 using CRDebugger.Core.ViewModels;
+// namespace CRDebugger.Avalonia.Windows と type CRDebugger.Core.CRDebugger の曖昧解決
+using CRDebuggerFacade = CRDebugger.Core.CRDebugger;
 
 namespace CRDebugger.Avalonia.Windows;
 
@@ -24,6 +27,21 @@ public partial class DebuggerWindow : Window
         OverrideSystemAccentColor();
     }
 
+    /// <summary>
+    /// アプリケーション終了処理中フラグ。
+    /// true のときは <see cref="OnClosing"/> が e.Cancel をスキップして実際に閉じる。
+    /// </summary>
+    private bool _isShuttingDown;
+
+    /// <summary>
+    /// ウィンドウ強制クローズを許可するフラグを立てる。
+    /// CRDebugger.Shutdown() などホスト側からの明示的破棄時に呼ぶ。
+    /// </summary>
+    internal void RequestShutdown()
+    {
+        _isShuttingDown = true;
+    }
+
     /// <inheritdoc/>
     protected override void OnOpened(EventArgs e)
     {
@@ -33,22 +51,21 @@ public partial class DebuggerWindow : Window
 
     /// <summary>
     /// WindowsのシステムアクセントカラーがFluentテーマに流入してUI全体が黄色化するのを防止する。
-    /// Application.Resources に CRDebugger 独自の紫青系アクセントカラーを強制設定する。
+    /// 本ウィンドウ自身の <see cref="Window.Resources"/> に CRDebugger 独自の紫青系アクセントカラーを設定し、
+    /// Application スコープを汚染せずホストアプリのアクセントカラーを保護する。
     /// </summary>
-    private static void OverrideSystemAccentColor()
+    private void OverrideSystemAccentColor()
     {
-        var app = Application.Current;
-        if (app == null) return;
-
         var accent = Color.Parse("#7C8FFF");
-        app.Resources["SystemAccentColor"] = accent;
-        app.Resources["SystemAccentColorLight1"] = Color.Parse("#9EAAFF");
-        app.Resources["SystemAccentColorLight2"] = Color.Parse("#BFCAFF");
-        app.Resources["SystemAccentColorLight3"] = Color.Parse("#DFE4FF");
-        app.Resources["SystemAccentColorDark1"] = Color.Parse("#5A6FD9");
-        app.Resources["SystemAccentColorDark2"] = Color.Parse("#3F52B3");
-        app.Resources["SystemAccentColorDark3"] = Color.Parse("#2B3A8C");
-        app.Resources["SystemAccentColorBrush"] = new SolidColorBrush(accent);
+        // Window スコープに閉じ込めてホストアプリの Application.Resources を破壊しない
+        this.Resources["SystemAccentColor"] = accent;
+        this.Resources["SystemAccentColorLight1"] = Color.Parse("#9EAAFF");
+        this.Resources["SystemAccentColorLight2"] = Color.Parse("#BFCAFF");
+        this.Resources["SystemAccentColorLight3"] = Color.Parse("#DFE4FF");
+        this.Resources["SystemAccentColorDark1"] = Color.Parse("#5A6FD9");
+        this.Resources["SystemAccentColorDark2"] = Color.Parse("#3F52B3");
+        this.Resources["SystemAccentColorDark3"] = Color.Parse("#2B3A8C");
+        this.Resources["SystemAccentColorBrush"] = new SolidColorBrush(accent);
     }
 
     // ────────── Win32 DWM API（Windows 11 ウィンドウボーダー色の強制指定）──────────
@@ -158,26 +175,46 @@ public partial class DebuggerWindow : Window
     }
 
     /// <summary>
-    /// 閉じるボタンがクリックされた際の処理。
-    /// ウィンドウを破棄せず非表示にすることで次回表示を高速化する。
-    /// </summary>
-    /// <param name="sender">クリックされたボタン</param>
-    /// <param name="e">ルーティングイベント引数</param>
-    private void OnCloseClick(object? sender, RoutedEventArgs e)
-    {
-        Hide();
-    }
-
-    /// <summary>
-    /// ウィンドウを閉じる操作（Alt+F4 など）をキャンセルし、代わりに非表示にする。
-    /// これによりデバッガーの状態を保持したまま再表示できる。
+    /// ウィンドウを閉じる操作（Alt+F4 など）を原則キャンセルし、代わりに非表示にする。
+    /// ただし以下のいずれかの条件のときは実際に閉じる（ホストアプリ終了時のハング防止）:
+    ///   1. <see cref="_isShuttingDown"/> または <c>CRDebugger.IsInitialized == false</c>（明示シャットダウン）
+    ///   2. アプリケーションが <see cref="ShutdownMode.OnLastWindowClose"/> モード
+    ///   3. <see cref="IClassicDesktopStyleApplicationLifetime.MainWindow"/> が null（ホストの主ウィンドウなし）
     /// </summary>
     /// <param name="e">ウィンドウ閉じるイベント引数（Cancel を true に設定する）</param>
     protected override void OnClosing(WindowClosingEventArgs e)
     {
-        // ウィンドウを実際には閉じず非表示にする（状態を保持するため）
+        if (ShouldAllowClose())
+        {
+            base.OnClosing(e);
+            return;
+        }
+
+        // 通常時はウィンドウを実際には閉じず非表示にする（状態を保持するため）
         e.Cancel = true;
         Hide();
         base.OnClosing(e);
+    }
+
+    /// <summary>
+    /// 現在のクローズ要求を許可するかどうか判定する。
+    /// ホストアプリの終了モードや CRDebugger 初期化状態を見て、ハング回避のため実クローズを通す。
+    /// </summary>
+    private bool ShouldAllowClose()
+    {
+        // 明示的なシャットダウン要求、または CRDebugger 初期化解除済みなら通す
+        if (_isShuttingDown) return true;
+        if (!CRDebuggerFacade.IsInitialized) return true;
+
+        // Avalonia デスクトップライフタイムの状態を見て判定
+        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            // 最後のウィンドウが閉じたら全終了するモードでは、Cancel するとホストがハングする
+            if (desktop.ShutdownMode == ShutdownMode.OnLastWindowClose) return true;
+            // ホストの MainWindow が無い場合（= デバッガが事実上のメイン）は通す
+            if (desktop.MainWindow == null) return true;
+        }
+
+        return false;
     }
 }

@@ -159,21 +159,30 @@ public sealed class BugReporterAndSystemInfoAdversarialTests
 
     /// <summary>
     /// @adversarial @category resource @severity high
-    /// スクリーンショットキャプチャが例外を投げた場合
+    /// スクリーンショットキャプチャが例外を投げても送信全体は継続すること（#F-007 / #30 修正後の挙動）
     /// </summary>
     [Fact]
-    public async Task BugReport_ScreenshotThrows_ExceptionPropagated()
+    public async Task BugReport_ScreenshotThrows_SendContinuesWithNullScreenshot()
     {
         var store = new LogStore();
         var sysInfo = new SystemInfoCollector();
         var mockSender = new Mock<IBugReportSender>();
+        BugReport? capturedReport = null;
+        mockSender.Setup(s => s.SendAsync(It.IsAny<BugReport>(), It.IsAny<CancellationToken>()))
+            .Callback<BugReport, CancellationToken>((report, _) => capturedReport = report)
+            .ReturnsAsync(true);
 
         var engine = new BugReportEngine(store, sysInfo, mockSender.Object);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            engine.CreateAndSendAsync("bug!", "a@b.c",
-                screenshotCapture: () => throw new InvalidOperationException("キャプチャ失敗"),
-                cancellationToken: TestContext.Current.CancellationToken));
+        // スクショ取得失敗してもレポート自体は送信される
+        await engine.CreateAndSendAsync("bug!", "a@b.c",
+            screenshotCapture: () => throw new InvalidOperationException("キャプチャ失敗"),
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        // 送信は実行され、Screenshot は null になる
+        Assert.NotNull(capturedReport);
+        Assert.Null(capturedReport!.Screenshot);
+        mockSender.Verify(s => s.SendAsync(It.IsAny<BugReport>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     // ── 🔀 状態遷移 ──
@@ -234,7 +243,8 @@ public sealed class BugReporterAndSystemInfoAdversarialTests
         var cts = new CancellationTokenSource();
         cts.Cancel();
 
-        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+        // TaskCanceledException も OperationCanceledException の派生なので ThrowsAny で受ける
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
             engine.CreateAndSendAsync("bug", "a@b.c", cancellationToken: cts.Token));
     }
 

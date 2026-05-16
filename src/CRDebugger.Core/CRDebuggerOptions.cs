@@ -1,13 +1,35 @@
 using CRDebugger.Core.Abstractions;
+using CRDebugger.Core.Options;
 using CRDebugger.Core.Theming;
 
 namespace CRDebugger.Core;
+
+/// <summary>
+/// BugReport に含める SystemInfo の収集レベル。
+/// secure-by-default のため、デフォルトは Standard（UserName / Command Line を除外）。
+/// </summary>
+public enum SystemInfoCollectionLevel
+{
+    /// <summary>OS 種別と .NET バージョンのみ。最小限の情報。</summary>
+    Minimal,
+    /// <summary>UserName / Command Line / Current Directory を除外（デフォルト）。GDPR/CCPA に配慮。</summary>
+    Standard,
+    /// <summary>全項目を含める（旧 1.0.x 互換動作）。明示オプトイン時のみ推奨。</summary>
+    Full
+}
 
 /// <summary>
 /// CRDebugger初期化オプション
 /// </summary>
 public sealed class CRDebuggerOptions
 {
+    /// <summary>
+    /// CRDebugger を有効にするか（デフォルト true）。
+    /// false の場合、Initialize はコンテキストを生成せず、Log/Show 等の API は no-op になる。
+    /// Release ビルドで `options.IsEnabled = !Debugger.IsAttached` 等の条件で本番無効化に使う。
+    /// </summary>
+    public bool IsEnabled { get; set; } = true;
+
     /// <summary>UIテーマ（デフォルト: System）</summary>
     public CRTheme Theme { get; set; } = CRTheme.System;
 
@@ -57,6 +79,38 @@ public sealed class CRDebuggerOptions
     /// 例: "logs/app_${shortdate}.log"
     /// </summary>
     public string? FileLogPath { get; set; }
+
+    /// <summary>
+    /// SuperLightLogger のグローバル LogManager を CRDebugger が再構成するか（デフォルト false）。
+    /// false の場合、ホストアプリが既に設定済みの LogManager を尊重する。
+    /// true にすると CRDebugger が <see cref="FileLogPath"/> を含む構成で LogManager.Configure を呼ぶ。
+    /// </summary>
+    public bool AttachToSuperLightLoggerManager { get; set; } = false;
+
+    /// <summary>
+    /// Options タブに公開するプロパティ判定モード。
+    /// false（デフォルト・SRDebugger 互換）: 全 public プロパティを対象とする opt-out モード。
+    /// true: <see cref="CROptionAttribute"/> 付きのプロパティのみを対象とする opt-in モード。
+    /// </summary>
+    public bool RequireOptInAttribute { get; set; } = false;
+
+    /// <summary>
+    /// BugReport に含める SystemInfo の収集レベル（デフォルト Standard）。
+    /// secure-by-default のため、デフォルトでは UserName / Command Line / Current Directory を除外する。
+    /// </summary>
+    public SystemInfoCollectionLevel SystemInfoCollectionLevel { get; set; } = SystemInfoCollectionLevel.Standard;
+
+    /// <summary>
+    /// BugReport 送信時のタイムアウト（デフォルト 60 秒）。
+    /// スクリーンショット取得・Sender 送信ハングを防ぐ。
+    /// </summary>
+    public TimeSpan BugReportSendTimeout { get; set; } = TimeSpan.FromSeconds(60);
+
+    /// <summary>
+    /// Options 永続化ストア（デフォルト null = 永続化しない）。
+    /// <see cref="JsonFileOptionsStore"/> 等を指定すると、ユーザーが UI で変更した値を保存/復元できる。
+    /// </summary>
+    public IOptionsStore? OptionsStore { get; set; }
 
     // UIフレームワーク層が設定（内部使用）
     internal IDebuggerWindow? Window { get; set; }

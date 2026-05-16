@@ -16,4 +16,15 @@ obj/
 ## OS
 Thumbs.db
 .DS_Store
-tests/
+
+## MCP / AI ツール（ローカル設定）
+.mcp.json
+.serena/
+
+## テスト出力
+TestResults/
+**/TestResults/
+
+## NuGet 出力ディレクトリ
+artifacts/
+

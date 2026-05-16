@@ -80,7 +80,8 @@ public sealed partial class OptionsEngine
             }
 
             // 通常オブジェクトはリフレクションで public プロパティとメソッドをスキャンする
-            ScanProperties(container, options);
+            // opt-in モード時は CROptionAttribute が付いたプロパティのみを対象にする
+            ScanProperties(container, options, RequireOptInAttribute);
             ScanMethods(container, actions);
         }
 
@@ -113,7 +114,7 @@ public sealed partial class OptionsEngine
     /// </summary>
     /// <param name="container">スキャン対象のオブジェクト</param>
     /// <param name="results">スキャン結果を追加するリスト</param>
-    private static void ScanProperties(object container, List<OptionDescriptor> results)
+    private static void ScanProperties(object container, List<OptionDescriptor> results, bool requireOptIn)
     {
         var type = container.GetType();
 
@@ -122,7 +123,10 @@ public sealed partial class OptionsEngine
 
         foreach (var prop in props)
         {
-            // CROptionAttribute がなくても全 public プロパティを対象にする（SRDebugger と同じ挙動）
+            // opt-in モードでは CROptionAttribute が付いていないプロパティをスキップする
+            // （デフォルト挙動は opt-out で、CROption がなくても全 public プロパティを対象にする）
+            if (requireOptIn && prop.GetCustomAttribute<CROptionAttribute>() == null) continue;
+
             // サポートされない型（クラス等）はスキップする
             if (!IsSupportedType(prop.PropertyType)) continue;
 

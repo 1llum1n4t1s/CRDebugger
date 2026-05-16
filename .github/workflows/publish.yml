@@ -6,6 +6,9 @@ on:
       - 'release/**'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   publish:
     runs-on: windows-latest
@@ -18,11 +21,31 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
+      - name: Validate Patch Version (Even Only)
+        shell: pwsh
+        run: |
+          $xml = [xml](Get-Content Directory.Build.props)
+          $version = $xml.Project.PropertyGroup.Version
+          $parts = $version.Split('.')
+          $patch = [int]$parts[2]
+          if ($patch % 2 -ne 0) {
+            Write-Error "Patch version must be even: $version (got $patch)"
+            exit 1
+          }
+          if ($patch -ge 999) {
+            Write-Error "Patch version too high: $version. Bump minor version instead."
+            exit 1
+          }
+          Write-Host "Version $version is valid"
+
       - name: Restore dependencies
         run: dotnet restore CRDebugger.slnx
 
       - name: Build Release
         run: dotnet build CRDebugger.slnx -c Release --no-restore
+
+      - name: Run Tests
+        run: dotnet test tests/CRDebugger.Core.Tests --no-build -c Release --logger trx
 
       - name: Pack CRDebugger.WinForms
         run: dotnet pack src/CRDebugger.WinForms/CRDebugger.WinForms.csproj -c Release --no-build -o artifacts

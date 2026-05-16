@@ -135,7 +135,11 @@ public sealed class ProfilerEngineAdversarialTests : IDisposable
         })).ToArray();
 
         await Task.WhenAll(tasks);
-        Thread.Sleep(100);
+
+        // Latest が生成されるまで polling-with-deadline（最大 2 秒）
+        var deadline = DateTime.UtcNow.AddSeconds(2);
+        while (_engine.Latest == null && DateTime.UtcNow < deadline)
+            Thread.Sleep(50);
 
         // クラッシュせず完了
         Assert.NotNull(_engine.Latest);
@@ -218,7 +222,11 @@ public sealed class ProfilerEngineAdversarialTests : IDisposable
         };
 
         _engine.Start();
-        Thread.Sleep(200);
+
+        // SnapshotTaken が発火するまで polling-with-deadline（最大 2 秒）
+        var deadline = DateTime.UtcNow.AddSeconds(2);
+        while (Interlocked.CompareExchange(ref callCount, 0, 0) == 0 && DateTime.UtcNow < deadline)
+            Thread.Sleep(50);
 
         Assert.True(callCount >= 1, "正常なハンドラでは呼ばれるべき");
     }
@@ -295,7 +303,11 @@ public sealed class ProfilerEngineAdversarialTests : IDisposable
     public void Snapshot_MemoryValues_NonNegative()
     {
         _engine.Start();
-        Thread.Sleep(200);
+
+        // Latest が生成されるまで polling-with-deadline（最大 2 秒）
+        var deadline = DateTime.UtcNow.AddSeconds(2);
+        while (_engine.Latest == null && DateTime.UtcNow < deadline)
+            Thread.Sleep(50);
 
         var latest = _engine.Latest;
         Assert.NotNull(latest);

@@ -59,6 +59,9 @@ internal sealed class CRDebuggerContext : IDisposable
     /// <summary>System.Diagnostics.Trace 出力をキャプチャするリスナー（無効時はnull）</summary>
     private CRTraceListener? _traceListener;
 
+    /// <summary>システムテーマ監視プロバイダー（Dispose 時に StopMonitoring を呼ぶため保持）</summary>
+    private readonly IThemeProvider? _themeProvider;
+
     /// <summary>
     /// CRDebuggerContextを構築し、全サービスを初期化・配線する。
     /// </summary>
@@ -78,20 +81,20 @@ internal sealed class CRDebuggerContext : IDisposable
 
         // コアサービスを順に初期化（依存関係の少ないものから順番に生成）
         LogStore = new LogStore(options.MaxLogEntries, options.CollapseDuplicateLogs);
-        SystemInfo = new SystemInfoCollector();
-        Options = new OptionsEngine();
+        SystemInfo = new SystemInfoCollector(options.SystemInfoCollectionLevel);
+        Options = new OptionsEngine(options.RequireOptInAttribute, options.OptionsStore);
         Profiler = new ProfilerEngine(options.ProfilerSampleInterval, options.GpuMonitor);
-        BugReporter = new BugReportEngine(LogStore, SystemInfo, options.BugReportSender);
+        BugReporter = new BugReportEngine(LogStore, SystemInfo, options.BugReportSender, options.BugReportSendTimeout);
         ThemeManager = new ThemeManager(options.Theme);
         LoggerProvider = new CRLoggerProvider(LogStore);
 
-        // SuperLightLogger を構成（ファイル出力専用、LogStoreへの転送はCRDebugger.Log()が直接行う）
-        LogManager.Configure(builder =>
+        // SuperLightLogger の構成はオプトイン（デフォルト false）。
+        // ホストアプリが既に LogManager.Configure 済みのケースを破壊しないため、
+        // 明示的に AttachToSuperLightLoggerManager = true または FileLogPath 指定時のみ構成する。
+        if (options.AttachToSuperLightLoggerManager && !string.IsNullOrEmpty(options.FileLogPath))
         {
-            // ファイルログが設定されている場合はSuperLightFileターゲットを追加
-            if (!string.IsNullOrEmpty(options.FileLogPath))
-                builder.AddSuperLightFile(options.FileLogPath);
-        });
+            LogManager.Configure(builder => builder.AddSuperLightFile(options.FileLogPath));
+        }
 
         // アプリケーション用の SuperLightLogger ロガーを取得
         AppLogger = LogManager.GetLogger(typeof(CRDebuggerContext));
@@ -131,13 +134,14 @@ internal sealed class CRDebuggerContext : IDisposable
         RegisterDefaultShortcuts();
 
         // システムテーマ（ライト/ダーク）の監視を開始
-        if (options.ThemeProvider != null)
+        _themeProvider = options.ThemeProvider;
+        if (_themeProvider != null)
         {
             // 現在のシステムテーマを即時反映
-            ThemeManager.NotifySystemThemeChanged(options.ThemeProvider.IsSystemDarkMode());
+            ThemeManager.NotifySystemThemeChanged(_themeProvider.IsSystemDarkMode());
 
             // システムテーマ変更の監視コールバックを登録（UIスレッドで適用）
-            options.ThemeProvider.StartMonitoring(isDark =>
+            _themeProvider.StartMonitoring(isDark =>
             {
                 UiThread.Invoke(() => ThemeManager.NotifySystemThemeChanged(isDark));
             });
@@ -186,18 +190,31 @@ internal sealed class CRDebuggerContext : IDisposable
 
     /// <summary>
     /// コンテキストが保持するリソースをすべて解放する。
-    /// プロファイラータイマーの停止、TraceListenerの解除、
-    /// 未処理例外イベントの登録解除を行う。
+    /// プロファイラータイマーの停止、ThemeProvider 監視停止、
+    /// TraceListenerの解除、未処理例外イベントの登録解除、
+    /// RootViewModel の Dispose、OptionsStore.Flush を行う。
     /// </summary>
     public void Dispose()
     {
+        // システムテーマ監視を停止して OS イベント購読を解除
+        try { _themeProvider?.StopMonitoring(); } catch { /* 解放経路で握りつぶし */ }
+        (_themeProvider as IDisposable)?.Dispose();
+
+        // RootViewModel を Dispose して ThemeManager/LogStore/Profiler 等のイベント購読を解除
+        try { RootViewModel.Dispose(); } catch { /* 解放経路で握りつぶし */ }
+
         // プロファイラーのサンプリングタイマーを停止・解放
         Profiler.Dispose();
 
-        // グローバルTraceListenerから自分自身を解除してリーク防止
+        // Options 永続化ストアに保留中の変更をフラッシュ
+        try { Options.FlushStore(); } catch { /* 解放経路で握りつぶし */ }
+
+        // グローバルTraceListenerから自分自身を解除＆Disposeしてリーク防止
         if (_traceListener != null)
         {
             Trace.Listeners.Remove(_traceListener);
+            _traceListener.Dispose();
+            _traceListener = null;
         }
 
         // 未処理例外ハンドラーの登録を解除

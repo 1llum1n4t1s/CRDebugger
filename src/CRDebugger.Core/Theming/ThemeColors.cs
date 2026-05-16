@@ -52,7 +52,9 @@ public readonly struct ThemeColors
 
     /// <summary>
     /// ボーダー（区切り線・枠線）の色。
-    /// 半透明の白または黒で設定することが多い。
+    /// 必ず不透明色（ARGB の上位 8bit = 0xFF）を指定すること。
+    /// Avalonia FluentTheme の SystemAccentColor 流入問題を避けるため、
+    /// 半透明色 (例: 0x10FFFFFF) は使用しない。
     /// </summary>
     public uint Border { get; init; }
 
@@ -121,7 +123,7 @@ public readonly struct ThemeColors
         OnSurface     = 0xFFC0C0D5, // やや暗めのサーフェステキスト
         OnSurfaceMuted= 0xFF9090A5, // ミュートされた補足テキスト
         // ── ボーダー ─────────────────────────────────────────────────────
-        Border        = 0x10FFFFFF, // 10%不透明度の白（微細な区切り線）
+        Border        = 0xFF3A3A55, // 不透明な紺グレー（WPF Dark.xaml と一致）
         // ── ログレベル色 ─────────────────────────────────────────────────
         LogDebug      = 0xFF6CAEDD, // 水色系のデバッグログ
         LogInfo       = 0xFFB0B0C0, // グレー系の情報ログ
@@ -151,7 +153,7 @@ public readonly struct ThemeColors
         OnSurface     = 0xFF333344, // ダークグレーのサーフェステキスト
         OnSurfaceMuted= 0xFF707085, // ミュートされた補足テキスト
         // ── ボーダー ─────────────────────────────────────────────────────
-        Border        = 0x10000000, // 10%不透明度の黒（微細な区切り線）
+        Border        = 0xFFD0D0DD, // 不透明なライトグレー（WPF Light.xaml と一致）
         // ── ログレベル色 ─────────────────────────────────────────────────
         LogDebug      = 0xFF1565C0, // 濃い青のデバッグログ
         LogInfo       = 0xFF555566, // ダークグレーの情報ログ

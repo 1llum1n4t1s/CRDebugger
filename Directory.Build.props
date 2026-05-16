@@ -11,8 +11,17 @@
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageOutputPath>$(MSBuildThisFileDirectory)artifacts</PackageOutputPath>
     <PackageTags>debug;logging;devtools;diagnostics;profiler;srdebugger</PackageTags>
+    <PackageReleaseNotes>See CHANGELOG.md at https://github.com/1llum1n4t1s/CRDebugger/blob/main/CHANGELOG.md</PackageReleaseNotes>
     <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
     <ApplicationIcon>$(MSBuildThisFileDirectory)icon\app.ico</ApplicationIcon>
+    <!-- snupkg / Source Link / Deterministic Build 設定 -->
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <DebugType>portable</DebugType>
+    <DebugSymbols>true</DebugSymbols>
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
   </PropertyGroup>
   <ItemGroup Condition="'$(IsPackable)' == 'true'">
     <None Include="$(MSBuildThisFileDirectory)icon/app_icon.png" Pack="true" PackagePath="icon.png" Visible="false" />

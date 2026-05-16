@@ -129,6 +129,74 @@ public sealed class DynamicOptionContainer
     }
 
     /// <summary>
+    /// long 型オプションを追加する (#B3-012)。
+    /// int の範囲を超える整数値（タイムスタンプ・ID・ファイルサイズ等）の動的登録に使用する。
+    /// min/max を指定するとスライダー付き数値入力として表示され、省略するとテキスト入力になる。
+    /// </summary>
+    /// <param name="name">オプション名（UI に表示される名前）</param>
+    /// <param name="getter">現在値を取得するデリゲート</param>
+    /// <param name="setter">値を設定するデリゲート</param>
+    /// <param name="min">数値入力の最小値（省略可。max と両方指定で範囲制約が有効になる）</param>
+    /// <param name="max">数値入力の最大値（省略可。min と両方指定で範囲制約が有効になる）</param>
+    /// <param name="step">数値入力のステップ値（1 目盛りの増減量。デフォルト: 1）</param>
+    /// <param name="sortOrder">カテゴリ内の表示順（昇順。小さいほど先頭に表示される）</param>
+    /// <param name="description">UI に表示する説明テキスト（省略可。null の場合は非表示）</param>
+    /// <returns>メソッドチェーン用に自身を返す</returns>
+    public DynamicOptionContainer AddLong(string name, Func<long> getter, Action<long> setter,
+        double? min = null, double? max = null, double step = 1, int sortOrder = 0,
+        string? description = null)
+    {
+        _options.Add(new OptionDescriptor
+        {
+            Id = $"Dynamic.{_category}.{name}",
+            DisplayName = name,
+            Category = _category,
+            SortOrder = sortOrder,
+            Kind = OptionKind.Integer,
+            ValueType = typeof(long),
+            Getter = () => getter(),
+            Setter = v => setter(Convert.ToInt64(v)),
+            Range = min.HasValue && max.HasValue ? new CRRangeAttribute(min.Value, max.Value) { Step = step } : null,
+            Description = description,
+        });
+        return this;
+    }
+
+    /// <summary>
+    /// double 型オプションを追加する (#B3-012)。
+    /// float では精度が不足する物理シミュレーション・統計・座標等の動的登録に使用する。
+    /// min/max を指定するとスライダー付き数値入力として表示され、省略するとテキスト入力になる。
+    /// </summary>
+    /// <param name="name">オプション名（UI に表示される名前）</param>
+    /// <param name="getter">現在値を取得するデリゲート</param>
+    /// <param name="setter">値を設定するデリゲート</param>
+    /// <param name="min">数値入力の最小値（省略可。max と両方指定で範囲制約が有効になる）</param>
+    /// <param name="max">数値入力の最大値（省略可。min と両方指定で範囲制約が有効になる）</param>
+    /// <param name="step">数値入力のステップ値（1 目盛りの増減量。デフォルト: 0.1）</param>
+    /// <param name="sortOrder">カテゴリ内の表示順（昇順。小さいほど先頭に表示される）</param>
+    /// <param name="description">UI に表示する説明テキスト（省略可。null の場合は非表示）</param>
+    /// <returns>メソッドチェーン用に自身を返す</returns>
+    public DynamicOptionContainer AddDouble(string name, Func<double> getter, Action<double> setter,
+        double? min = null, double? max = null, double step = 0.1, int sortOrder = 0,
+        string? description = null)
+    {
+        _options.Add(new OptionDescriptor
+        {
+            Id = $"Dynamic.{_category}.{name}",
+            DisplayName = name,
+            Category = _category,
+            SortOrder = sortOrder,
+            Kind = OptionKind.Float,
+            ValueType = typeof(double),
+            Getter = () => getter(),
+            Setter = v => setter(Convert.ToDouble(v)),
+            Range = min.HasValue && max.HasValue ? new CRRangeAttribute(min.Value, max.Value) { Step = step } : null,
+            Description = description,
+        });
+        return this;
+    }
+
+    /// <summary>
     /// string 型オプションを追加する。
     /// UI ではテキスト入力ボックスとして表示される。
     /// </summary>

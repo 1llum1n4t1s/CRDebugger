@@ -25,8 +25,18 @@ public sealed class OptionsViewModel : ViewModelBase
     /// <summary>前回の ApplyFilter で使用したクエリ（同値ガード用）</summary>
     private string _lastAppliedQuery = string.Empty;
 
-    /// <summary>フィルタ適用後のカテゴリ一覧。UIのリストに直接バインドされる。</summary>
-    public ObservableCollection<OptionCategoryViewModel> FilteredCategories { get; } = new();
+    /// <summary>フィルタ適用後のカテゴリ一覧のバッキングフィールド</summary>
+    private ObservableCollection<OptionCategoryViewModel> _filteredCategories = new();
+
+    /// <summary>
+    /// フィルタ適用後のカテゴリ一覧。UIのリストに直接バインドされる。
+    /// ApplyFilter 時はコレクション丸ごと差し替えで単一 PropertyChanged 通知に最適化。
+    /// </summary>
+    public ObservableCollection<OptionCategoryViewModel> FilteredCategories
+    {
+        get => _filteredCategories;
+        private set => SetProperty(ref _filteredCategories, value);
+    }
 
     /// <summary>
     /// 検索テキスト。変更時に自動でフィルタリングを実行する。
@@ -45,9 +55,15 @@ public sealed class OptionsViewModel : ViewModelBase
     {
         _engine = engine;
         RefreshCommand = new RelayCommand(Refresh);
-        _engine.ContainersChanged += (_, _) => Refresh();
+        // 名前付きハンドラ経由で購読し、Dispose 時に -= で確実に解除可能にする
+        _engine.ContainersChanged += OnContainersChanged;
         Refresh();
     }
+
+    /// <summary>
+    /// <see cref="OptionsEngine.ContainersChanged"/> イベントハンドラ。
+    /// </summary>
+    private void OnContainersChanged(object? sender, EventArgs e) => Refresh();
 
     /// <summary>
     /// エンジンを通じてコンテナを再スキャンし、カテゴリ一覧を更新する。
@@ -84,14 +100,16 @@ public sealed class OptionsViewModel : ViewModelBase
         if (query == _lastAppliedQuery) return;
         _lastAppliedQuery = query;
 
-        FilteredCategories.Clear();
+        // 一時リストに構築してから ObservableCollection を丸ごと差し替える
+        // （Clear + N回 Add の N+1 通知 → 1 回の PropertyChanged に削減）
+        var matched = new List<OptionCategoryViewModel>(_allCategories.Count);
 
         foreach (var cat in _allCategories)
         {
             if (string.IsNullOrEmpty(query))
             {
                 cat.ApplyFilter(null);
-                FilteredCategories.Add(cat);
+                matched.Add(cat);
                 continue;
             }
 
@@ -99,15 +117,29 @@ public sealed class OptionsViewModel : ViewModelBase
             if (cat.Name.Contains(query, StringComparison.OrdinalIgnoreCase))
             {
                 cat.ApplyFilter(null);
-                FilteredCategories.Add(cat);
+                matched.Add(cat);
                 continue;
             }
 
             // アイテム/アクション単位でフィルタ
             cat.ApplyFilter(query);
             if (cat.FilteredItems.Count > 0 || cat.FilteredActions.Count > 0)
-                FilteredCategories.Add(cat);
+                matched.Add(cat);
         }
+
+        FilteredCategories = new ObservableCollection<OptionCategoryViewModel>(matched);
+    }
+
+    /// <inheritdoc />
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            // OptionsEngine のイベント購読を解除して GC ルートから切る
+            _engine.ContainersChanged -= OnContainersChanged;
+        }
+
+        base.Dispose(disposing);
     }
 }
 
@@ -128,11 +160,31 @@ public sealed class OptionCategoryViewModel : ViewModelBase
     /// <summary>全アクション項目（フィルタのソース。UI からは参照しない）</summary>
     private readonly IReadOnlyList<ActionItemViewModel> _allActions;
 
-    /// <summary>フィルタ適用後のオプション項目一覧（UIバインド用）</summary>
-    public ObservableCollection<OptionItemViewModel> FilteredItems { get; } = new();
+    /// <summary>フィルタ適用後のオプション項目一覧のバッキングフィールド</summary>
+    private ObservableCollection<OptionItemViewModel> _filteredItems = new();
 
-    /// <summary>フィルタ適用後のアクション項目一覧（UIバインド用）</summary>
-    public ObservableCollection<ActionItemViewModel> FilteredActions { get; } = new();
+    /// <summary>フィルタ適用後のアクション項目一覧のバッキングフィールド</summary>
+    private ObservableCollection<ActionItemViewModel> _filteredActions = new();
+
+    /// <summary>
+    /// フィルタ適用後のオプション項目一覧（UIバインド用）。
+    /// ApplyFilter 時はコレクション丸ごと差し替えで単一 PropertyChanged 通知に最適化。
+    /// </summary>
+    public ObservableCollection<OptionItemViewModel> FilteredItems
+    {
+        get => _filteredItems;
+        private set => SetProperty(ref _filteredItems, value);
+    }
+
+    /// <summary>
+    /// フィルタ適用後のアクション項目一覧（UIバインド用）。
+    /// ApplyFilter 時はコレクション丸ごと差し替えで単一 PropertyChanged 通知に最適化。
+    /// </summary>
+    public ObservableCollection<ActionItemViewModel> FilteredActions
+    {
+        get => _filteredActions;
+        private set => SetProperty(ref _filteredActions, value);
+    }
 
     /// <summary>カテゴリの展開/折りたたみ状態</summary>
     public bool IsExpanded
@@ -165,31 +217,42 @@ public sealed class OptionCategoryViewModel : ViewModelBase
     /// <summary>
     /// 検索クエリに基づいてフィルタリングを適用する。
     /// null で全アイテム表示。大文字小文字を区別しない部分一致検索。
+    /// オプションは表示名・説明文の両方を検索対象にする（アクション側との対称性を確保）。
     /// </summary>
     public void ApplyFilter(string? query)
     {
-        FilteredItems.Clear();
-        FilteredActions.Clear();
-
+        // 空クエリ → 全件をコレクション丸ごと差し替え
         if (string.IsNullOrEmpty(query))
         {
-            foreach (var item in _allItems) FilteredItems.Add(item);
-            foreach (var action in _allActions) FilteredActions.Add(action);
+            FilteredItems = new ObservableCollection<OptionItemViewModel>(_allItems);
+            FilteredActions = new ObservableCollection<ActionItemViewModel>(_allActions);
             return;
         }
 
+        // クエリヒットしたアイテム/アクションを一時リストに構築してから丸ごと差し替え
+        var matchedItems = new List<OptionItemViewModel>();
         foreach (var item in _allItems)
         {
-            if (item.DisplayName.Contains(query, StringComparison.OrdinalIgnoreCase))
-                FilteredItems.Add(item);
+            // 表示名・説明文のいずれかにヒットしたら採用（アクション側と同じ非対称解消）
+            if (item.DisplayName.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                (item.Description?.Contains(query, StringComparison.OrdinalIgnoreCase) ?? false))
+            {
+                matchedItems.Add(item);
+            }
         }
 
+        var matchedActions = new List<ActionItemViewModel>();
         foreach (var action in _allActions)
         {
             if (action.Label.Contains(query, StringComparison.OrdinalIgnoreCase) ||
                 (action.Description?.Contains(query, StringComparison.OrdinalIgnoreCase) ?? false))
-                FilteredActions.Add(action);
+            {
+                matchedActions.Add(action);
+            }
         }
+
+        FilteredItems = new ObservableCollection<OptionItemViewModel>(matchedItems);
+        FilteredActions = new ObservableCollection<ActionItemViewModel>(matchedActions);
     }
 }
 
@@ -214,15 +277,29 @@ public class OptionItemViewModel : ViewModelBase
 
     /// <summary>
     /// オプションの現在値。setter は型変換後に書き戻す。
+    /// 型変換に失敗した場合（FormatException 等）は値を変更せず、
+    /// UI バインディングを旧値に戻すため OnPropertyChanged を発火する。
     /// </summary>
     public object? Value
     {
         get => _descriptor.Getter();
         set
         {
-            if (_descriptor.Setter != null)
+            if (_descriptor.Setter == null) return;
+
+            try
             {
                 _descriptor.Setter(ConvertValue(value));
+                OnPropertyChanged();
+            }
+            catch (Exception ex) when (
+                ex is FormatException ||
+                ex is OverflowException ||
+                ex is InvalidCastException ||
+                ex is ArgumentException)
+            {
+                // 不正な入力（"abc" → int など）を握りつぶし、UI を旧値表示に戻す
+                // OnPropertyChanged の発火で TextBox 等が getter から最新値を取り直す
                 OnPropertyChanged();
             }
         }

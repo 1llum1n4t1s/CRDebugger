@@ -261,9 +261,27 @@ public sealed class ProfilerViewModel : ViewModelBase
     /// <param name="maxSize">コレクションの最大保持件数</param>
     private static void AppendWithLimit(ObservableCollection<double> collection, double value, int maxSize)
     {
-        collection.Add(value);
-        while (collection.Count > maxSize)
+        // 上限到達済みなら追加前に最古を 1 件だけ削る（O(n) だが ObservableCollection の制約で回避不能）
+        // タイマーは 1 件ずつ追加するため while ではなく if で十分（過剰な無限ループを防止）
+        if (collection.Count >= maxSize)
+        {
             collection.RemoveAt(0);
+        }
+        collection.Add(value);
+    }
+
+
+    /// <inheritdoc />
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            // ProfilerEngine のスナップショットイベント購読を解除して GC ルートから切る
+            // （ProfilerEngine 自体の Dispose は CRDebuggerContext.Dispose 内で別途行う）
+            _profiler.SnapshotTaken -= OnSnapshot;
+        }
+
+        base.Dispose(disposing);
     }
 
     /// <summary>

@@ -20,16 +20,6 @@ public partial class OptionsView : UserControl
     }
 
     /// <summary>
-    /// ItemsControl がロードされたときのイベントハンドラ
-    /// </summary>
-    /// <param name="sender">イベント送信元</param>
-    /// <param name="e">ルーティングイベント引数</param>
-    private void OnOptionItemsLoaded(object sender, RoutedEventArgs e)
-    {
-        // ItemsControl のロード時処理（必要に応じて追加実装）
-    }
-
-    /// <summary>
     /// 各オプション項目の ContentPresenter がロードされたときのイベントハンドラ。
     /// OptionControlFactory で動的に生成したコントロールを ContentPresenter に差し込み、
     /// テーマのテキスト色（OnSurfaceBrush）を適用する。

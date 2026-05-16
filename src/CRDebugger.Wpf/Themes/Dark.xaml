@@ -6,7 +6,7 @@
     <Color x:Key="SurfaceColor">#FF232338</Color>
     <Color x:Key="SurfaceAltColor">#FF2D2D45</Color>
     <Color x:Key="PrimaryColor">#FF7C8FFF</Color>
-    <Color x:Key="OnBackgroundColor">#FFC0C0D5</Color>
+    <Color x:Key="OnBackgroundColor">#FFF0F0F5</Color>
     <Color x:Key="OnSurfaceColor">#FFC0C0D5</Color>
     <Color x:Key="OnSurfaceMutedColor">#FF9090A5</Color>
     <Color x:Key="BorderColor">#FF3A3A55</Color>
@@ -14,7 +14,7 @@
     <Color x:Key="SidebarTextColor">#FF9090A5</Color>
     <Color x:Key="SelectedTabColor">#FF7C8FFF</Color>
     <Color x:Key="LogDebugColor">#FF6CAEDD</Color>
-    <Color x:Key="LogInfoColor">#FF9090A5</Color>
+    <Color x:Key="LogInfoColor">#FFB0B0C0</Color>
     <Color x:Key="LogWarningColor">#FFE8C44A</Color>
     <Color x:Key="LogErrorColor">#FFE05252</Color>
     <Color x:Key="SuccessColor">#FF4CAF50</Color>

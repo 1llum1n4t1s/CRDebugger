@@ -282,18 +282,21 @@ public sealed class CRTraceListenerAdversarialTests
 
     /// <summary>
     /// @adversarial @category type @severity high
-    /// TraceEventのformat文字列が不正な場合
+    /// TraceEvent の format 文字列が不正でも例外を伝播せずホストアプリを守ること (#A2-002 / #27 修正後の挙動)
     /// </summary>
     [Fact]
-    public void TraceEvent_InvalidFormat_ThrowsOrHandles()
+    public void TraceEvent_InvalidFormat_HandledGracefully()
     {
         var store = new LogStore();
         var listener = new CRTraceListener(store);
 
-        // 不正なフォーマット文字列 "{0}{1}" に引数1個
-        Assert.ThrowsAny<Exception>(() =>
-            listener.TraceEvent(null, "source", System.Diagnostics.TraceEventType.Error, 0,
-                "{0}{1}", "only_one_arg"));
+        // 不正なフォーマット文字列 "{0}{1}" に引数1個 — 例外を投げず raw format をログに残す設計に変更
+        listener.TraceEvent(null, "source", System.Diagnostics.TraceEventType.Error, 0,
+            "{0}{1}", "only_one_arg");
+
+        // ホストアプリを守るため例外は伝播せず、ログには raw format がフォールバックで記録される
+        var entries = store.GetAll();
+        Assert.NotEmpty(entries);
     }
 
     /// <summary>
