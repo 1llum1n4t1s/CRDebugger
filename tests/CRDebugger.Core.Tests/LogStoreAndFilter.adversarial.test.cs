@@ -254,8 +254,8 @@ public sealed class LogStoreAndFilterAdversarialTests
             }
         }, TestContext.Current.CancellationToken);
 
-        // 5秒以内にタスクが完了すること（デッドロックしない）
-        await Task.WhenAll(writer, reader, clearer).WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        // 15 秒以内にタスクが完了すること（CI ランナー向け、デッドロック検知用の上限）
+        await Task.WhenAll(writer, reader, clearer).WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken);
     }
 
     /// <summary>

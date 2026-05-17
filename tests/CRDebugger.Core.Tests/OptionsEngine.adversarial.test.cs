@@ -219,7 +219,7 @@ public sealed class OptionsEngineAdversarialTests
             }
         }, TestContext.Current.CancellationToken);
 
-        await Task.WhenAll(adder, scanner).WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        await Task.WhenAll(adder, scanner).WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken);
     }
 
     /// <summary>

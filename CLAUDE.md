@@ -86,10 +86,8 @@ CRDebugger は **SuperLightLogger** を使用してファイルログ出力を�
 - `CRDebugger.GetLogger<T>()` で SuperLightLogger の ILog を直接取得可能
 - `CRDebuggerOptions.FileLogPath` でファイル出力先を設定（null ならファイル出力なし）
 
-## Version Rules
+## Version Management
 
-- パッチバージョンは **偶数のみ** 使用（1.0.0, 1.0.2, 1.0.4, ...）
-- 1.0.998 の次は **1.1.0**（1.0.999 は使わない）
 - バージョンは `Directory.Build.props` の `<Version>` で一元管理
 
 ## CI/CD

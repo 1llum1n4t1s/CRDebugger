@@ -65,7 +65,11 @@ public sealed class ProfilerEngineAdversarialTests : IDisposable
             _engine.RecordFrame();
         }
 
-        Thread.Sleep(100); // スナップショット取得を待つ
+        // Latest が生成されるまで polling-with-deadline（CI ランナー向けに最大 5 秒）
+        var deadline = DateTime.UtcNow.AddSeconds(5);
+        while (_engine.Latest == null && DateTime.UtcNow < deadline)
+            Thread.Sleep(50);
+
         var latest = _engine.Latest;
         // クラッシュせずスナップショットが取れること
         Assert.NotNull(latest);
@@ -137,7 +141,7 @@ public sealed class ProfilerEngineAdversarialTests : IDisposable
         await Task.WhenAll(tasks);
 
         // Latest が生成されるまで polling-with-deadline（最大 2 秒）
-        var deadline = DateTime.UtcNow.AddSeconds(2);
+        var deadline = DateTime.UtcNow.AddSeconds(5);
         while (_engine.Latest == null && DateTime.UtcNow < deadline)
             Thread.Sleep(50);
 
@@ -161,7 +165,18 @@ public sealed class ProfilerEngineAdversarialTests : IDisposable
         };
 
         _engine.Start();
-        Thread.Sleep(300);
+
+        // snapshots が取得されるまで polling-with-deadline（CI ランナー向けに最大 5 秒）
+        var deadline = DateTime.UtcNow.AddSeconds(5);
+        while (true)
+        {
+            lock (snapshots)
+            {
+                if (snapshots.Count > 0) break;
+            }
+            if (DateTime.UtcNow >= deadline) break;
+            Thread.Sleep(50);
+        }
 
         lock (snapshots)
         {
@@ -224,7 +239,7 @@ public sealed class ProfilerEngineAdversarialTests : IDisposable
         _engine.Start();
 
         // SnapshotTaken が発火するまで polling-with-deadline（最大 2 秒）
-        var deadline = DateTime.UtcNow.AddSeconds(2);
+        var deadline = DateTime.UtcNow.AddSeconds(5);
         while (Interlocked.CompareExchange(ref callCount, 0, 0) == 0 && DateTime.UtcNow < deadline)
             Thread.Sleep(50);
 
@@ -288,7 +303,11 @@ public sealed class ProfilerEngineAdversarialTests : IDisposable
     public void Snapshot_GcPauseTimeMs_AlwaysZero()
     {
         _engine.Start();
-        Thread.Sleep(200);
+
+        // Snapshot history が生成されるまで polling-with-deadline（CI ランナー向けに最大 5 秒）
+        var deadline = DateTime.UtcNow.AddSeconds(5);
+        while (_engine.GetHistory().Count == 0 && DateTime.UtcNow < deadline)
+            Thread.Sleep(50);
 
         var history = _engine.GetHistory();
         Assert.NotEmpty(history);
@@ -305,7 +324,7 @@ public sealed class ProfilerEngineAdversarialTests : IDisposable
         _engine.Start();
 
         // Latest が生成されるまで polling-with-deadline（最大 2 秒）
-        var deadline = DateTime.UtcNow.AddSeconds(2);
+        var deadline = DateTime.UtcNow.AddSeconds(5);
         while (_engine.Latest == null && DateTime.UtcNow < deadline)
             Thread.Sleep(50);
 
