@@ -43,7 +43,11 @@ public sealed class ProfilerEngineAdversarialTests : IDisposable
     {
         using var engine = new ProfilerEngine(TimeSpan.Zero);
         engine.Start();
-        Thread.Sleep(200);
+
+        // history が生成されるまで polling-with-deadline（CI ランナー向けに最大 5 秒）
+        var deadline = DateTime.UtcNow.AddSeconds(5);
+        while (engine.GetHistory().Count == 0 && DateTime.UtcNow < deadline)
+            Thread.Sleep(50);
 
         var history = engine.GetHistory();
         // タイマーが動作すること（0ms = 即時かつ繰り返し）
