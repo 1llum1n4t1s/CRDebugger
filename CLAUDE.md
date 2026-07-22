@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code and other coding agents working in this repository.
 
 ## Build & Test Commands
 
@@ -41,7 +41,7 @@ CRDebugger.WinForms.dll  ← Core のコードを内包
 
 ### WPF XAML の注意
 
-WPF の XAML で Core の型を参照する場合、`assembly=` を省略すること（ソースリンクで同一アセンブリに含まれるため）:
+WPF の XAML で Core の型を参照する場合、`assembly=` を省略する（ソースリンクで同一アセンブリに含まれるため）:
 ```xml
 xmlns:vm="clr-namespace:CRDebugger.Core.ViewModels"     ← 正しい
 xmlns:vm="clr-namespace:CRDebugger.Core.ViewModels;assembly=CRDebugger.Core"  ← エラーになる
@@ -49,24 +49,24 @@ xmlns:vm="clr-namespace:CRDebugger.Core.ViewModels;assembly=CRDebugger.Core"  �
 
 ### Timer の曖昧参照
 
-WinForms プロジェクトでは `System.Windows.Forms.Timer` と `System.Threading.Timer` が衝突する。Core 内では `System.Threading.Timer` と完全修飾で記述すること。
+WinForms プロジェクトでは `System.Windows.Forms.Timer` と `System.Threading.Timer` が衝突する。Core 内では `System.Threading.Timer` と完全修飾で記述する。
 
 ### Avalonia スタイル
 
-共通スタイルは `src/CRDebugger.Avalonia/Styles/SharedStyles.axaml` に定義。各 View で重複スタイルを書かないこと。カードは `cr-card` クラスを使用。
+共通スタイルは `src/CRDebugger.Avalonia/Styles/SharedStyles.axaml` に定義。各 View では共通スタイルを再利用し、重複スタイルは書かない。カードは `cr-card` クラスを使用。
 
-Avalonia では `AvaloniaUseCompiledBindingsByDefault=true` のため `x:DataType` の指定が必須。`IsVisible` に `int` を直接バインドすると型不一致エラーになるので `CountToVisibilityConverter` を使うこと。
+Avalonia では `AvaloniaUseCompiledBindingsByDefault=true` のため `x:DataType` の指定が必須。`IsVisible` に `int` を直接バインドすると型不一致エラーになるので `CountToVisibilityConverter` を使う。
 
 ### Avalonia 色指定の鉄則
 
-**半透明色 `#FFFFFFxx` は絶対に使わない**。FluentTheme の `SystemAccentColor`（ユーザーのOS設定に依存）が背景に流入し、黄色やピンク等の意図しない色になる。必ず不透明色（6桁 `#RRGGBB`）を使用すること。
+**色は必ず不透明色（6桁 `#RRGGBB`）を使う**。半透明色 `#FFFFFFxx` を使うと FluentTheme の `SystemAccentColor`（ユーザーのOS設定に依存）が背景に流入し、黄色やピンク等の意図しない色になるため。
 
 ```
 ❌ Background="#FFFFFF06"  ← 半透明（OSアクセントカラーが透ける）
 ✅ Background="#252538"    ← 不透明（確実にダークブルー）
 ```
 
-同様に `ExtendClientAreaToDecorationsHint="True"` は DWM タイトルバー背景（=SystemAccentColor）をクライアントエリアに流入させるため使用しない。
+同様に `ExtendClientAreaToDecorationsHint="True"` は DWM タイトルバー背景（=SystemAccentColor）をクライアントエリアに流入させるため、使わずにダーククロームは下記 Win32 統合で明示指定する。
 
 ### Avalonia ControlTheme
 
