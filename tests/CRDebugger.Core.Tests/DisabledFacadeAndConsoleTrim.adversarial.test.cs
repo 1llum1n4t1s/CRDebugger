@@ -157,6 +157,13 @@ public sealed class DisabledFacadeTests : IDisposable
 /// </summary>
 public sealed class ConsoleViewModelTrimTests
 {
+    /// <summary>
+    /// バッチフラッシュタイマーの反映を待つ上限。
+    /// タイマーコールバックはスレッドプール上で走るため、少コア数の CI ランナーでは初回発火が遅れうる。
+    /// 条件成立で即抜けるポーリングなので、長めに取っても正常時のテスト時間は増えない。
+    /// </summary>
+    private static readonly TimeSpan PollTimeout = TimeSpan.FromSeconds(60);
+
     /// <summary>Invoke を同期実行する UI スレッドスタブを作る</summary>
     private static IUiThread CreateSyncUiThread()
     {
@@ -181,13 +188,11 @@ public sealed class ConsoleViewModelTrimTests
         for (var i = 0; i < capacity * 10; i++)
             store.Append(CRLogLevel.Info, "ch", $"msg-{i}");
 
-        // 16ms バッチタイマーによる反映を polling-with-deadline で待つ（CI ランナー向けに最大 5 秒）
-        var deadline = DateTime.UtcNow.AddSeconds(5);
-        while (vm.DisplayEntries.Count == 0 && DateTime.UtcNow < deadline)
+        // 全件がフラッシュされるとトリムにより上限ちょうどになる。
+        // 「上限に達する」ことを待ち条件にすることで、反映途中の状態で判定してしまうのを防ぐ。
+        var deadline = DateTime.UtcNow.Add(PollTimeout);
+        while (vm.DisplayEntries.Count < capacity && DateTime.UtcNow < deadline)
             Thread.Sleep(20);
-
-        // 反映が落ち着くまで少し待ってから上限を検証する
-        Thread.Sleep(200);
 
         Assert.NotEmpty(vm.DisplayEntries);
         Assert.True(vm.DisplayEntries.Count <= capacity,
@@ -202,18 +207,25 @@ public sealed class ConsoleViewModelTrimTests
     public void FlushPending_UiThreadThrows_DoesNotCrashTimerThread()
     {
         var store = new LogStore(100);
+        var invokeCount = 0;
         var throwingUiThread = new Mock<IUiThread>();
         throwingUiThread.Setup(u => u.IsOnUiThread).Returns(true);
         throwingUiThread.Setup(u => u.Invoke(It.IsAny<Action>()))
+            .Callback(() => Interlocked.Increment(ref invokeCount))
             .Throws(new InvalidOperationException("UI ディスパッチャがシャットダウン済み"));
 
         using var vm = new ConsoleViewModel(store, throwingUiThread.Object);
 
         store.Append(CRLogLevel.Error, "ch", "boom");
 
-        // タイマーが数回発火する時間を確保する。ここで例外が漏れていればテストホストごと落ちる。
-        Thread.Sleep(300);
+        // タイマーが実際に発火して例外が投げられるまで待つ。
+        // 発火を待たずに終えると「何も起きなかっただけ」でも合格してしまうため、
+        // Invoke が呼ばれたことを待ち条件にする。ここで例外が漏れていればテストホストごと落ちる。
+        var deadline = DateTime.UtcNow.Add(PollTimeout);
+        while (Volatile.Read(ref invokeCount) == 0 && DateTime.UtcNow < deadline)
+            Thread.Sleep(20);
 
+        Assert.True(Volatile.Read(ref invokeCount) > 0, "フラッシュタイマーが発火していない");
         Assert.Empty(vm.DisplayEntries);
     }
 }

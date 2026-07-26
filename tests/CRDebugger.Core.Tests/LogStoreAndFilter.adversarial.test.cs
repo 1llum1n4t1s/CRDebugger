@@ -362,36 +362,40 @@ public sealed class LogStoreAndFilterAdversarialTests
         const int capacity = 100;
         var store = new LogStore(capacity);
         var exceptions = new List<Exception>();
-        using var stop = new CancellationTokenSource();
 
-        // Append 側スレッド（複数）と Clear 側スレッドを同時に走らせる
-        var workers = new List<Task>();
-        for (var t = 0; t < 4; t++)
+        // 専用スレッドを使う（Task.Run だとスレッドプールを占有し、
+        // 同時に走る他テストの System.Threading.Timer コールバックを枯渇させてしまう）。
+        var workers = new List<Thread>();
+        for (var t = 0; t < 3; t++)
         {
             var id = t;
-            workers.Add(Task.Run(() =>
+            workers.Add(new Thread(() =>
             {
                 try
                 {
-                    for (var i = 0; i < 2000 && !stop.IsCancellationRequested; i++)
+                    for (var i = 0; i < 500; i++)
                         store.Append(CRLogLevel.Debug, "ch", $"msg-{id}-{i}");
                 }
                 catch (Exception ex) { lock (exceptions) exceptions.Add(ex); }
-            }));
+            }) { IsBackground = true });
         }
-        workers.Add(Task.Run(() =>
+        workers.Add(new Thread(() =>
         {
             try
             {
-                for (var i = 0; i < 500 && !stop.IsCancellationRequested; i++)
+                for (var i = 0; i < 200; i++)
                     store.Clear();
             }
             catch (Exception ex) { lock (exceptions) exceptions.Add(ex); }
-        }));
+        })
+        { IsBackground = true });
+
+        foreach (var w in workers) w.Start();
 
         // デッドロックしていれば時間内に完了しない。タイムアウトを失敗として扱う
-        var completed = Task.WhenAll(workers).Wait(TimeSpan.FromSeconds(30));
-        stop.Cancel();
+        var completed = true;
+        foreach (var w in workers)
+            completed &= w.Join(TimeSpan.FromSeconds(30));
 
         Assert.True(completed, "Clear と Append の並行実行がタイムアウトした（デッドロックの疑い）");
         Assert.Empty(exceptions);

@@ -7,6 +7,14 @@ namespace CRDebugger.Core.Tests;
 /// </summary>
 public sealed class ProfilerEngineAdversarialTests : IDisposable
 {
+    /// <summary>
+    /// タイマー起点の状態が現れるのを待つ上限。
+    /// <see cref="System.Threading.Timer"/> のコールバックはスレッドプール上で走るため、
+    /// 少コア数の CI ランナーで他テストがプールを使っていると初回発火が数秒遅れることがある。
+    /// 条件成立で即抜けるポーリングなので、長めに取っても正常時のテスト時間は増えない。
+    /// </summary>
+    private static readonly TimeSpan PollTimeout = TimeSpan.FromSeconds(60);
+
     private readonly ProfilerEngine _engine;
 
     public ProfilerEngineAdversarialTests()
@@ -44,8 +52,8 @@ public sealed class ProfilerEngineAdversarialTests : IDisposable
         using var engine = new ProfilerEngine(TimeSpan.Zero);
         engine.Start();
 
-        // history が生成されるまで polling-with-deadline（CI ランナー向けに最大 5 秒）
-        var deadline = DateTime.UtcNow.AddSeconds(5);
+        // history が生成されるまで polling-with-deadline（CI ランナー向けに PollTimeout まで）
+        var deadline = DateTime.UtcNow.Add(PollTimeout);
         while (engine.GetHistory().Count == 0 && DateTime.UtcNow < deadline)
             Thread.Sleep(50);
 
@@ -69,8 +77,8 @@ public sealed class ProfilerEngineAdversarialTests : IDisposable
             _engine.RecordFrame();
         }
 
-        // Latest が生成されるまで polling-with-deadline（CI ランナー向けに最大 5 秒）
-        var deadline = DateTime.UtcNow.AddSeconds(5);
+        // Latest が生成されるまで polling-with-deadline（CI ランナー向けに PollTimeout まで）
+        var deadline = DateTime.UtcNow.Add(PollTimeout);
         while (_engine.Latest == null && DateTime.UtcNow < deadline)
             Thread.Sleep(50);
 
@@ -110,7 +118,7 @@ public sealed class ProfilerEngineAdversarialTests : IDisposable
         engine.Start();
 
         // 120件以上のスナップショットが取れるまで待つ
-        var deadline = DateTime.UtcNow.AddSeconds(5);
+        var deadline = DateTime.UtcNow.Add(PollTimeout);
         while (DateTime.UtcNow < deadline)
         {
             if (engine.GetHistory().Count >= ProfilerEngine.MaxHistorySize)
@@ -144,8 +152,8 @@ public sealed class ProfilerEngineAdversarialTests : IDisposable
 
         await Task.WhenAll(tasks);
 
-        // Latest が生成されるまで polling-with-deadline（最大 2 秒）
-        var deadline = DateTime.UtcNow.AddSeconds(5);
+        // Latest が生成されるまで polling-with-deadline（CI ランナー向けに PollTimeout まで）
+        var deadline = DateTime.UtcNow.Add(PollTimeout);
         while (_engine.Latest == null && DateTime.UtcNow < deadline)
             Thread.Sleep(50);
 
@@ -170,8 +178,8 @@ public sealed class ProfilerEngineAdversarialTests : IDisposable
 
         _engine.Start();
 
-        // snapshots が取得されるまで polling-with-deadline（CI ランナー向けに最大 5 秒）
-        var deadline = DateTime.UtcNow.AddSeconds(5);
+        // snapshots が取得されるまで polling-with-deadline（CI ランナー向けに PollTimeout まで）
+        var deadline = DateTime.UtcNow.Add(PollTimeout);
         while (true)
         {
             lock (snapshots)
@@ -246,9 +254,9 @@ public sealed class ProfilerEngineAdversarialTests : IDisposable
 
         _engine.Start();
 
-        // 2 回以上サンプリングされるまで polling-with-deadline（CI ランナー向けに最大 5 秒）。
+        // 2 回以上サンプリングされるまで polling-with-deadline（CI ランナー向けに PollTimeout まで）。
         // 2 回待つことで「1 回目の例外でタイマーが止まっていない」ことまで検証できる。
-        var deadline = DateTime.UtcNow.AddSeconds(5);
+        var deadline = DateTime.UtcNow.Add(PollTimeout);
         while (Interlocked.CompareExchange(ref throwingCalls, 0, 0) < 2 && DateTime.UtcNow < deadline)
             Thread.Sleep(50);
 
@@ -320,8 +328,8 @@ public sealed class ProfilerEngineAdversarialTests : IDisposable
     {
         _engine.Start();
 
-        // Snapshot history が生成されるまで polling-with-deadline（CI ランナー向けに最大 5 秒）
-        var deadline = DateTime.UtcNow.AddSeconds(5);
+        // Snapshot history が生成されるまで polling-with-deadline（CI ランナー向けに PollTimeout まで）
+        var deadline = DateTime.UtcNow.Add(PollTimeout);
         while (_engine.GetHistory().Count == 0 && DateTime.UtcNow < deadline)
             Thread.Sleep(50);
 
@@ -344,8 +352,8 @@ public sealed class ProfilerEngineAdversarialTests : IDisposable
     {
         _engine.Start();
 
-        // Latest が生成されるまで polling-with-deadline（最大 2 秒）
-        var deadline = DateTime.UtcNow.AddSeconds(5);
+        // Latest が生成されるまで polling-with-deadline（CI ランナー向けに PollTimeout まで）
+        var deadline = DateTime.UtcNow.Add(PollTimeout);
         while (_engine.Latest == null && DateTime.UtcNow < deadline)
             Thread.Sleep(50);
 
