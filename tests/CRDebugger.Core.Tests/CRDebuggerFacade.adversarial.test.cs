@@ -7,8 +7,10 @@ using Moq;
 namespace CRDebugger.Core.Tests;
 
 /// <summary>
-/// CRDebugger静的ファサード / CRTraceListener / CRLoggerProvider の嫌がらせテスト
+/// CRDebugger静的ファサード / CRTraceListener / CRLoggerProvider の嫌がらせテスト。
+/// 静的なグローバル状態を触るため、同じ状態を扱う他クラスと直列実行する。
 /// </summary>
+[Collection(CRDebuggerFacadeCollection.Name)]
 public sealed class CRDebuggerFacadeAdversarialTests : IDisposable
 {
     public CRDebuggerFacadeAdversarialTests()
@@ -173,6 +175,30 @@ public sealed class CRDebuggerFacadeAdversarialTests : IDisposable
         CRDebugger.LogWarning("Warning message");
         CRDebugger.LogError("Error message");
         CRDebugger.LogError("Error with exception", new Exception("test"));
+
+        // 「例外が出ない」だけでは Log が全件握りつぶしても合格してしまうため、
+        // ストアに実際に記録されたレベルとメッセージまで検証する。
+        var entries = GetLogStore().GetAll();
+
+        Assert.Equal(5, entries.Count);
+        Assert.Contains(entries, e => e.Level == CRLogLevel.Info && e.Message == "Info message");
+        Assert.Contains(entries, e => e.Level == CRLogLevel.Debug && e.Message == "Debug message");
+        Assert.Contains(entries, e => e.Level == CRLogLevel.Warning && e.Message == "Warning message");
+        Assert.Contains(entries, e => e.Level == CRLogLevel.Error && e.Message == "Error message");
+        Assert.Contains(entries, e => e.Level == CRLogLevel.Error && e.Message == "Error with exception");
+    }
+
+    /// <summary>
+    /// 初期化済みコンテキストの <see cref="LogStore"/> を取得する。
+    /// ファサードは LogStore を公開していないため、internal なコンテキストをリフレクションで取り出す
+    /// （CRDebugger.Core.csproj の InternalsVisibleTo によりテストからは型自体は参照可能）。
+    /// </summary>
+    private static LogStore GetLogStore()
+    {
+        var contextField = typeof(CRDebugger).GetField("_context",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
+        var context = (CRDebuggerContext)contextField.GetValue(null)!;
+        return context.LogStore;
     }
 
     // ───────────────────────────────────

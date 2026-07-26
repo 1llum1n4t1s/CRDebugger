@@ -12,17 +12,17 @@ Unity の [SRDebugger](https://www.stompyrobot.uk/tools/srdebugger/) にイン�
 - **System** - OS、CPU、メモリ、.NET ランタイム、プロセス情報を一覧表示
 - **Console** - リアルタイムログ表示（Debug/Info/Warning/Error フィルタ、テキスト検索、スタックトレース、重複ログ折りたたみ、リッチテキスト対応）
 - **Options** - リフレクション+アトリビュートによるプロパティの自動 UI 生成 + 動的オプションコンテナ
-  - 検索バー（カテゴリ名・オプション名・アクションラベルで横断検索）
-  - カテゴリ折りたたみ（クリックで展開/折りたたみ、状態を保持）
-  - 非同期アクションボタン（`Task` 戻り値対応、実行中スピナー＋成功/失敗フィードバック）
-  - `[CRDescription]` 属性（オプション/アクションに説明テキストを表示）
+  - 検索バー（カテゴリ名・オプション名・アクションラベルで横断検索）※Avalonia 版のみ
+  - カテゴリ折りたたみ（クリックで展開/折りたたみ、状態を保持）※Avalonia 版のみ
+  - 非同期アクションボタン（`Task` 戻り値対応。実行中スピナー＋成功/失敗フィードバックは Avalonia 版のみ）
+  - `[CRDescription]` 属性（オプション/アクションに説明テキストを表示。WPF 版はツールチップ表示）
   - `[CRColor]` 属性（カラースウォッチ＋HEX入力のカラーピッカー）
 - **Profiler** - メモリ使用量、GC 統計（Gen0/1/2）、FPS 計測、ロジック単位プロファイリング（CPU/メモリ/処理時間/ネットワーク/ストレージ/GPU）
 - **Bug Reporter** - スクリーンショット付きバグレポート送信
 - **キーボードショートカット** - F1〜F5 でタブ切替、Esc で閉じる（カスタマイズ可能）
 - **タブ制御** - タブの有効/無効を動的に切替可能
 - **常に前面に固定** - ピン📌ボタンで Topmost を切替
-- **テーマ** - ダーク / ライト / システム追従（アクリル効果対応）
+- **テーマ** - ダーク / ライト / システム追従（WinForms / WPF 版。Avalonia 版はダーク配色固定）
 - **エラーハンドリング** - ホストアプリをクラッシュさせない安全設計
 
 ## Packages
@@ -89,18 +89,22 @@ CRDebuggerWpfExtensions.Initialize(options =>
 |---|---|---|
 | `IsEnabled` | `false` で CRDebugger 全体を no-op 化（Release ビルド向け） | `true` |
 | `RequireOptInAttribute` | `true` の場合、Options タブには `[CROption]` が付いたプロパティのみ表示 | `false` |
-| `SystemInfoCollectionLevel` | BugReport 収集情報の詳細度（`Minimal` / `Standard` / `Detailed`） | `Standard` |
+| `SystemInfoCollectionLevel` | BugReport 収集情報の詳細度（`Minimal` / `Standard` / `Full`） | `Standard` |
 | `OptionsStore` | UI 変更値を永続化するストア（`JsonFileOptionsStore` 等。`null` で永続化なし） | `null` |
 | `FileLogPath` | SuperLightLogger によるファイル出力先（`null` でファイル出力なし） | `null` |
+| `AttachToSuperLightLoggerManager` | ファイルログを有効にするために `FileLogPath` と併せて `true` にする | `false` |
 
 ```csharp
 // 例: Release で無効化 + Options 永続化
 var options = new CRDebuggerOptions
 {
-    IsEnabled = !System.Diagnostics.Debugger.IsAttached,
+    IsEnabled = System.Diagnostics.Debugger.IsAttached, // デバッガー接続時だけ有効化
     RequireOptInAttribute = true,
-    SystemInfoCollectionLevel = SystemInfoCollectionLevel.Detailed,
+    SystemInfoCollectionLevel = SystemInfoCollectionLevel.Full,
     OptionsStore = new JsonFileOptionsStore("crdebugger-options.json"),
+    // ファイルログは 2 つのオプションが両方そろったときだけ有効になる
+    FileLogPath = "logs/app.log",
+    AttachToSuperLightLoggerManager = true,
 };
 options.UseWpf();
 CRDebugger.Initialize(options);
@@ -253,13 +257,17 @@ var slowOps  = tracker.GetDurationHotspots(5);  // 処理時間TOP5
 
 ## テーマ
 
-3 種類のテーマをサポート（アクリル効果対応）：
+3 種類のテーマをサポート：
 
 ```csharp
 CRDebugger.SetTheme(CRTheme.System);  // OS 設定に追従
 CRDebugger.SetTheme(CRTheme.Light);   // ライトテーマ
 CRDebugger.SetTheme(CRTheme.Dark);    // ダークテーマ
 ```
+
+> **Avalonia 版について**: Avalonia 版はダーク配色に固定されており、`SetTheme` を呼んでも表示は変わりません。
+> Avalonia の FluentTheme は OS のアクセントカラーが背景に流入するため、
+> それを避ける目的で配色を不透明色で固定しているためです。
 
 ## ログ統合
 

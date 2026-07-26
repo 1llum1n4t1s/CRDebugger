@@ -30,6 +30,7 @@ public static class OptionControlFactory
             OptionKind.Float => CreateFloatControl(item, colors),
             OptionKind.String => CreateStringControl(item, colors),
             OptionKind.Enum => CreateEnumControl(item, colors),
+            OptionKind.Color => CreateColorControl(item, colors),
             OptionKind.ReadOnly => CreateReadOnlyControl(item, colors),
             // 未知の種別は読み取り専用コントロールにフォールバック
             _ => CreateReadOnlyControl(item, colors),
@@ -247,6 +248,90 @@ public static class OptionControlFactory
 
         panel.Controls.Add(textBox);
         return panel;
+    }
+
+    /// <summary>
+    /// Color型オプション（#RRGGBB 形式の string）用の「カラースウォッチ + HEXテキスト入力」を生成する。
+    /// Avalonia / WPF 版の Options ビューと同じ構成にそろえている。
+    /// </summary>
+    /// <param name="item">Color型オプション項目 ViewModel。</param>
+    /// <param name="colors">適用するテーマカラー情報。</param>
+    /// <returns>スウォッチと HEX 入力を含む行パネル。</returns>
+    private static Control CreateColorControl(OptionItemViewModel item, ThemeColors colors)
+    {
+        // 行コンテナパネルとラベルを生成
+        var panel = CreateRowPanel(colors);
+        AddLabel(panel, item.DisplayName, colors);
+
+        // 現在色を示すスウォッチ（右端に固定表示）
+        var swatch = new Panel
+        {
+            Width = 28,
+            Dock = DockStyle.Right,
+            Margin = new Padding(6, 0, 0, 0),
+            BorderStyle = BorderStyle.FixedSingle,
+            BackColor = ParseHexColor(item.Value?.ToString(), ArgbToColor(colors.SurfaceAlt)),
+        };
+
+        var textBox = new TextBox
+        {
+            Text = item.Value?.ToString() ?? string.Empty,
+            ReadOnly = item.IsReadOnly,
+            Dock = DockStyle.Fill,
+            BackColor = ArgbToColor(colors.SurfaceAlt),
+            ForeColor = ArgbToColor(colors.OnSurface),
+            BorderStyle = BorderStyle.FixedSingle,
+            Font = new Font("Consolas", 9.5f),
+            Padding = new Padding(6, 2, 6, 2),
+        };
+
+        // テキスト変更時に ViewModel の Value を更新し、スウォッチも即時追従させる
+        textBox.TextChanged += (_, _) =>
+        {
+            if (!item.IsReadOnly)
+                item.Value = textBox.Text;
+            swatch.BackColor = ParseHexColor(textBox.Text, ArgbToColor(colors.SurfaceAlt));
+        };
+
+        // ViewModel 側で Value が変更された場合にテキストボックスとスウォッチを同期
+        item.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName != nameof(OptionItemViewModel.Value)) return;
+            var text = item.Value?.ToString() ?? string.Empty;
+            textBox.Text = text;
+            swatch.BackColor = ParseHexColor(text, ArgbToColor(colors.SurfaceAlt));
+        };
+
+        // Dock.Right を先に追加してから Fill を追加する（WinForms は追加順に領域を確保するため）
+        panel.Controls.Add(swatch);
+        panel.Controls.Add(textBox);
+        return panel;
+    }
+
+    /// <summary>
+    /// "#RRGGBB" / "#AARRGGBB" 形式の文字列を <see cref="Color"/> に変換する。
+    /// 入力途中や不正な文字列でも例外を出さず、フォールバック色を返す。
+    /// </summary>
+    /// <param name="hex">変換する文字列。</param>
+    /// <param name="fallback">変換に失敗した場合に返す色。</param>
+    /// <returns>変換された色、または <paramref name="fallback"/>。</returns>
+    private static Color ParseHexColor(string? hex, Color fallback)
+    {
+        if (string.IsNullOrWhiteSpace(hex)) return fallback;
+
+        var text = hex.Trim().TrimStart('#');
+
+        // 6 桁（RGB）と 8 桁（ARGB）のみ受け付ける
+        if (text.Length != 6 && text.Length != 8) return fallback;
+
+        if (!uint.TryParse(text, System.Globalization.NumberStyles.HexNumber,
+                System.Globalization.CultureInfo.InvariantCulture, out var value))
+            return fallback;
+
+        // 6 桁の場合はアルファを不透明で補う
+        if (text.Length == 6) value |= 0xFF000000;
+
+        return Color.FromArgb(unchecked((int)value));
     }
 
     /// <summary>

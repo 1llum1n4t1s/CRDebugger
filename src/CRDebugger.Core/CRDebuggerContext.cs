@@ -90,7 +90,8 @@ internal sealed class CRDebuggerContext : IDisposable
 
         // SuperLightLogger の構成はオプトイン（デフォルト false）。
         // ホストアプリが既に LogManager.Configure 済みのケースを破壊しないため、
-        // 明示的に AttachToSuperLightLoggerManager = true または FileLogPath 指定時のみ構成する。
+        // AttachToSuperLightLoggerManager = true「かつ」FileLogPath 指定という
+        // 明示的な 2 条件がそろった場合にだけ構成する（FileLogPath 単独では構成しない）。
         if (options.AttachToSuperLightLoggerManager && !string.IsNullOrEmpty(options.FileLogPath))
         {
             LogManager.Configure(builder => builder.AddSuperLightFile(options.FileLogPath));
@@ -176,7 +177,7 @@ internal sealed class CRDebuggerContext : IDisposable
 
     /// <summary>
     /// AppDomain の未処理例外イベントハンドラー。
-    /// 例外情報をエラーレベルでログに記録する。
+    /// 例外情報をエラーレベルでログに記録し、ファイルログにも書き出す。
     /// </summary>
     /// <param name="sender">イベント送信元</param>
     /// <param name="e">未処理例外イベント引数</param>
@@ -184,8 +185,30 @@ internal sealed class CRDebuggerContext : IDisposable
     {
         // ExceptionObject は Exception 以外の場合もあるためキャストを試みる
         var ex = e.ExceptionObject as Exception;
-        LogStore.Append(CRLogLevel.Error, "UnhandledException",
-            ex?.Message ?? "不明な例外", ex?.StackTrace);
+
+        // メッセージには例外型名を添える。TypeInitializationException のように
+        // Message だけでは何も分からない例外が実在するため、型名は必須の手がかりになる。
+        var message = ex != null ? $"{ex.GetType().FullName}: {ex.Message}" : "不明な例外";
+
+        // 詳細側は ToString() を使い、InnerException の連鎖とその各スタックトレースまで残す。
+        // StackTrace だけだと最外殻しか出ず、真因（InnerException 側）に到達できない。
+        var detail = ex?.ToString();
+
+        LogStore.Append(CRLogLevel.Error, "UnhandledException", message, detail);
+
+        try
+        {
+            // プロセスを終了させる種類のイベントなので、揮発する LogStore だけでなく
+            // ファイルログにも必ず流す（FileLogPath 構成時に事後調査できるようにする）。
+            if (ex != null)
+                AppLogger.Error(message, ex);
+            else
+                AppLogger.Error(message);
+        }
+        catch (Exception)
+        {
+            // クラッシュ処理中のログ出力失敗で、さらに例外を重ねない
+        }
     }
 
     /// <summary>

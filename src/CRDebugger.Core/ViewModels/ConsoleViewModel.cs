@@ -268,13 +268,36 @@ public sealed class ConsoleViewModel : ViewModelBase
                         }
                     }
                 }
+
+                // LogStore 側の循環バッファから追い出された分を表示リストからも切り捨てる。
+                // これを行わないと DisplayEntries だけが無制限に伸び、MaxLogEntries の設定が
+                // 表示側に効かなくなる（フィルタ操作をしない長時間セッションでメモリを食い続ける）。
+                TrimDisplayEntries();
             });
+        }
+        catch (Exception)
+        {
+            // System.Threading.Timer のコールバック内で発生した未処理例外はプロセスをクラッシュさせるため、
+            // ProfilerEngine.OnTick と同じ規約でここで必ずキャッチする (#33)。
+            // UI ディスパッチャがシャットダウン済みの場合や、UI 側の CollectionChanged ハンドラが
+            // 例外を投げた場合に到達する。ホスト側に逆流させない。
         }
         finally
         {
             // ガード解除
             System.Threading.Interlocked.Exchange(ref _flushing, 0);
         }
+    }
+
+    /// <summary>
+    /// 表示リストを <see cref="LogStore.MaxEntries"/> 件以内に収める（先頭＝最古から削除）。
+    /// UI スレッド上から呼ぶこと。
+    /// </summary>
+    private void TrimDisplayEntries()
+    {
+        var max = _logStore.MaxEntries;
+        while (_displayEntries.Count > max)
+            _displayEntries.RemoveAt(0);
     }
 
     /// <summary>

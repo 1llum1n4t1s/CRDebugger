@@ -270,7 +270,15 @@ public sealed class ProfilerEngine : IDisposable
 #endif
     }
 
-    /// <inheritdoc/>
+    /// <summary>
+    /// 進行中のコールバック完了を待つ最大時間。
+    /// 無期限に待つと、UI スレッドから Shutdown を呼んだ WPF / WinForms ホストで
+    /// 「UI スレッドはコールバック完了待ち、コールバックは Dispatcher.Invoke / Control.Invoke で
+    /// UI スレッド待ち」というロック順序逆転が起き、アプリ終了時に恒久ハングする。
+    /// タイムアウトで打ち切れば、最悪ケースでも待ち時間はこの値に収まる。
+    /// </summary>
+    private static readonly TimeSpan DisposeWaitTimeout = TimeSpan.FromSeconds(2);
+
     /// <inheritdoc/>
     public void Dispose()
     {
@@ -286,8 +294,9 @@ public sealed class ProfilerEngine : IDisposable
                 using var waitHandle = new ManualResetEvent(false);
                 if (timer.Dispose(waitHandle))
                 {
-                    // Dispose(WaitHandle) は true を返した場合のみシグナルされる
-                    waitHandle.WaitOne();
+                    // Dispose(WaitHandle) は true を返した場合のみシグナルされる。
+                    // タイムアウト付きで待ち、デッドロック時も必ず制御を返す。
+                    waitHandle.WaitOne(DisposeWaitTimeout);
                 }
             }
             catch

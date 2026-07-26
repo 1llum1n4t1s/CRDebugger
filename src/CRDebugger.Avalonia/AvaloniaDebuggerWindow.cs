@@ -45,12 +45,18 @@ public sealed class AvaloniaDebuggerWindow : IDebuggerWindow
 
     /// <summary>
     /// テーマカラーをウィンドウに適用する。
-    /// Avalonia 実装では DebuggerViewModel.ThemeColors バインディング経由で自動適用されるため、ここでは何もしない。
+    /// <para>
+    /// <b>Avalonia 版は意図的に何もしない（ダーク配色固定）。</b>
+    /// FluentTheme の <c>SystemAccentColor</c>（＝ユーザーの OS 設定）が背景へ流入するのを避けるため、
+    /// Avalonia の各 AXAML は不透明リテラル色と <c>ControlTheme</c> によるテンプレート差し替えで配色を固定している
+    /// （CLAUDE.md「Avalonia 色指定の鉄則」を参照）。そのため実行時のテーマ切り替えには対応していない。
+    /// WPF / WinForms 版はこのメソッドで実際にウィンドウ配色を更新する。
+    /// </para>
     /// </summary>
-    /// <param name="colors">適用するテーマカラー情報</param>
+    /// <param name="colors">適用するテーマカラー情報（Avalonia 版では未使用）</param>
     public void ApplyTheme(ThemeColors colors)
     {
-        // テーマは DebuggerViewModel.ThemeColors バインディング経由で適用される
+        // 意図的に空実装。理由は上記 XML doc を参照。
     }
 
     /// <summary>

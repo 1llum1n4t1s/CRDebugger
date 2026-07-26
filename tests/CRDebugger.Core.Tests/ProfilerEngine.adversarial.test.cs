@@ -224,30 +224,38 @@ public sealed class ProfilerEngineAdversarialTests : IDisposable
 
     /// <summary>
     /// @adversarial @category resource @severity high
-    /// SnapshotTakenイベントハンドラが例外を投げるとプロセスクラッシュする（設計バグ確認）
-    /// Timer内の未処理例外はUnhandledExceptionになるため、このテストは
-    /// 「例外をスローするハンドラを登録しない」ことをユーザーに求める仕様を確認する。
+    /// SnapshotTaken ハンドラが例外を投げても OnTick が握りつぶし、
+    /// タイマースレッドの未処理例外でプロセスを落とさないこと。
+    /// 例外が出た後もサンプリングが継続することまで確認する。
+    /// <para>
+    /// なお、マルチキャストデリゲートの仕様上、先行ハンドラが例外を投げると後続ハンドラは呼ばれない。
+    /// これは .NET の挙動であり CRDebugger 側の不具合ではないため、ここでは検証対象にしない。
+    /// </para>
     /// </summary>
     [Fact]
-    public void SnapshotTaken_HandlerThrows_IsDesignBug()
+    public void SnapshotTaken_HandlerThrows_IsSwallowedAndSamplingContinues()
     {
-        // Timer内でスローされた例外はプロセスをクラッシュさせるため、
-        // このシナリオでは「OnTick内でtry-catchすべき」という仕様バグ。
-        // テストではクラッシュさせずに確認だけ行う。
-        int callCount = 0;
+        int throwingCalls = 0;
+
+        // 必ず例外を投げるハンドラを登録する
         _engine.SnapshotTaken += (_, _) =>
         {
-            Interlocked.Increment(ref callCount);
+            Interlocked.Increment(ref throwingCalls);
+            throw new InvalidOperationException("ハンドラ側の意図的な例外");
         };
 
         _engine.Start();
 
-        // SnapshotTaken が発火するまで polling-with-deadline（最大 2 秒）
+        // 2 回以上サンプリングされるまで polling-with-deadline（CI ランナー向けに最大 5 秒）。
+        // 2 回待つことで「1 回目の例外でタイマーが止まっていない」ことまで検証できる。
         var deadline = DateTime.UtcNow.AddSeconds(5);
-        while (Interlocked.CompareExchange(ref callCount, 0, 0) == 0 && DateTime.UtcNow < deadline)
+        while (Interlocked.CompareExchange(ref throwingCalls, 0, 0) < 2 && DateTime.UtcNow < deadline)
             Thread.Sleep(50);
 
-        Assert.True(callCount >= 1, "正常なハンドラでは呼ばれるべき");
+        // 例外を投げるハンドラが複数回呼ばれている＝OnTick が例外を握りつぶして継続している
+        Assert.True(throwingCalls >= 2, $"サンプリングが継続していない（throwingCalls={throwingCalls}）");
+        // 履歴も正常に積まれていること（ハンドラの例外がスナップショット記録を巻き込んでいない）
+        Assert.NotEmpty(_engine.GetHistory());
     }
 
     // ───────────────────────────────────
@@ -301,10 +309,14 @@ public sealed class ProfilerEngineAdversarialTests : IDisposable
 
     /// <summary>
     /// @adversarial @category chaos @severity medium
-    /// GcPauseTimeMsが常に0であることの確認（未実装の記録）
+    /// GcPauseTimeMs の契約確認。
+    /// .NET 9+ では GC.GetTotalPauseDuration() の差分なので非負の実測値、
+    /// .NET 8 では未サポートのため常に 0 になる。
+    /// スイート全体を走らせると実際に GC ポーズが発生して 1ms 以上になりうるため、
+    /// 「常に 0」ではなく TFM ごとの契約で検証する。
     /// </summary>
     [Fact]
-    public void Snapshot_GcPauseTimeMs_AlwaysZero()
+    public void Snapshot_GcPauseTimeMs_MatchesRuntimeContract()
     {
         _engine.Start();
 
@@ -315,7 +327,12 @@ public sealed class ProfilerEngineAdversarialTests : IDisposable
 
         var history = _engine.GetHistory();
         Assert.NotEmpty(history);
+#if NET9_0_OR_GREATER
+        // 累計ポーズ時間の差分なので負にはならない
+        Assert.All(history, s => Assert.True(s.GcPauseTimeMs >= 0, $"GcPauseTimeMs が負値: {s.GcPauseTimeMs}"));
+#else
         Assert.All(history, s => Assert.Equal(0, s.GcPauseTimeMs));
+#endif
     }
 
     /// <summary>

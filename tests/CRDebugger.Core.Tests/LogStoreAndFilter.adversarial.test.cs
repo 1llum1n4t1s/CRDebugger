@@ -351,24 +351,54 @@ public sealed class LogStoreAndFilterAdversarialTests
     // ───────────────────────────────────
 
     /// <summary>
-    /// @adversarial @category state @severity high
-    /// Clear中にAppendが呼ばれてもデッドロックしないこと
+    /// @adversarial @category concurrency @severity high
+    /// Clear と Append を別スレッドから同時に叩いてもデッドロックせず、状態も壊れないこと。
+    /// 単一スレッドの交互呼び出しでは ReaderWriterLockSlim のロック順序問題を検出できないため、
+    /// 実際に複数スレッドを走らせる。
     /// </summary>
     [Fact]
     public void LogStore_ClearDuringAppend_NoDeadlock()
     {
-        var store = new LogStore(100);
-        for (int i = 0; i < 50; i++) store.Append(CRLogLevel.Info, "ch", "msg");
+        const int capacity = 100;
+        var store = new LogStore(capacity);
+        var exceptions = new List<Exception>();
+        using var stop = new CancellationTokenSource();
 
-        // Clear と Append を交互に呼ぶ
-        for (int i = 0; i < 1000; i++)
+        // Append 側スレッド（複数）と Clear 側スレッドを同時に走らせる
+        var workers = new List<Task>();
+        for (var t = 0; t < 4; t++)
         {
-            if (i % 3 == 0) store.Clear();
-            else store.Append(CRLogLevel.Debug, "ch", $"msg-{i}");
+            var id = t;
+            workers.Add(Task.Run(() =>
+            {
+                try
+                {
+                    for (var i = 0; i < 2000 && !stop.IsCancellationRequested; i++)
+                        store.Append(CRLogLevel.Debug, "ch", $"msg-{id}-{i}");
+                }
+                catch (Exception ex) { lock (exceptions) exceptions.Add(ex); }
+            }));
         }
+        workers.Add(Task.Run(() =>
+        {
+            try
+            {
+                for (var i = 0; i < 500 && !stop.IsCancellationRequested; i++)
+                    store.Clear();
+            }
+            catch (Exception ex) { lock (exceptions) exceptions.Add(ex); }
+        }));
 
-        // クラッシュせずに完了すること
-        Assert.True(store.Count <= 100);
+        // デッドロックしていれば時間内に完了しない。タイムアウトを失敗として扱う
+        var completed = Task.WhenAll(workers).Wait(TimeSpan.FromSeconds(30));
+        stop.Cancel();
+
+        Assert.True(completed, "Clear と Append の並行実行がタイムアウトした（デッドロックの疑い）");
+        Assert.Empty(exceptions);
+
+        // 容量不変条件が保たれていること（並行アクセスで内部状態が壊れていない）
+        Assert.InRange(store.Count, 0, capacity);
+        Assert.Equal(store.Count, store.GetAll().Count);
     }
 
     /// <summary>

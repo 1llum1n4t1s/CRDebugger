@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using CRDebugger.Core;
+using CRDebugger.Core.Input;
 using CRDebugger.Core.Theming;
 using CRDebugger.Core.ViewModels;
 using CRDebugger.Wpf.Converters;
@@ -25,6 +26,44 @@ public partial class DebuggerWindow : Window
         InitializeComponent();
         // DataContext が差し替わった際に各ビューの DataContext を更新する
         DataContextChanged += OnDataContextChanged;
+    }
+
+    /// <summary>
+    /// キー入力を CRDebugger のショートカット機構へ橋渡しする。
+    /// Core 側は F1〜F5 のタブ切替と Esc の非表示を既定登録しているが、
+    /// UI フレームワークからこのメソッドを呼ばない限り発火しない。
+    /// TextBox 等の子コントロールにフォーカスがあっても効くよう Preview 段階で処理する。
+    /// </summary>
+    /// <param name="e">キー入力イベント引数</param>
+    protected override void OnPreviewKeyDown(System.Windows.Input.KeyEventArgs e)
+    {
+        // Alt 併用時は Key が System になり実際のキーは SystemKey 側に入る
+        var key = e.Key == System.Windows.Input.Key.System ? e.SystemKey : e.Key;
+
+        if (CRKeyMap.TryFromName(key.ToString(), out var crKey))
+        {
+            var modifiers = ToCRModifiers(System.Windows.Input.Keyboard.Modifiers);
+            // ショートカットが実行された場合はイベントを消費して、下位コントロールへ流さない
+            if (Core.CRDebugger.HandleKeyDown(crKey, modifiers))
+            {
+                e.Handled = true;
+                return;
+            }
+        }
+
+        base.OnPreviewKeyDown(e);
+    }
+
+    /// <summary>WPF の修飾キーフラグを <see cref="CRModifierKeys"/> に変換する</summary>
+    /// <param name="modifiers">WPF の修飾キーフラグ</param>
+    /// <returns>対応する CRDebugger の修飾キーフラグ</returns>
+    private static CRModifierKeys ToCRModifiers(System.Windows.Input.ModifierKeys modifiers)
+    {
+        var result = CRModifierKeys.None;
+        if (modifiers.HasFlag(System.Windows.Input.ModifierKeys.Control)) result |= CRModifierKeys.Ctrl;
+        if (modifiers.HasFlag(System.Windows.Input.ModifierKeys.Shift)) result |= CRModifierKeys.Shift;
+        if (modifiers.HasFlag(System.Windows.Input.ModifierKeys.Alt)) result |= CRModifierKeys.Alt;
+        return result;
     }
 
     /// <summary>

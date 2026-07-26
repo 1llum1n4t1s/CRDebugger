@@ -64,6 +64,20 @@ public sealed class CRDebuggerConfigurationException : CRDebuggerException
 }
 
 /// <summary>
+/// バグレポートの送信に失敗した場合の例外。
+/// <c>IBugReportSender.SendAsync</c> が契約どおり <c>false</c>（送信失敗）を返したときにスローされる。
+/// これを握りつぶすと「送信できていないのに成功表示」になるため、失敗は必ず呼び出し元へ伝える。
+/// </summary>
+public sealed class CRDebuggerBugReportSendException : CRDebuggerException
+{
+    /// <summary>
+    /// <see cref="CRDebuggerBugReportSendException"/> のインスタンスを生成する
+    /// </summary>
+    public CRDebuggerBugReportSendException()
+        : base("バグレポートの送信に失敗しました。送信先（IBugReportSender）が false を返しました。") { }
+}
+
+/// <summary>
 /// CRDebugger内部でエラーが発生した場合の例外。
 /// これはCRDebuggerのバグである可能性が高い。
 /// </summary>

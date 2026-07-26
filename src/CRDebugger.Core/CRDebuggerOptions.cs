@@ -77,6 +77,11 @@ public sealed class CRDebuggerOptions
     /// ${shortdate} 等のNLogレイアウト変数が使用可能。
     /// nullの場合はファイルログ出力を行わない。
     /// 例: "logs/app_${shortdate}.log"
+    /// <para>
+    /// <b>重要</b>: このプロパティを設定しただけではファイルログは有効にならない。
+    /// ホストアプリが既に構成済みの LogManager を壊さないため、
+    /// <see cref="AttachToSuperLightLoggerManager"/> も <c>true</c> にする必要がある（2 条件の AND）。
+    /// </para>
     /// </summary>
     public string? FileLogPath { get; set; }
 
@@ -84,6 +89,7 @@ public sealed class CRDebuggerOptions
     /// SuperLightLogger のグローバル LogManager を CRDebugger が再構成するか（デフォルト false）。
     /// false の場合、ホストアプリが既に設定済みの LogManager を尊重する。
     /// true にすると CRDebugger が <see cref="FileLogPath"/> を含む構成で LogManager.Configure を呼ぶ。
+    /// <para>ファイルログを有効にするには、これを <c>true</c> にした上で <see cref="FileLogPath"/> も設定すること。</para>
     /// </summary>
     public bool AttachToSuperLightLoggerManager { get; set; } = false;
 

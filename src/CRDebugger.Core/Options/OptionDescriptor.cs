@@ -79,6 +79,28 @@ public sealed class OptionDescriptor
     /// <c>null</c> の場合は UI に説明を表示しない。
     /// </summary>
     public string? Description { get; init; }
+
+    /// <summary>
+    /// <see cref="Setter"/> だけを差し替えた複製を返す。
+    /// <see cref="OptionsEngine"/> が永続化ストアへの保存処理でセッターをラップするために使う。
+    /// プロパティを追加した場合はここにも複製対象として追加すること。
+    /// </summary>
+    /// <param name="setter">差し替える新しいセッター</param>
+    /// <returns>セッターのみ差し替えた新しい記述子</returns>
+    internal OptionDescriptor WithSetter(Action<object?>? setter) => new()
+    {
+        Id = Id,
+        DisplayName = DisplayName,
+        Category = Category,
+        SortOrder = SortOrder,
+        Kind = Kind,
+        ValueType = ValueType,
+        Getter = Getter,
+        Setter = setter,
+        Range = Range,
+        EnumNames = EnumNames,
+        Description = Description,
+    };
 }
 
 /// <summary>

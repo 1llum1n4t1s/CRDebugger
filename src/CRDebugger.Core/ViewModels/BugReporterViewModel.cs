@@ -29,6 +29,13 @@ public sealed class BugReporterViewModel : ViewModelBase
     /// <summary>送信処理中フラグ（バッキングフィールド）</summary>
     private bool _isSending;
 
+    /// <summary>
+    /// 送信処理の再入ガード（0 = 待機中、1 = 送信中）。
+    /// <see cref="IsSending"/> は UI バインド用のプロパティで書き込み順序の保証が無いため、
+    /// 実際の排他は Interlocked で行う。
+    /// </summary>
+    private int _sendGuard;
+
     /// <summary>送信処理のキャンセル制御用 CTS（送信のたびに作り直し、Dispose で解放）</summary>
     private CancellationTokenSource? _sendCts;
 
@@ -69,14 +76,26 @@ public sealed class BugReporterViewModel : ViewModelBase
     public bool IsSending
     {
         get => _isSending;
-        set => SetProperty(ref _isSending, value);
+        set
+        {
+            // 送信中フラグが変わったら、送信コマンドの実行可否を UI に再評価させる
+            if (SetProperty(ref _isSending, value))
+                _sendCommand.RaiseCanExecuteChanged();
+        }
     }
 
     /// <summary>
     /// バグレポートを送信するコマンド。
     /// 実行すると <see cref="SendAsync"/> が呼び出される。
+    /// 送信中は <c>CanExecute</c> が false になり、UI 側のボタンが無効化される。
     /// </summary>
-    public ICommand SendCommand { get; }
+    public ICommand SendCommand => _sendCommand;
+
+    /// <summary>
+    /// <see cref="SendCommand"/> の実体。
+    /// <see cref="RelayCommand.RaiseCanExecuteChanged"/> を呼ぶために具象型で保持する。
+    /// </summary>
+    private readonly RelayCommand _sendCommand;
 
     /// <summary>
     /// <see cref="BugReporterViewModel"/> のインスタンスを生成する
@@ -87,8 +106,9 @@ public sealed class BugReporterViewModel : ViewModelBase
     {
         _engine = engine;
         _window = window;
-        // 非同期送信処理をRelayCommandでラップしてコマンドとして公開
-        SendCommand = new RelayCommand(async () => await SendAsync());
+        // 非同期送信処理をRelayCommandでラップしてコマンドとして公開。
+        // 送信中は CanExecute を false にして UI 側のボタンを無効化する（連打対策の一次防御）。
+        _sendCommand = new RelayCommand(async () => await SendAsync(), () => !IsSending);
     }
 
     /// <summary>
@@ -106,11 +126,18 @@ public sealed class BugReporterViewModel : ViewModelBase
             return;
         }
 
+        // 再入ガード。送信中に再度実行された場合は何もしない。
+        // ガードが無いと、下の _sendCts?.Dispose() が進行中の送信のトークンを破棄してしまい、
+        // 1 本目の送信が ObjectDisposedException で落ちる（かつキャンセル制御も効かなくなる）。
+        if (Interlocked.CompareExchange(ref _sendGuard, 1, 0) != 0)
+            return;
+
         // 送信開始状態に移行
         IsSending = true;
         StatusMessage = "送信中...";
 
-        // 前回の CTS が残っていれば破棄してから新規生成（連打対策＋リソースリーク防止）
+        // 前回の CTS を破棄してから新規生成（リソースリーク防止）。
+        // 再入ガードにより、ここで破棄されるのは必ず完了済みの送信の CTS になる。
         _sendCts?.Dispose();
         _sendCts = new CancellationTokenSource();
         _sendCts.CancelAfter(TimeSpan.FromSeconds(60));
@@ -144,8 +171,10 @@ public sealed class BugReporterViewModel : ViewModelBase
         }
         finally
         {
-            // 成功・失敗にかかわらず送信中フラグを解除
+            // 成功・失敗にかかわらず送信中フラグと再入ガードを解除する。
+            // ガードの解除を忘れると以降の送信が永久にブロックされるため必ず finally で行う。
             IsSending = false;
+            Interlocked.Exchange(ref _sendGuard, 0);
         }
     }
 

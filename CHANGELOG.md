@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.0.28] - 2026-07-27
+
+10 観点コードレビュー (`/rere`) に基づく修正。「ドキュメントに書いてある機能が実際には動かない」型の欠陥を中心に解消。
+
+### Fixed
+- `CRDebuggerOptions.IsEnabled = false` で初期化すると、no-op になるはずの公開 API 26 個が `CRDebuggerNotInitializedException` を投げてホストアプリをクラッシュさせていた問題を修正（「未初期化」と「明示的な無効化」を内部で区別するようにした）
+- `IOptionsStore` の `Save` / `Load` がどこからも呼ばれず、`OptionsStore` を設定しても値が保存も復元もされなかった問題を修正（`OptionsEngine.ScanAll` で永続化ストアに接続するようにした）
+- キーボードショートカット（F1〜F5 / Esc）が WinForms / WPF / Avalonia のいずれからも配線されておらず、まったく発火しなかった問題を修正
+- WinForms の Console / Options タブで、フィルタや検索を 1 度操作すると以降まったく更新されなくなる問題を修正（差し替えられる `ObservableCollection` の購読を張り替えるようにした）
+- `IBugReportSender.SendAsync` が契約どおり `false`（送信失敗）を返しても無視され、UI が常に「送信しました！」と表示していた問題を修正（`CRDebuggerBugReportSendException` を送出するようにした）
+- UI スレッドから `Shutdown()` を呼ぶと WPF / WinForms でアプリ終了時にデッドロックする問題を修正（`ProfilerEngine.Dispose` のコールバック完了待ちにタイムアウトを追加）
+- `ConsoleViewModel` / `WinFormsThemeProvider` のタイマーコールバックで例外が発生するとホストプロセスが即死する問題を修正（`ProfilerEngine.OnTick` と同じ規約で握りつぶすようにした）
+- `ConsoleViewModel.DisplayEntries` に上限が無く、`MaxLogEntries` の設定が表示側に効かずメモリを消費し続ける問題を修正
+- public インデクサを持つオブジェクトを `AddOptionContainer` に渡すと Options タブが恒久的に壊れる問題を修正（インデクサと書き込み専用プロパティをスキャン対象から除外）
+- 未処理例外のログが `ex.Message` のみで例外型名と `InnerException` を失っていた問題を修正（`ToString()` を記録し、ファイルログにも出力するようにした）
+- `SystemInfoCollectionLevel.Standard` のバグレポートに、実行ファイルのフルパス（ユーザー名を含みうる）が `Command Line (masked)` 経由で混入していた問題を修正
+- `JsonFileOptionsStore.Flush` を一時ファイル経由の原子的置換に変更し、書き込み中の異常終了で設定が全損しないようにした。書き込み失敗時は次回 Flush で再試行する
+- バグレポート送信ボタンを連打すると、2 回目の実行が進行中の `CancellationTokenSource` を破棄して 1 本目を `ObjectDisposedException` で失敗させる問題を修正（再入ガードを追加し、送信中は `SendCommand.CanExecute` を false にしてボタンを無効化）
+
+### Added
+- `OptionKind.Color`（`[CRColor]` 属性）のカラースウォッチ + HEX 入力 UI を WPF / WinForms にも実装（従来は Avalonia のみで、他 2 つは無言で読み取り専用表示になっていた）
+- `CRKeyMap`（プラットフォーム固有のキー列挙体から `CRKey` への共通変換ヘルパー）
+- `LogStore.MaxEntries`（表示側コレクションを同じ上限でトリムするために公開）
+- Options 永続化・無効化時の no-op 契約・表示リスト上限・スキャンキャッシュ・バグレポート送信フローに対するテスト 21 件
+
+### Performance
+- `OptionsEngine.ScanAll` にコンテナ単位のスキャン結果キャッシュを追加。`AddOptionContainer` はコンテナ追加のたびに全コンテナを再スキャンしており、コンテナ数 N に対して O(N²) 回の `Expression.Compile()` が走っていた（コンテナ 10 個 × プロパティ 10 個で累計 550 回）。キャッシュにより O(N) に低減。`RemoveContainer` でキャッシュも破棄し、解除済みコンテナがリークしないようにした。実行時に項目が増減する `DynamicOptionContainer` はキャッシュ対象外
+
+### Changed
+- CI の `setup-dotnet` に `10.0.x` を追加。`8.0.x` のみの指定で net10.0 をビルドしており、実際に使われる SDK がランナーイメージのプリインストールに暗黙依存していた
+- 静的ファサードを操作するテストクラスを xUnit のコレクションで直列化し、並列実行による状態競合を防止
+- README / XML doc の実装との齟齬を修正（`SystemInfoCollectionLevel.Detailed` → `Full`、存在しない「アクリル効果対応」の記述を削除、`FileLogPath` は `AttachToSuperLightLoggerManager` との併用が必要である旨を明記、Options 機能と テーマ切替のプラットフォーム差を注記）
+- 表示系 API（`Show` / `Hide` / `Toggle` / `SetTheme` / `SetTabEnabled`）が UI スレッド専用である旨と、`Shutdown` が静的イベント購読を解除する副作用を XML doc に明記
+
 ## [1.0.26] - 2026-05-17
 
 12 人分隊コードレビュー (`/rere`) に基づく大規模改修。ホスト保護・並行性・パフォーマンス・CI 品質を網羅的に強化。

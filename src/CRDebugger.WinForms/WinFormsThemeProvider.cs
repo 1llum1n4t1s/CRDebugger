@@ -88,13 +88,22 @@ public sealed class WinFormsThemeProvider : IThemeProvider, IDisposable
     /// <param name="state">タイマー状態（使用しない）。</param>
     private void PollThemeChange(object? state)
     {
-        // 現在のダークモード状態を取得して前回と比較
-        var currentDarkMode = IsSystemDarkMode();
-        if (currentDarkMode != _lastKnownDarkMode)
+        try
         {
-            // 変化があった場合は最新状態を更新してコールバックを通知
-            _lastKnownDarkMode = currentDarkMode;
-            _callback?.Invoke(currentDarkMode);
+            // 現在のダークモード状態を取得して前回と比較
+            var currentDarkMode = IsSystemDarkMode();
+            if (currentDarkMode != _lastKnownDarkMode)
+            {
+                // 変化があった場合は最新状態を更新してコールバックを通知
+                _lastKnownDarkMode = currentDarkMode;
+                _callback?.Invoke(currentDarkMode);
+            }
+        }
+        catch (Exception)
+        {
+            // System.Threading.Timer のコールバック内の未処理例外はプロセスをクラッシュさせるため、
+            // ProfilerEngine.OnTick / ConsoleViewModel.FlushPending と同じ規約でここで必ずキャッチする。
+            // アプリ終了中のテーマ適用コールバックが投げるケースなどに到達する。
         }
     }
 

@@ -12,7 +12,7 @@ namespace CRDebugger.Core.Profiler;
 /// <param name="Gen0Collections">Generation 0 のGC実行回数（累計）</param>
 /// <param name="Gen1Collections">Generation 1 のGC実行回数（累計）</param>
 /// <param name="Gen2Collections">Generation 2 のGC実行回数（累計）。フルGCの指標となる</param>
-/// <param name="GcPauseTimeMs">GCポーズ時間（ミリ秒）。現在は常に 0（将来的な実装のためのプレースホルダー）</param>
+/// <param name="GcPauseTimeMs">直前のサンプリング間隔中のGCポーズ時間（ミリ秒）。.NET 9 以降で実測値、それ未満のランタイムでは常に 0</param>
 /// <param name="GpuUsagePercent">GPU使用率（%）。取得できない場合は 0</param>
 /// <param name="GpuDedicatedMemoryBytes">GPU専用メモリの使用量（バイト）。取得できない場合は 0</param>
 /// <param name="GpuSharedMemoryBytes">CPUと共有されるGPUメモリの使用量（バイト）。取得できない場合は 0</param>

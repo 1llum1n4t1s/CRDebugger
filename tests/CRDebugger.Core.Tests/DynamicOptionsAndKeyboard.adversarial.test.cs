@@ -138,10 +138,18 @@ public sealed class DynamicOptionsAndKeyboardAdversarialTests
         foreach (var t in threads) t.Start();
         foreach (var t in threads) t.Join();
 
-        // Dictionary は非スレッドセーフなので例外が出ることもありえるが、
-        // 致命的クラッシュ（StackOverflow 等）にならなければ OK
-        // 例外が出ても出なくても、プロセスが生存していれば合格
-        Assert.True(true, "プロセスが生存していれば合格");
+        // KeyboardShortcutManager は ConcurrentDictionary を使うため、
+        // 並行登録で例外が出ることは無い。収集した例外を実際に検査する。
+        Assert.Empty(exceptions);
+
+        // 登録された組み合わせが実際に引けることを確認する（辞書が壊れていないことの実証）。
+        // 各スレッドは keys 配列を順に舐めるため、None を除く全キーが登録済みになる。
+        var registered = mgr.GetAll();
+        foreach (var key in keys)
+        {
+            if (key == CRKey.None) continue;
+            Assert.Contains(registered.Keys, c => c.Key == key && c.Modifiers == CRModifierKeys.None);
+        }
     }
 
     /// <summary>

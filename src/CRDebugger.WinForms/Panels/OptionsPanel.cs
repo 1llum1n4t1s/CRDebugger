@@ -86,9 +86,11 @@ public sealed class OptionsPanel : Panel
         };
         Controls.Add(_scrollPanel);
 
-        // ViewModelのカテゴリコレクション変更を監視してコントロールを再構築
-        _viewModel.FilteredCategories.CollectionChanged += OnCategoriesChanged;
-        RebuildControls();
+        // ViewModelのカテゴリコレクション変更を監視してコントロールを再構築。
+        // FilteredCategories は Refresh / 検索でインスタンスごと差し替えられるため、
+        // PropertyChanged も併せて購読して購読先を張り替える。
+        RebindCategories();
+        _viewModel.PropertyChanged += OnViewModelPropertyChanged;
         ApplyTheme(colors);
     }
 
@@ -130,6 +132,43 @@ public sealed class OptionsPanel : Panel
         // ApplyFilter() が Clear+複数Add を行うため、Reset 以外で再構築すると N+1 回のフル再構築が走る。
         if (e.Action != System.Collections.Specialized.NotifyCollectionChangedAction.Reset) return;
         this.SafeInvoke(RebuildControls);
+    }
+
+    /// <summary>
+    /// 現在 CollectionChanged を購読しているカテゴリコレクション。
+    /// <see cref="OptionsViewModel.FilteredCategories"/> は差し替えられるため、
+    /// 解除対象を取り違えないよう購読中のインスタンスを保持しておく。
+    /// </summary>
+    private INotifyCollectionChanged? _subscribedCategories;
+
+    /// <summary>
+    /// ViewModel のプロパティ変更ハンドラー。
+    /// カテゴリコレクションが差し替えられた場合に購読を張り替えて再構築する。
+    /// </summary>
+    /// <param name="sender">イベント発生元オブジェクト。</param>
+    /// <param name="e">プロパティ変更イベント引数。</param>
+    private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(OptionsViewModel.FilteredCategories))
+            this.SafeInvoke(RebindCategories);
+    }
+
+    /// <summary>
+    /// <see cref="OptionsViewModel.FilteredCategories"/> の購読を最新インスタンスへ張り替え、コントロールを再構築する。
+    /// ViewModel は Refresh・検索の実行時にコレクションを新しいインスタンスへ差し替えるため、
+    /// 初期インスタンスを掴んだままだと Refresh ボタンもコンテナ追加も UI に反映されない。
+    /// </summary>
+    private void RebindCategories()
+    {
+        // 旧インスタンスの購読を解除（購読漏れ・二重購読の両方を防ぐ）
+        if (_subscribedCategories != null)
+            _subscribedCategories.CollectionChanged -= OnCategoriesChanged;
+
+        _subscribedCategories = _viewModel.FilteredCategories;
+        _subscribedCategories.CollectionChanged += OnCategoriesChanged;
+
+        // 差し替え後の内容でコントロールを作り直す
+        RebuildControls();
     }
 
     /// <summary>
@@ -211,8 +250,14 @@ public sealed class OptionsPanel : Panel
     {
         if (disposing)
         {
-            // カテゴリコレクション変更イベントの購読を解除
-            _viewModel.FilteredCategories.CollectionChanged -= OnCategoriesChanged;
+            // カテゴリコレクション変更イベントとプロパティ変更イベントの購読を解除。
+            // コレクションは差し替えられるため、購読中のインスタンスから確実に外す。
+            if (_subscribedCategories != null)
+            {
+                _subscribedCategories.CollectionChanged -= OnCategoriesChanged;
+                _subscribedCategories = null;
+            }
+            _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
         }
         base.Dispose(disposing);
     }

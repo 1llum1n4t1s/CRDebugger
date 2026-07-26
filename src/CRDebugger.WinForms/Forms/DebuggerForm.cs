@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using CRDebugger.Core;
+using CRDebugger.Core.Input;
 using CRDebugger.Core.Theming;
 using CRDebugger.Core.ViewModels;
 using CRDebugger.WinForms.Controls;
@@ -421,6 +422,43 @@ public sealed class DebuggerForm : Form
     /// ユーザーによるクローズ操作の場合はフォームを破棄せず非表示にする。
     /// これによりデバッガーの状態が保持され、再表示が高速に行える。
     /// </summary>
+    /// <summary>
+    /// キー入力を CRDebugger のショートカット機構へ橋渡しする。
+    /// Core 側は F1〜F5 のタブ切替と Esc の非表示を既定登録しているが、
+    /// UI フレームワークからこのメソッドを呼ばない限り発火しない。
+    /// TextBox 等の子コントロールにフォーカスがあっても効くよう ProcessCmdKey で先取りする。
+    /// </summary>
+    /// <param name="msg">ウィンドウメッセージ。</param>
+    /// <param name="keyData">押下されたキーと修飾キーの組み合わせ。</param>
+    /// <returns>ショートカットを処理した場合は true（以降の処理を行わない）。</returns>
+    protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+    {
+        // keyData はキー本体と修飾キーのビット結合なので分離する
+        var keyCode = keyData & Keys.KeyCode;
+
+        if (CRKeyMap.TryFromName(keyCode.ToString(), out var crKey))
+        {
+            var modifiers = ToCRModifiers(keyData & Keys.Modifiers);
+            // ショートカットが実行された場合は true を返してイベントを消費する
+            if (Core.CRDebugger.HandleKeyDown(crKey, modifiers))
+                return true;
+        }
+
+        return base.ProcessCmdKey(ref msg, keyData);
+    }
+
+    /// <summary>WinForms の修飾キーフラグを <see cref="CRModifierKeys"/> に変換する</summary>
+    /// <param name="modifiers">WinForms の修飾キーフラグ。</param>
+    /// <returns>対応する CRDebugger の修飾キーフラグ。</returns>
+    private static CRModifierKeys ToCRModifiers(Keys modifiers)
+    {
+        var result = CRModifierKeys.None;
+        if (modifiers.HasFlag(Keys.Control)) result |= CRModifierKeys.Ctrl;
+        if (modifiers.HasFlag(Keys.Shift)) result |= CRModifierKeys.Shift;
+        if (modifiers.HasFlag(Keys.Alt)) result |= CRModifierKeys.Alt;
+        return result;
+    }
+
     /// <param name="e">フォームクローズイベント引数。キャンセル可能。</param>
     protected override void OnFormClosing(FormClosingEventArgs e)
     {

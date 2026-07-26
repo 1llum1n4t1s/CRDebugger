@@ -111,7 +111,7 @@ public sealed class SystemInfoCollector
             entries.Add(new("Application", "Name", assembly.GetName().Name ?? "Unknown"));
             entries.Add(new("Application", "Version", assembly.GetName().Version?.ToString() ?? "Unknown"));
 
-            // Standard / Full では Location を含める（パスにユーザー名が混入することがある PII）
+            // Location は Full のみ（パスにユーザー名が混入することがある PII のため Standard では出さない）
             if (_level == SystemInfoCollectionLevel.Full)
                 entries.Add(new("Application", "Location", assembly.Location));
         }
@@ -141,15 +141,59 @@ public sealed class SystemInfoCollector
     }
 
     /// <summary>
-    /// コマンドラインの `--key=value` または `--key value` 形式の value 部分を `***` にマスクする。
-    /// secret / token / password 等の漏洩リスクを最小化。
+    /// Standard レベル用にコマンドラインをマスクする。
+    /// <list type="number">
+    ///   <item>先頭トークン（実行ファイルのフルパス）をファイル名だけに縮める。
+    ///         フルパスにはユーザー名が含まれ得るため、Location を Full 限定にした方針と揃える。</item>
+    ///   <item><c>--key=value</c> / <c>-key=value</c> 形式の value を <c>***</c> に置換する。</item>
+    /// </list>
+    /// <c>--key value</c>（スペース区切り）形式は意図的にマスクしない。
+    /// 次のトークンが値なのか別のフラグ・サブコマンドなのかを機械的に判別できず、
+    /// 一律に潰すと <c>--verbose --profile dev</c> の <c>--profile</c> まで壊してしまうため。
+    /// スペース区切りで secret を渡す場合は <see cref="SystemInfoCollectionLevel.Minimal"/> を使うこと。
     /// </summary>
+    /// <param name="commandLine">元のコマンドライン文字列</param>
+    /// <returns>マスク済みのコマンドライン文字列</returns>
     private static string MaskCommandLine(string commandLine)
     {
         if (string.IsNullOrEmpty(commandLine)) return commandLine;
 
-        // パターン 1: --key=value または -key=value → value を *** に
-        var masked = Regex.Replace(commandLine, @"(--?\w+=)([^\s]+)", "$1***", RegexOptions.None, TimeSpan.FromMilliseconds(100));
-        return masked;
+        // 先頭の実行ファイルパスをファイル名だけに縮める（ユーザー名を含むフルパスを出さない）
+        var withoutPath = StripExecutablePath(commandLine);
+
+        // --key=value または -key=value → value を *** に
+        return Regex.Replace(withoutPath, @"(--?\w+=)([^\s]+)", "$1***", RegexOptions.None, TimeSpan.FromMilliseconds(100));
+    }
+
+    /// <summary>
+    /// コマンドライン先頭の実行ファイルパスをファイル名だけに置き換える。
+    /// Windows では引用符付き（<c>"C:\Program Files\..\app.exe" --flag</c>）になる場合があるため両形式を扱う。
+    /// </summary>
+    /// <param name="commandLine">元のコマンドライン文字列</param>
+    /// <returns>先頭トークンをファイル名に縮めた文字列</returns>
+    private static string StripExecutablePath(string commandLine)
+    {
+        string exePath;
+        string rest;
+
+        if (commandLine[0] == '"')
+        {
+            // 引用符で囲まれている場合は閉じ引用符までが実行ファイルパス
+            var closing = commandLine.IndexOf('"', 1);
+            if (closing < 0) return commandLine; // 閉じ引用符が無い異常系はそのまま返す
+            exePath = commandLine.Substring(1, closing - 1);
+            rest = commandLine.Substring(closing + 1);
+        }
+        else
+        {
+            // 引用符無しの場合は最初の空白までが実行ファイルパス
+            var space = commandLine.IndexOf(' ');
+            exePath = space < 0 ? commandLine : commandLine.Substring(0, space);
+            rest = space < 0 ? string.Empty : commandLine.Substring(space);
+        }
+
+        // パス区切りを含まない場合（既にファイル名だけ）はそのまま返す
+        var fileName = System.IO.Path.GetFileName(exePath);
+        return string.IsNullOrEmpty(fileName) ? commandLine : fileName + rest;
     }
 }

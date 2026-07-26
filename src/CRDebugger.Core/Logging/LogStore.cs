@@ -42,6 +42,12 @@ public sealed class LogStore
     }
 
     /// <summary>
+    /// バッファが保持できる最大エントリ数（<c>CRDebuggerOptions.MaxLogEntries</c> に対応）。
+    /// 表示側コレクションも同じ上限でトリムするために公開している。
+    /// </summary>
+    public int MaxEntries => _buffer.Capacity;
+
+    /// <summary>
     /// 現在のログエントリ数（読み取りロックを取得して返す）
     /// </summary>
     public int Count

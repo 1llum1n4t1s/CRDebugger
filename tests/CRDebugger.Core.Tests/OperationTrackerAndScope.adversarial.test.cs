@@ -73,15 +73,29 @@ public sealed class OperationTrackerAndScopeAdversarialTests
     {
         var tracker = new OperationTracker();
 
-        // long.MaxValue を記録 — Interlocked.Add がオーバーフローしないことを確認
-        tracker.RecordNetworkIO(long.MaxValue, 0);
+        // long.MaxValue を記録してもスナップショット更新・読み出しで例外が出ないこと
+        // （Interlocked.Add / 集計が checked 演算になっていれば OverflowException で落ちる）。
+        tracker.RecordNetworkIO(long.MaxValue, long.MaxValue);
+        var thrown = Record.Exception(() =>
+        {
+            tracker.UpdateCounterSnapshot();
+            tracker.GetNetworkCounters();
+        });
+        Assert.Null(thrown);
 
-        // クラッシュしなければOK — GetNetworkCounters は内部メソッドなので
-        // BeginScope 経由でカウンター値が参照されることを確認
-        using (tracker.BeginScope("after-max")) { }
+        // 加算そのものの契約（ラップアラウンドする＝飽和しない）は、
+        // OS 実測値が混ざらないストレージ書き込み側で厳密に検証する。
+        // ネットワーク読み書きは UpdateCounterSnapshot が OS の実測値を足し込むため厳密比較できないが、
+        // RecordNetworkIO と RecordStorageIO は同一の Interlocked.Add 実装を共有している。
+        tracker.RecordStorageIO(0, long.MaxValue);
+        tracker.UpdateCounterSnapshot();
+        Assert.Equal(long.MaxValue, tracker.GetStorageCounters().Write);
 
-        var metrics = tracker.GetMetrics("after-max");
-        Assert.NotNull(metrics);
+        // さらに 1 を足すとラップアラウンドして long.MinValue になる（checked ではない）。
+        // 将来 saturating 加算に変えるなら、このテストが落ちて仕様変更に気づける。
+        tracker.RecordStorageIO(0, 1);
+        tracker.UpdateCounterSnapshot();
+        Assert.Equal(long.MinValue, tracker.GetStorageCounters().Write);
     }
 
     /// <summary>
@@ -204,18 +218,25 @@ public sealed class OperationTrackerAndScopeAdversarialTests
         {
             startSignal.Wait();
             tracker.RecordNetworkIO(perThread, perThread);
+            // 検証用に、OS 実測値が混ざらないストレージ書き込み側にも同量を記録する
+            tracker.RecordStorageIO(0, perThread);
         })).ToArray();
 
         Thread.Sleep(50);
         startSignal.Set();
         Task.WaitAll(tasks);
 
-        // スコープを使ってカウンター差分を間接的に確認
-        using (tracker.BeginScope("net-check")) { }
+        // 手動記録分をキャッシュへ反映してから検証する
+        tracker.UpdateCounterSnapshot();
 
-        var metrics = tracker.GetMetrics("net-check");
-        Assert.NotNull(metrics);
-        // メトリクス自体が記録されていれば並行アクセスで壊れていない
+        // Interlocked 加算により全スレッド分が正確に合算されていることを検証する。
+        // 通常の += に書き換えるとロストアップデートでこのアサーションが落ちる。
+        // ストレージ書き込みキャッシュは手動記録分のみで構成されるため厳密比較できる。
+        Assert.Equal(threadCount * perThread, tracker.GetStorageCounters().Write);
+
+        // ネットワーク側は OS 実測値が加算されるため、下限として手動記録分を含むことを確認する
+        Assert.True(tracker.GetNetworkCounters().Read >= threadCount * perThread,
+            "ネットワーク受信カウンタに手動記録分が反映されていない");
     }
 
     /// <summary>

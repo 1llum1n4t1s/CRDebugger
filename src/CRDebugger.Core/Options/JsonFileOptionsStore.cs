@@ -13,7 +13,12 @@ public sealed class JsonFileOptionsStore : IOptionsStore
     private readonly string _filePath;
     private readonly ConcurrentDictionary<string, string> _values;
     private readonly object _writeLock = new();
-    private bool _dirty;
+
+    /// <summary>
+    /// 未保存の変更があるかどうか。Save は任意のスレッド、Flush は Shutdown スレッドから呼ばれるため、
+    /// ロック外での早期判定が確実に最新値を読むよう volatile にする。
+    /// </summary>
+    private volatile bool _dirty;
 
     /// <summary>
     /// 指定ファイルパスで永続化ストアを生成する。
@@ -62,15 +67,25 @@ public sealed class JsonFileOptionsStore : IOptionsStore
                 if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
                     Directory.CreateDirectory(directory);
 
+                // スナップショットを先に確定させ、_dirty も先に落とす。
+                // 書き出し中に届いた Save は必ず「未保存」として次回 Flush の対象になる
+                // （後で落とすと、その Save がスナップショットにも入らず _dirty=false で埋もれる）。
                 var snapshot = new Dictionary<string, string>(_values);
-                var json = JsonSerializer.Serialize(snapshot, JsonOpts);
-                File.WriteAllText(_filePath, json);
                 _dirty = false;
+
+                var json = JsonSerializer.Serialize(snapshot, JsonOpts);
+
+                // 一時ファイルへ書いてから置換することで、書き込み中の異常終了でも
+                // 既存の設定ファイルが 0 バイト／途中切れにならないようにする（同一ボリュームの Move は原子的）。
+                var tempPath = _filePath + ".tmp";
+                File.WriteAllText(tempPath, json);
+                File.Move(tempPath, _filePath, overwrite: true);
             }
             catch (Exception)
             {
-                // 永続化失敗はホストアプリを巻き込まない（CRDebugger の哲学に従う）
-                // 失敗を InternalError 経由で通知したい場合は呼び出し側で try/catch する
+                // 永続化失敗はホストアプリを巻き込まない（CRDebugger の哲学に従う）。
+                // ただし未保存であることは事実なので _dirty を戻し、次回の Flush で再試行できるようにする。
+                _dirty = true;
             }
         }
     }

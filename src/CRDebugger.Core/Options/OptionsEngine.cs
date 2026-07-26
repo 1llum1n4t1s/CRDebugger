@@ -49,6 +49,15 @@ public sealed partial class OptionsEngine
         {
             _containers.Remove(container);
         }
+
+        // スキャン結果キャッシュも破棄する。
+        // 記述子は Expression.Constant でコンテナインスタンスを掴んでいるため、
+        // ここで捨てないと解除済みコンテナが GC されずリークする。
+        lock (_cacheLock)
+        {
+            _scanCache.Remove(container);
+        }
+
         // ロック外でイベントを発火してデッドロックを防ぐ
         ContainersChanged?.Invoke(this, EventArgs.Empty);
     }
@@ -71,7 +80,8 @@ public sealed partial class OptionsEngine
 
         foreach (var container in snapshot)
         {
-            // DynamicOptionContainer は専用のスキャンロジックで処理する（リフレクション不要）
+            // DynamicOptionContainer は専用のスキャンロジックで処理する（リフレクション不要）。
+            // 実行時に AddBool 等で項目が増減しうるためキャッシュせず、毎回最新の一覧を読む。
             if (container is DynamicOptionContainer dynamic)
             {
                 options.AddRange(dynamic.Options);
@@ -79,10 +89,19 @@ public sealed partial class OptionsEngine
                 continue;
             }
 
-            // 通常オブジェクトはリフレクションで public プロパティとメソッドをスキャンする
-            // opt-in モード時は CROptionAttribute が付いたプロパティのみを対象にする
-            ScanProperties(container, options, RequireOptInAttribute);
-            ScanMethods(container, actions);
+            // 通常オブジェクトはリフレクションで public プロパティとメソッドをスキャンする。
+            // 結果はコンテナ単位でキャッシュする（詳細は GetOrCreateScan を参照）。
+            var scan = GetOrCreateScan(container);
+            options.AddRange(scan.Options);
+            actions.AddRange(scan.Actions);
+        }
+
+        // 永続化ストアが設定されていれば、保存値の復元とセッターの保存ラップを施した記述子に差し替える。
+        // ストア未設定時は BindPersistence が同一インスタンスを返すため、オーバーヘッドは実質ゼロ。
+        if (OptionsStore != null)
+        {
+            for (var i = 0; i < options.Count; i++)
+                options[i] = BindPersistence(options[i]);
         }
 
         // オプションをカテゴリ別に辞書へグループ化し、各カテゴリ内でソート順を適用する（O(n) の GroupBy で最適化）
@@ -108,12 +127,63 @@ public sealed partial class OptionsEngine
         }).ToList();
     }
 
+    /// <summary>1 コンテナ分のスキャン結果</summary>
+    /// <param name="Options">検出されたオプション記述子</param>
+    /// <param name="Actions">検出されたアクション記述子</param>
+    private sealed record ContainerScan(
+        IReadOnlyList<OptionDescriptor> Options,
+        IReadOnlyList<ActionDescriptor> Actions);
+
+    /// <summary>
+    /// コンテナインスタンスごとのスキャン結果キャッシュ。
+    /// 参照同一性で引く（コンテナが Equals をオーバーライドしていても別インスタンスを混同しない）。
+    /// </summary>
+    private readonly Dictionary<object, ContainerScan> _scanCache = new(ReferenceEqualityComparer.Instance);
+
+    /// <summary><see cref="_scanCache"/> 保護用のロックオブジェクト</summary>
+    private readonly object _cacheLock = new();
+
+    /// <summary>
+    /// コンテナのスキャン結果をキャッシュ経由で取得する。
+    /// <para>
+    /// <see cref="ScanAll"/> はコンテナを 1 つ追加するたびに（ContainersChanged 経由で）呼ばれるため、
+    /// 毎回全コンテナを再スキャンするとコンテナ数 N に対して O(N^2) 回の
+    /// <c>Expression.Compile()</c> が走る。記述子はコンテナインスタンスに束縛され不変なので、
+    /// インスタンス単位でキャッシュして O(N) に落とす。
+    /// </para>
+    /// </summary>
+    /// <param name="container">スキャン対象のコンテナ</param>
+    /// <returns>キャッシュ済み、または新規に生成したスキャン結果</returns>
+    private ContainerScan GetOrCreateScan(object container)
+    {
+        lock (_cacheLock)
+        {
+            if (_scanCache.TryGetValue(container, out var cached)) return cached;
+        }
+
+        // Expression.Compile を含む重い処理はロック外で行い、他スレッドを待たせない
+        var options = new List<OptionDescriptor>();
+        var actions = new List<ActionDescriptor>();
+        ScanProperties(container, options, RequireOptInAttribute);
+        ScanMethods(container, actions);
+        var scan = new ContainerScan(options, actions);
+
+        lock (_cacheLock)
+        {
+            // 競合して他スレッドが先に登録していれば、そちらを採用して記述子の同一性を保つ
+            if (_scanCache.TryGetValue(container, out var existing)) return existing;
+            _scanCache[container] = scan;
+            return scan;
+        }
+    }
+
     /// <summary>
     /// コンテナオブジェクトの public インスタンスプロパティをリフレクションでスキャンし、
     /// サポートされる型のプロパティを <see cref="OptionDescriptor"/> に変換して <paramref name="results"/> へ追加する。
     /// </summary>
     /// <param name="container">スキャン対象のオブジェクト</param>
     /// <param name="results">スキャン結果を追加するリスト</param>
+    /// <param name="requireOptIn"><c>true</c> の場合、<see cref="CROptionAttribute"/> 付きのプロパティのみを対象にする</param>
     private static void ScanProperties(object container, List<OptionDescriptor> results, bool requireOptIn)
     {
         var type = container.GetType();
@@ -123,6 +193,13 @@ public sealed partial class OptionsEngine
 
         foreach (var prop in props)
         {
+            // インデクサ（public string this[int i] 等）は引数を取るため Expression.Property で扱えず、
+            // CreateGetter が ArgumentException を投げてスキャン全体を壊す。ここで確実に除外する。
+            if (prop.GetIndexParameters().Length > 0) continue;
+
+            // 書き込み専用プロパティはゲッターを生成できないため除外する（同じく CreateGetter が失敗する）
+            if (!prop.CanRead) continue;
+
             // opt-in モードでは CROptionAttribute が付いていないプロパティをスキップする
             // （デフォルト挙動は opt-out で、CROption がなくても全 public プロパティを対象にする）
             if (requireOptIn && prop.GetCustomAttribute<CROptionAttribute>() == null) continue;

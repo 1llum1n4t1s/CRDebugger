@@ -29,6 +29,7 @@ public static class OptionControlFactory
             OptionKind.Float => CreateFloatControl(item),
             OptionKind.String => CreateStringControl(item),
             OptionKind.Enum => CreateEnumControl(item),
+            OptionKind.Color => CreateColorControl(item),
             OptionKind.ReadOnly => CreateReadOnlyControl(item),
             // 未知の Kind はフォールスルーで読み取り専用表示
             _ => CreateReadOnlyControl(item)
@@ -275,6 +276,96 @@ public static class OptionControlFactory
         panel.Children.Add(textBox);
 
         return panel;
+    }
+
+    /// <summary>
+    /// Color 値（#RRGGBB 形式の string）用の「カラースウォッチ + HEX テキスト入力」を生成する。
+    /// Avalonia 版の Options ビューと同じ構成にそろえている。
+    /// </summary>
+    /// <param name="item">Color 値を持つ OptionItemViewModel</param>
+    /// <returns>ラベル・スウォッチ・HEX 入力を含む DockPanel</returns>
+    private static FrameworkElement CreateColorControl(OptionItemViewModel item)
+    {
+        // ラベルと操作コントロールを横並びに配置するパネル
+        var panel = new DockPanel { Margin = new Thickness(0, 4, 0, 4) };
+
+        // 項目名ラベルを左ドックに配置
+        var label = CreateLabel(item.DisplayName);
+        DockPanel.SetDock(label, Dock.Left);
+        panel.Children.Add(label);
+
+        // 現在色を示すスウォッチ（右寄せ、HEX 入力の左隣）
+        var swatch = new Border
+        {
+            Width = 26,
+            Height = 18,
+            CornerRadius = new CornerRadius(3),
+            BorderThickness = new Thickness(1),
+            BorderBrush = System.Windows.Media.Brushes.Gray,
+            Margin = new Thickness(0, 0, 6, 0),
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        // 値が変わるたびに背景色を再計算する（不正な HEX の場合は透明のまま）
+        swatch.SetBinding(Border.BackgroundProperty, new Binding(nameof(OptionItemViewModel.Value))
+        {
+            Source = item,
+            Mode = BindingMode.OneWay,
+            Converter = HexToBrushConverter.Instance
+        });
+        DockPanel.SetDock(swatch, Dock.Right);
+        panel.Children.Add(swatch);
+
+        // HEX 文字列入力（読み取り専用の場合は編集不可）
+        var textBox = new TextBox
+        {
+            MinWidth = 100,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            IsReadOnly = item.IsReadOnly
+        };
+        textBox.SetBinding(TextBox.TextProperty, new Binding(nameof(OptionItemViewModel.Value))
+        {
+            Source = item,
+            Mode = item.IsReadOnly ? BindingMode.OneWay : BindingMode.TwoWay,
+            UpdateSourceTrigger = UpdateSourceTrigger.LostFocus
+        });
+        DockPanel.SetDock(textBox, Dock.Right);
+        panel.Children.Add(textBox);
+
+        return panel;
+    }
+
+    /// <summary>
+    /// "#RRGGBB" 形式の文字列を <see cref="System.Windows.Media.Brush"/> に変換するコンバーター。
+    /// 解析できない値は透明ブラシにフォールバックし、入力途中の文字列で例外を出さない。
+    /// </summary>
+    private sealed class HexToBrushConverter : IValueConverter
+    {
+        /// <summary>共有インスタンス（状態を持たないため使い回して問題ない）</summary>
+        public static readonly HexToBrushConverter Instance = new();
+
+        /// <inheritdoc/>
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            var text = value as string;
+            if (string.IsNullOrWhiteSpace(text)) return System.Windows.Media.Brushes.Transparent;
+
+            try
+            {
+                var color = System.Windows.Media.ColorConverter.ConvertFromString(text);
+                if (color is System.Windows.Media.Color c)
+                    return new System.Windows.Media.SolidColorBrush(c);
+            }
+            catch (FormatException)
+            {
+                // 入力途中の "#12" 等は不正扱いにせず、単に色を出さない
+            }
+
+            return System.Windows.Media.Brushes.Transparent;
+        }
+
+        /// <inheritdoc/>
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture) =>
+            throw new NotSupportedException("スウォッチは表示専用のため逆変換はサポートしない。");
     }
 
     /// <summary>

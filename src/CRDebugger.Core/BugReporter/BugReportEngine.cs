@@ -124,7 +124,13 @@ public sealed class BugReportEngine
 
                 // 設定された送信先にレポートを非同期送信する（タイムアウト・キャンセル制御は effectiveToken に集約）。
                 // _sender ではなくローカルキャプチャ済み sender を使い、本呼び出し中の差し替えに影響されないようにする (#50)
-                await sender.SendAsync(report, effectiveToken).ConfigureAwait(false);
+                var sent = await sender.SendAsync(report, effectiveToken).ConfigureAwait(false);
+
+                // IBugReportSender は「失敗時は false を返す」契約なので、戻り値を捨てずに例外へ変換する。
+                // 捨てると UI が常に「送信しました！」と表示し、届いていないレポートを届いたと誤認させてしまう。
+                if (!sent)
+                    throw new CRDebuggerBugReportSendException();
+
                 return report;
             }, effectiveToken).ConfigureAwait(false);
         }

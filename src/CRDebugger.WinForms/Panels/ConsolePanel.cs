@@ -205,9 +205,11 @@ public sealed class ConsolePanel : Panel
 
         Controls.Add(_splitContainer);
 
-        // ViewModel の表示エントリ変更を監視してリストを再描画
-        _viewModel.DisplayEntries.CollectionChanged += OnDisplayEntriesChanged;
-        // プロパティ変更を監視（選択エントリ変更 / カウント変更）
+        // ViewModel の表示エントリ変更を監視してリストを再描画。
+        // DisplayEntries はフィルタ変更時にインスタンスごと差し替えられるため、
+        // 生のコレクションではなく Rebind 経由で購読する（差し替え後も追従できるようにする）。
+        RebindDisplayEntries();
+        // プロパティ変更を監視（選択エントリ変更 / カウント変更 / DisplayEntries 差し替え）
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
 
         // フィルターチェックボックスと ViewModel のプロパティを連動させる
@@ -325,6 +327,31 @@ public sealed class ConsolePanel : Panel
     }
 
     /// <summary>
+    /// 現在 CollectionChanged を購読している表示エントリコレクション。
+    /// <see cref="ConsoleViewModel.DisplayEntries"/> は差し替えられるため、
+    /// 解除対象を取り違えないよう購読中のインスタンスを保持しておく。
+    /// </summary>
+    private INotifyCollectionChanged? _subscribedEntries;
+
+    /// <summary>
+    /// <see cref="ConsoleViewModel.DisplayEntries"/> の購読を最新インスタンスへ張り替え、リストを再構築する。
+    /// ViewModel はフィルタ・検索の変更時にコレクションを新しいインスタンスへ差し替えるため、
+    /// 初期インスタンスを掴んだままだと以降の更新がまったく届かなくなる。
+    /// </summary>
+    private void RebindDisplayEntries()
+    {
+        // 旧インスタンスの購読を解除（購読漏れ・二重購読の両方を防ぐ）
+        if (_subscribedEntries != null)
+            _subscribedEntries.CollectionChanged -= OnDisplayEntriesChanged;
+
+        _subscribedEntries = _viewModel.DisplayEntries;
+        _subscribedEntries.CollectionChanged += OnDisplayEntriesChanged;
+
+        // 差し替え後の内容で ListView を作り直す
+        RefreshLogList();
+    }
+
+    /// <summary>
     /// コレクション変更イベントを ListView に差分適用する。
     /// Add/Remove/Replace は O(1) 単位の操作で済ませ、Reset や未知の操作はフル再構築にフォールバックする。
     /// </summary>
@@ -423,6 +450,10 @@ public sealed class ConsolePanel : Panel
     {
         switch (e.PropertyName)
         {
+            case nameof(ConsoleViewModel.DisplayEntries):
+                // フィルタ/検索変更でコレクションが差し替わったので購読を張り替えて再描画する
+                this.SafeInvoke(RebindDisplayEntries);
+                break;
             case nameof(ConsoleViewModel.SelectedEntry):
                 // 選択エントリが変わったらスタックトレースエリアを更新
                 UpdateStackTrace();
@@ -636,8 +667,13 @@ public sealed class ConsolePanel : Panel
     {
         if (disposing)
         {
-            // コレクション変更イベントとプロパティ変更イベントの購読を解除
-            _viewModel.DisplayEntries.CollectionChanged -= OnDisplayEntriesChanged;
+            // コレクション変更イベントとプロパティ変更イベントの購読を解除。
+            // コレクションは差し替えられるため、購読中のインスタンスから確実に外す。
+            if (_subscribedEntries != null)
+            {
+                _subscribedEntries.CollectionChanged -= OnDisplayEntriesChanged;
+                _subscribedEntries = null;
+            }
             _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
         }
         base.Dispose(disposing);

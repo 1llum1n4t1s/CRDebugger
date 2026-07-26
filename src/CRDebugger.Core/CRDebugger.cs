@@ -2,6 +2,7 @@ using CRDebugger.Core.Input;
 using CRDebugger.Core.Logging;
 using CRDebugger.Core.Profiler;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using SuperLightLogger;
 
 namespace CRDebugger.Core;
@@ -22,6 +23,19 @@ public static class CRDebugger
     /// <summary>初期化済みコンテキスト（未初期化時はnull）</summary>
     private static CRDebuggerContext? _context;
 
+    /// <summary>
+    /// <see cref="CRDebuggerOptions.IsEnabled"/> が false の状態で <see cref="Initialize"/> された場合に true。
+    /// 「未初期化（例外を投げる）」と「明示的に無効化（no-op で成功扱い）」は契約が正反対のため、
+    /// _context == null だけでは区別できない。このフラグで両者を分離する。
+    /// </summary>
+    private static bool _disabled;
+
+    /// <summary>
+    /// 無効化状態で <see cref="Profile"/> / <see cref="GetOperationTracker"/> が返す捨て置きトラッカー。
+    /// 計測結果はどこにも表示されないが、using パターンと戻り値の契約は維持される。
+    /// </summary>
+    private static readonly Lazy<OperationTracker> _disabledTracker = new(() => new OperationTracker());
+
     /// <summary>Initialize/Shutdown の競合を防ぐための排他ロックオブジェクト</summary>
     private static readonly object _initLock = new();
 
@@ -31,8 +45,11 @@ public static class CRDebugger
     /// <summary>CRDebugger内部でエラーが発生した時に発火（ホストアプリのクラッシュを防ぐ）</summary>
     public static event EventHandler<CRDebuggerException>? InternalError;
 
-    /// <summary>初期化済みかどうか</summary>
-    public static bool IsInitialized => _context != null;
+    /// <summary>
+    /// 初期化済みかどうか。<see cref="CRDebuggerOptions.IsEnabled"/> が false で初期化した場合も
+    /// 「Initialize が完了した」状態として true を返す（この場合コンテキストは構築されず全 API が no-op）。
+    /// </summary>
+    public static bool IsInitialized => _context != null || _disabled;
 
     /// <summary>
     /// CRDebuggerを初期化する。UIフレームワーク層の拡張メソッド経由で呼ぶ。
@@ -44,13 +61,17 @@ public static class CRDebugger
     {
         lock (_initLock)
         {
-            // 二重初期化は明示的な例外で防止する
-            if (_context != null)
+            // 二重初期化は明示的な例外で防止する（無効化状態も「初期化済み」として扱う）
+            if (_context != null || _disabled)
                 throw new CRDebuggerAlreadyInitializedException();
 
-            // 明示的に無効化されている場合はコンテキストを構築せず no-op で初期化扱い
+            // 明示的に無効化されている場合はコンテキストを構築せず no-op で初期化扱い。
+            // _disabled を立てておくことで、以降の公開 API は未初期化例外ではなく no-op になる。
             if (!options.IsEnabled)
+            {
+                _disabled = true;
                 return;
+            }
 
             try
             {
@@ -68,8 +89,18 @@ public static class CRDebugger
     }
 
     // ── 表示制御 ──
+    //
+    // 【スレッド契約】この節の API（Show / Hide / Toggle）と SetTheme / SetTabEnabled は
+    // 「UI スレッドから呼ぶこと」を前提とする。内部で UI フレームワークのウィンドウを直接操作するため、
+    // バックグラウンドスレッドから呼ぶとスレッド違反例外になり、SafeExecute が InternalError へ変換して
+    // 握りつぶすため「無音で何も起きない」状態になる。
+    // なお Log 系 / RecordFrame / RecordNetworkIO / RecordStorageIO / Profile 系は任意スレッドから安全に呼べる。
+    // （IUiThread.Invoke で包む案は WPF / WinForms では同期ブロッキングになりデッドロック経路を増やすため採らない）
 
-    /// <summary>デバッガーウィンドウを表示</summary>
+    /// <summary>
+    /// デバッガーウィンドウを表示する。
+    /// <para><b>UI スレッドから呼ぶこと。</b>他スレッドからの呼び出しは無音で失敗する。</para>
+    /// </summary>
     public static void Show()
     {
         SafeExecute(() =>
@@ -202,17 +233,17 @@ public static class CRDebugger
     // ── ILogger / SuperLightLogger 統合 ──
 
     /// <summary>Microsoft.Extensions.Logging用プロバイダーを取得する</summary>
-    /// <returns>CRDebuggerに統合されたILoggerProvider</returns>
+    /// <returns>CRDebuggerに統合されたILoggerProvider（無効化時は何も記録しないプロバイダー）</returns>
     /// <exception cref="CRDebuggerNotInitializedException">未初期化の場合</exception>
     public static ILoggerProvider CreateLoggerProvider() =>
-        GetContext().LoggerProvider;
+        _disabled ? NullLoggerProvider.Instance : GetContext().LoggerProvider;
 
     /// <summary>指定カテゴリのILoggerを取得する</summary>
     /// <param name="categoryName">ログカテゴリ名</param>
-    /// <returns>指定カテゴリ用のILogger</returns>
+    /// <returns>指定カテゴリ用のILogger（無効化時は何も記録しないロガー）</returns>
     /// <exception cref="CRDebuggerNotInitializedException">未初期化の場合</exception>
     public static ILogger CreateLogger(string categoryName) =>
-        GetContext().LoggerProvider.CreateLogger(categoryName);
+        _disabled ? NullLogger.Instance : GetContext().LoggerProvider.CreateLogger(categoryName);
 
     /// <summary>
     /// SuperLightLogger の ILog を取得する。
@@ -265,9 +296,11 @@ public static class CRDebugger
     /// </summary>
     /// <param name="operationName">操作名</param>
     /// <param name="category">カテゴリ名（デフォルト: "General"）</param>
-    /// <returns>Dispose時に計測結果を記録するスコープオブジェクト</returns>
+    /// <returns>Dispose時に計測結果を記録するスコープオブジェクト（無効化時は結果が表示されない捨て置きスコープ）</returns>
     public static ProfilingScope Profile(string operationName, string category = "General") =>
-        GetContext().Profiler.Operations.BeginScope(operationName, category);
+        _disabled
+            ? _disabledTracker.Value.BeginScope(operationName, category)
+            : GetContext().Profiler.Operations.BeginScope(operationName, category);
 
     /// <summary>同期処理を計測する</summary>
     /// <typeparam name="T">戻り値の型</typeparam>
@@ -276,14 +309,18 @@ public static class CRDebugger
     /// <param name="category">カテゴリ名（デフォルト: "General"）</param>
     /// <returns>処理の戻り値</returns>
     public static T Measure<T>(string operationName, Func<T> action, string category = "General") =>
-        GetContext().Profiler.Operations.Measure(operationName, action, category);
+        _disabled ? action() : GetContext().Profiler.Operations.Measure(operationName, action, category);
 
     /// <summary>同期処理を計測する（戻り値なし）</summary>
     /// <param name="operationName">操作名</param>
     /// <param name="action">計測対象の処理</param>
     /// <param name="category">カテゴリ名（デフォルト: "General"）</param>
-    public static void Measure(string operationName, Action action, string category = "General") =>
+    public static void Measure(string operationName, Action action, string category = "General")
+    {
+        // 無効化時も対象処理そのものは必ず実行する（計測だけを省く）
+        if (_disabled) { action(); return; }
         GetContext().Profiler.Operations.Measure(operationName, action, category);
+    }
 
     /// <summary>非同期処理を計測する</summary>
     /// <typeparam name="T">戻り値の型</typeparam>
@@ -292,7 +329,7 @@ public static class CRDebugger
     /// <param name="category">カテゴリ名（デフォルト: "General"）</param>
     /// <returns>処理の戻り値</returns>
     public static Task<T> MeasureAsync<T>(string operationName, Func<Task<T>> action, string category = "General") =>
-        GetContext().Profiler.Operations.MeasureAsync(operationName, action, category);
+        _disabled ? action() : GetContext().Profiler.Operations.MeasureAsync(operationName, action, category);
 
     /// <summary>非同期処理を計測する（戻り値なし）</summary>
     /// <param name="operationName">操作名</param>
@@ -300,7 +337,7 @@ public static class CRDebugger
     /// <param name="category">カテゴリ名（デフォルト: "General"）</param>
     /// <returns>非同期操作を表すTask</returns>
     public static Task MeasureAsync(string operationName, Func<Task> action, string category = "General") =>
-        GetContext().Profiler.Operations.MeasureAsync(operationName, action, category);
+        _disabled ? action() : GetContext().Profiler.Operations.MeasureAsync(operationName, action, category);
 
     /// <summary>ネットワークI/Oを手動で記録する</summary>
     /// <param name="bytesRead">読み込みバイト数</param>
@@ -323,27 +360,27 @@ public static class CRDebugger
     /// <returns>CPU使用率のリスト</returns>
     /// <exception cref="CRDebuggerNotInitializedException">未初期化の場合</exception>
     public static IReadOnlyList<double> GetCpuHistory() =>
-        GetContext().Profiler.GetCpuHistory();
+        _disabled ? Array.Empty<double>() : GetContext().Profiler.GetCpuHistory();
 
     /// <summary>CPU時間上位のホットスポットを取得する</summary>
     /// <param name="topN">取得件数の上限（デフォルト: 10件）</param>
     /// <returns>CPU時間上位の操作メトリクス一覧</returns>
     /// <exception cref="CRDebuggerNotInitializedException">未初期化の場合</exception>
     public static IReadOnlyList<OperationMetrics> GetCpuHotspots(int topN = 10) =>
-        GetContext().Profiler.Operations.GetCpuHotspots(topN);
+        _disabled ? Array.Empty<OperationMetrics>() : GetContext().Profiler.Operations.GetCpuHotspots(topN);
 
     /// <summary>メモリ使用量ホットスポット上位N件を返す</summary>
     /// <param name="topN">取得件数の上限（デフォルト: 10件）</param>
     /// <returns>メモリ使用量上位の操作メトリクス一覧</returns>
     /// <exception cref="CRDebuggerNotInitializedException">未初期化の場合</exception>
     public static IReadOnlyList<OperationMetrics> GetMemoryHotspots(int topN = 10) =>
-        GetContext().Profiler.Operations.GetMemoryHotspots(topN);
+        _disabled ? Array.Empty<OperationMetrics>() : GetContext().Profiler.Operations.GetMemoryHotspots(topN);
 
     /// <summary>ロジック単位プロファイラーのトラッカーを取得する</summary>
     /// <returns>操作トラッカー</returns>
     /// <exception cref="CRDebuggerNotInitializedException">未初期化の場合</exception>
     public static OperationTracker GetOperationTracker() =>
-        GetContext().Profiler.Operations;
+        _disabled ? _disabledTracker.Value : GetContext().Profiler.Operations;
 
     // ── BugReporter ──
 
@@ -352,7 +389,14 @@ public static class CRDebugger
 
     // ── テーマ ──
 
-    /// <summary>テーマを変更する</summary>
+    /// <summary>
+    /// テーマを変更する。
+    /// <para><b>UI スレッドから呼ぶこと。</b>他スレッドからの呼び出しは無音で失敗する。</para>
+    /// <para>
+    /// <b>プラットフォーム差</b>: WPF / WinForms はウィンドウ配色が即時更新される。
+    /// Avalonia 版は意匠を不透明リテラル色で固定しているため、テーマ変更は表示に反映されない。
+    /// </para>
+    /// </summary>
     /// <param name="theme">適用するテーマ</param>
     public static void SetTheme(Theming.CRTheme theme)
     {
@@ -400,7 +444,14 @@ public static class CRDebugger
 
     // ── 破棄 ──
 
-    /// <summary>CRDebuggerを破棄</summary>
+    /// <summary>
+    /// CRDebuggerを破棄する。
+    /// <para>
+    /// <b>副作用</b>: 静的イベント <see cref="PanelVisibilityChanged"/> と <see cref="InternalError"/> の
+    /// 購読者は全て解除される（静的イベントがホストのオブジェクトを GC ルートとして保持し続けるのを防ぐため）。
+    /// Shutdown 後に再度 <see cref="Initialize"/> して通知を受け取る場合は、購読を張り直すこと。
+    /// </para>
+    /// </summary>
     public static void Shutdown()
     {
         lock (_initLock)
@@ -415,8 +466,9 @@ public static class CRDebugger
                 RaiseInternalError("Shutdown中にエラーが発生しました。", ex);
             }
             _context = null; // コンテキストをnullにして未初期化状態に戻す
+            _disabled = false; // 無効化フラグも解除し、次回 Initialize を受け付ける
 
-            // 静的イベントの購読者を全クリア（Re-Initialize 時の重複発火を防止）
+            // 静的イベントの購読者を全クリア（Re-Initialize 時の重複発火とホストオブジェクトのリークを防止）
             PanelVisibilityChanged = null;
             InternalError = null;
         }
@@ -464,6 +516,9 @@ public static class CRDebugger
     /// <param name="action">実行する処理</param>
     private static void SafeExecute(Action action)
     {
+        // 明示的に無効化されている場合は何もしない（IsEnabled = false の no-op 契約）
+        if (_disabled) return;
+
         try
         {
             action();

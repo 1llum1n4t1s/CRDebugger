@@ -19,7 +19,12 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          # 全プロジェクトが net8.0 と net10.0 の両方をターゲットにしているため、両方の SDK を明示導入する。
+          # 8.0.x だけを指定していた時期は net10.0 のビルドがランナーイメージの
+          # プリインストール SDK に暗黙依存しており、イメージ更新で黙って壊れる状態だった。
+          dotnet-version: |
+            8.0.x
+            10.0.x
 
       - name: Validate Patch Version (Even Only)
         shell: pwsh

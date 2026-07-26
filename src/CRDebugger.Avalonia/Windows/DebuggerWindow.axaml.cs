@@ -5,6 +5,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using CRDebugger.Core;
+using CRDebugger.Core.Input;
 using CRDebugger.Core.ViewModels;
 // namespace CRDebugger.Avalonia.Windows と type CRDebugger.Core.CRDebugger の曖昧解決
 using CRDebuggerFacade = CRDebugger.Core.CRDebugger;
@@ -181,6 +182,40 @@ public partial class DebuggerWindow : Window
     ///   2. アプリケーションが <see cref="ShutdownMode.OnLastWindowClose"/> モード
     ///   3. <see cref="IClassicDesktopStyleApplicationLifetime.MainWindow"/> が null（ホストの主ウィンドウなし）
     /// </summary>
+    /// <summary>
+    /// キー入力を CRDebugger のショートカット機構へ橋渡しする。
+    /// Core 側は F1〜F5 のタブ切替と Esc の非表示を既定登録しているが、
+    /// UI フレームワークからこのメソッドを呼ばない限り発火しない。
+    /// </summary>
+    /// <param name="e">キー入力イベント引数</param>
+    protected override void OnKeyDown(global::Avalonia.Input.KeyEventArgs e)
+    {
+        if (CRKeyMap.TryFromName(e.Key.ToString(), out var crKey))
+        {
+            var modifiers = ToCRModifiers(e.KeyModifiers);
+            // ショートカットが実行された場合はイベントを消費して、下位コントロールへ流さない
+            if (CRDebuggerFacade.HandleKeyDown(crKey, modifiers))
+            {
+                e.Handled = true;
+                return;
+            }
+        }
+
+        base.OnKeyDown(e);
+    }
+
+    /// <summary>Avalonia の修飾キーフラグを <see cref="CRModifierKeys"/> に変換する</summary>
+    /// <param name="modifiers">Avalonia の修飾キーフラグ</param>
+    /// <returns>対応する CRDebugger の修飾キーフラグ</returns>
+    private static CRModifierKeys ToCRModifiers(global::Avalonia.Input.KeyModifiers modifiers)
+    {
+        var result = CRModifierKeys.None;
+        if (modifiers.HasFlag(global::Avalonia.Input.KeyModifiers.Control)) result |= CRModifierKeys.Ctrl;
+        if (modifiers.HasFlag(global::Avalonia.Input.KeyModifiers.Shift)) result |= CRModifierKeys.Shift;
+        if (modifiers.HasFlag(global::Avalonia.Input.KeyModifiers.Alt)) result |= CRModifierKeys.Alt;
+        return result;
+    }
+
     /// <param name="e">ウィンドウ閉じるイベント引数（Cancel を true に設定する）</param>
     protected override void OnClosing(WindowClosingEventArgs e)
     {
