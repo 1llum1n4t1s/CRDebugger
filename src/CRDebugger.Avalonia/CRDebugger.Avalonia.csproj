@@ -15,11 +15,11 @@
     <Compile Include="..\CRDebugger.Core\**\*.cs" Link="Core\%(RecursiveDir)%(Filename)%(Extension)" Exclude="..\CRDebugger.Core\obj\**;..\CRDebugger.Core\bin\**" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Avalonia" Version="12.1.0" />
-    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.0" />
-    <!-- SuperLightLogger 1.0.10 が Logging.Abstractions >= 10.0.10 を要求するため、TFM 共通で 10.0.10 -->
+    <PackageReference Include="Avalonia" Version="12.1.1" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.1" />
+    <!-- SuperLightLogger 1.0.12 が Logging.Abstractions >= 10.0.10 を要求するため、TFM 共通で 10.0.10 -->
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.10" />
-    <PackageReference Include="SuperLightLogger" Version="1.0.10" />
+    <PackageReference Include="SuperLightLogger" Version="1.0.12" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.301" PrivateAssets="All" />
