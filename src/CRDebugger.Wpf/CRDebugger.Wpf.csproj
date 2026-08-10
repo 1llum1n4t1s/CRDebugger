@@ -17,7 +17,7 @@
   <ItemGroup>
     <!-- SuperLightLogger 1.0.10 が Logging.Abstractions >= 10.0.10 を要求するため、TFM 共通で 10.0.10 -->
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.10" />
-    <PackageReference Include="SuperLightLogger" Version="1.0.10" />
+    <PackageReference Include="SuperLightLogger" Version="1.0.12" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.301" PrivateAssets="All" />
