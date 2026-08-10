@@ -17,7 +17,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           # 全プロジェクトが net8.0 と net10.0 の両方をターゲットにしているため、両方の SDK を明示導入する。
           # 8.0.x だけを指定していた時期は net10.0 のビルドがランナーイメージの
