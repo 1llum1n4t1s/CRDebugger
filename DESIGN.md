@@ -50,7 +50,7 @@ CRDebugger は .NET デスクトップアプリへ組み込むランタイムデ
 
 ### プロファイリング
 
-`ProfilerEngine` は `System.Threading.Timer` でCPU、メモリ、GC、FPS、任意のGPU情報を定期採取し、上限付き履歴へ `ProfilerSnapshot` を保存する。`OperationTracker` は `Profile` / `Measure` / `MeasureAsync` の処理時間・CPU・メモリと、明示記録されたネットワーク/ストレージ量をロジック名ごとに集計する。OS APIやイベント購読者の失敗はサンプリングを停止させない。
+`ProfilerEngine` は `System.Threading.Timer` でCPU、メモリ、GC、FPS、任意のGPU情報を定期採取し、上限付き履歴へ `ProfilerSnapshot` を保存する。`OperationTracker` は `Profile` / `Measure` / `MeasureAsync` の処理時間・CPU・メモリと、明示記録されたネットワーク/ストレージ量をロジック名ごとに集計する。OS APIやイベント購読者の失敗はサンプリングを停止させず、前回の周期処理が続いている場合は次回をスキップして並列実行を防ぐ。
 
 ### システム情報とバグレポート
 
@@ -67,6 +67,7 @@ CRDebugger は .NET デスクトップアプリへ組み込むランタイムデ
 - 公開APIの既知の契約違反は専用例外で通知し、予期しない内部失敗は `InternalError` へ通知してホストへ逆流させない。
 - ログ、プロファイル履歴、操作メトリクスは上限を持ち、共有状態はロックまたは並行コレクションで保護する。
 - UIスレッド境界を越える通知は `IUiThread` でマーシャリングする。
+- プロファイラ採取とOSテーマ監視の周期コールバックは再入させず、前回処理と重なる回をスキップする。
 - Trace、AppDomainイベント、OSテーマ監視、タイマーは `Shutdown` で解除・破棄する。
 - ファイルログ、Options永続化、GPU監視、バグレポート送信は明示設定された場合だけ外部状態へ接続する。
 
