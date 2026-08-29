@@ -9,10 +9,10 @@ This file provides guidance to Claude Code and other coding agents working in th
 dotnet build CRDebugger.slnx
 
 # テスト実行
-dotnet test tests/CRDebugger.Core.Tests
+dotnet test --project tests/CRDebugger.Core.Tests/CRDebugger.Core.Tests.csproj
 
 # 単一テスト実行
-dotnet test tests/CRDebugger.Core.Tests --filter "FullyQualifiedName~TestMethodName"
+dotnet test --project tests/CRDebugger.Core.Tests/CRDebugger.Core.Tests.csproj --filter "FullyQualifiedName~TestMethodName"
 
 # NuGetパッケージ作成（3パッケージ）
 dotnet pack src/CRDebugger.WinForms -c Release -o artifacts

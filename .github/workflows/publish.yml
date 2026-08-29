@@ -51,7 +51,7 @@ jobs:
         run: dotnet build CRDebugger.slnx -c Release --no-restore
 
       - name: Run Tests
-        run: dotnet test tests/CRDebugger.Core.Tests --no-build -c Release --logger trx
+        run: dotnet test --project tests/CRDebugger.Core.Tests/CRDebugger.Core.Tests.csproj --no-build -c Release --minimum-expected-tests 1 --report-xunit-trx
 
       - name: Pack CRDebugger.WinForms
         run: dotnet pack src/CRDebugger.WinForms/CRDebugger.WinForms.csproj -c Release --no-build -o artifacts
