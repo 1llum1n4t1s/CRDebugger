@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   publish:
@@ -61,10 +62,34 @@ jobs:
       - name: Pack CRDebugger.Avalonia
         run: dotnet pack src/CRDebugger.Avalonia/CRDebugger.Avalonia.csproj -c Release --no-build -o artifacts
 
+      - name: Authenticate to NuGet.org
+        id: login
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
+        with:
+          user: ${{ vars.NUGET_USER }}
+
       - name: Publish to NuGet
-        run: |
-          $apiKey = $env:NUGET_API_KEY
-          .\publish.ps1
         env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+        run: |
+          $patterns = @(
+            'CRDebugger.WinForms.*.nupkg',
+            'CRDebugger.Wpf.*.nupkg',
+            'CRDebugger.Avalonia.*.nupkg'
+          )
+          $packages = foreach ($pattern in $patterns) {
+            $matches = @(Get-ChildItem -Path artifacts -Filter $pattern -File)
+            if ($matches.Count -ne 1) {
+              Write-Error "Expected exactly one package matching '$pattern', found $($matches.Count)."
+              exit 1
+            }
+            $matches[0]
+          }
+          foreach ($package in $packages) {
+            dotnet nuget push $package.FullName `
+              --api-key $env:NUGET_API_KEY `
+              --source https://api.nuget.org/v3/index.json `
+              --skip-duplicate
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
         shell: pwsh

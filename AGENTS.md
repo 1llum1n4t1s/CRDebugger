@@ -19,8 +19,8 @@ dotnet pack src/CRDebugger.WinForms -c Release -o artifacts
 dotnet pack src/CRDebugger.Wpf -c Release -o artifacts
 dotnet pack src/CRDebugger.Avalonia -c Release -o artifacts
 
-# NuGet公開（NUGET_API_KEY環境変数が必要）
-.\publish.ps1
+# NuGet公開は release/** ブランチから Publish to NuGet workflow を実行
+gh workflow run publish.yml --ref release/x.y.z
 ```
 
 ## Architecture
@@ -94,7 +94,7 @@ CRDebugger は **SuperLightLogger** を使用してファイルログ出力を�
 
 - `release/**` ブランチへのプッシュで NuGet 公開ワークフローが発動
 - 3パッケージのみ pack & publish（Core は対象外）
-- `publish.ps1` が `artifacts/` 内の全 `.nupkg` を nuget.org にプッシュ
+- NuGet.org Trusted Publishing が workflow と3パッケージを限定し、短期資格情報で公開
 
 ## Test Structure
 
