@@ -22,18 +22,27 @@ public sealed class AvaloniaDebuggerWindow : IDebuggerWindow
 
     /// <summary>
     /// 指定した ViewModel でデバッガーウィンドウを表示する。
-    /// ウィンドウが未作成または非表示の場合は新たに生成して DataContext を設定する。
+    /// ウィンドウが未作成の場合だけ生成し、非表示の既存ウィンドウは再利用する。
     /// </summary>
     /// <param name="viewModel">ウィンドウにバインドする DebuggerViewModel</param>
     public void Show(DebuggerViewModel viewModel)
     {
-        // ウィンドウが存在しない、または既に閉じられている場合は新規作成する
-        if (_window == null || !_window.IsVisible)
+        if (_window == null)
         {
-            _window = new Windows.DebuggerWindow { DataContext = viewModel };
+            var window = new Windows.DebuggerWindow { DataContext = viewModel };
             // ウィンドウが実際に閉じられたら参照をクリアして次回 Show で再生成可能にする
-            _window.Closed += (_, _) => _window = null;
+            window.Closed += (_, _) =>
+            {
+                if (ReferenceEquals(_window, window))
+                    _window = null;
+            };
+            _window = window;
         }
+        else
+        {
+            _window.DataContext = viewModel;
+        }
+
         _window.Show();
     }
 
@@ -65,28 +74,38 @@ public sealed class AvaloniaDebuggerWindow : IDebuggerWindow
     /// ウィンドウが存在しない・サイズが不正・例外発生時は null を返す。
     /// </summary>
     /// <returns>PNG バイト配列。取得失敗時は null。</returns>
-    public Task<byte[]?> CaptureScreenshotAsync()
+    public async Task<byte[]?> CaptureScreenshotAsync()
     {
-        if (_window == null) return Task.FromResult<byte[]?>(null);
         try
         {
-            var width = (int)_window.ClientSize.Width;
-            var height = (int)_window.ClientSize.Height;
-            // クライアントサイズが不正な場合（最小化など）はスキップ
-            if (width <= 0 || height <= 0) return Task.FromResult<byte[]?>(null);
+            if (Dispatcher.UIThread.CheckAccess())
+                return CaptureScreenshotOnUiThread();
 
-            var size = new global::Avalonia.PixelSize(width, height);
-            var dpi = new global::Avalonia.Vector(96, 96);
-            using var rtb = new global::Avalonia.Media.Imaging.RenderTargetBitmap(size, dpi);
-            rtb.Render(_window);
-            using var ms = new MemoryStream();
-            rtb.Save(ms);
-            return Task.FromResult<byte[]?>(ms.ToArray());
+            return await Dispatcher.UIThread.InvokeAsync(CaptureScreenshotOnUiThread);
         }
         catch
         {
             // スクリーンショット取得失敗時は null を返す（例外を伝播させない）
-            return Task.FromResult<byte[]?>(null);
+            return null;
         }
+    }
+
+    /// <summary>UI スレッド上でウィンドウをレンダリングして PNG バイト列を返す。</summary>
+    private byte[]? CaptureScreenshotOnUiThread()
+    {
+        var window = _window;
+        if (window == null) return null;
+
+        var width = (int)window.ClientSize.Width;
+        var height = (int)window.ClientSize.Height;
+        if (width <= 0 || height <= 0) return null;
+
+        var size = new global::Avalonia.PixelSize(width, height);
+        var dpi = new global::Avalonia.Vector(96, 96);
+        using var rtb = new global::Avalonia.Media.Imaging.RenderTargetBitmap(size, dpi);
+        rtb.Render(window);
+        using var ms = new MemoryStream();
+        rtb.Save(ms);
+        return ms.ToArray();
     }
 }

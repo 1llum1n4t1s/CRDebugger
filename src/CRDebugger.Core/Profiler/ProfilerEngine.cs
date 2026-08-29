@@ -47,6 +47,9 @@ public sealed class ProfilerEngine : IDisposable
     private TimeSpan _previousGcPauseTime;
 #endif
 
+    /// <summary>タイマーコールバックの再入を防ぐ実行中フラグ</summary>
+    private int _ticking;
+
     /// <summary>スナップショット履歴の最大保持件数</summary>
     public const int MaxHistorySize = 120;
 
@@ -155,6 +158,8 @@ public sealed class ProfilerEngine : IDisposable
     /// <param name="state">未使用のタイマー状態オブジェクト</param>
     private void OnTick(object? state)
     {
+        if (Interlocked.CompareExchange(ref _ticking, 1, 0) != 0) return;
+
         // Timer のコールバック内で発生した未処理例外はプロセスをクラッシュさせるため、
         // OnTick 全体を try/catch で囲んでホスト側に逆流させない (#33)
         try
@@ -251,6 +256,10 @@ public sealed class ProfilerEngine : IDisposable
         {
             // OnTick の予期しない例外は CRDebugger 哲学に従いホスト側に逆流させない (#33)。
             // ここで握りつぶすことで Timer スレッドの継続性を保証する
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _ticking, 0);
         }
     }
 

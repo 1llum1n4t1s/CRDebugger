@@ -122,7 +122,7 @@ internal sealed class CRDebuggerContext : IDisposable
         // 各タブのViewModelをサービスから生成
         var systemInfoVm = new SystemInfoViewModel(SystemInfo);
         var consoleVm = new ConsoleViewModel(LogStore, UiThread);
-        var optionsVm = new OptionsViewModel(Options);
+        var optionsVm = new OptionsViewModel(Options, UiThread);
         var profilerVm = new ProfilerViewModel(Profiler, UiThread);
         var bugReporterVm = new BugReporterViewModel(BugReporter, Window);
 

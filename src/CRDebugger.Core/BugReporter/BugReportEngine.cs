@@ -23,7 +23,7 @@ public sealed class BugReportEngine
     /// </summary>
     private volatile IBugReportSender _sender;
 
-    /// <summary>送信タイムアウト（CancellationToken 未指定時のデフォルト）</summary>
+    /// <summary>呼び出し元のキャンセルとは独立して常に適用する送信タイムアウト</summary>
     private readonly TimeSpan _sendTimeout;
 
     /// <summary>
@@ -66,7 +66,7 @@ public sealed class BugReportEngine
     /// <param name="userMessage">ユーザーが入力したバグの説明</param>
     /// <param name="userEmail">ユーザーの連絡先メールアドレス</param>
     /// <param name="screenshotCapture">スクリーンショット取得デリゲート（省略可）</param>
-    /// <param name="cancellationToken">キャンセルトークン。<c>default</c> の場合はコンストラクタで指定したタイムアウトが適用される</param>
+    /// <param name="cancellationToken">呼び出し元からのキャンセルトークン。設定済みタイムアウトと合成される</param>
     /// <returns>作成されたバグレポート</returns>
     public async Task<BugReport> CreateAndSendAsync(
         string userMessage,
@@ -74,27 +74,20 @@ public sealed class BugReportEngine
         Func<Task<byte[]?>>? screenshotCapture = null,
         CancellationToken cancellationToken = default)
     {
-        // 呼び出し元が CancellationToken を渡してこなかった場合は内部 CTS でタイムアウト制御する
-        // 渡してきた場合はそのトークンを尊重する（外部から長い待機をキャンセル可能にするため）
-        CancellationTokenSource? internalCts = null;
-        var effectiveToken = cancellationToken;
-        if (!cancellationToken.CanBeCanceled)
-        {
-            internalCts = new CancellationTokenSource(_sendTimeout);
-            effectiveToken = internalCts.Token;
-        }
+        // 公開設定のタイムアウトと呼び出し元キャンセルを常に合成する
+        using var timeoutCts = new CancellationTokenSource(_sendTimeout);
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
+        var effectiveToken = linkedCts.Token;
 
         // _sender は SetSender により別スレッドから差し替えられる可能性があるため、
         // 本呼び出し中は一貫したインスタンスを使うようローカルにキャプチャする (#50)。
         // volatile 読みでメモリバリアを担保した上でローカル変数に固定する
         var sender = _sender;
 
-        try
+        // スクリーンショット取得・SystemInfo 収集・LogStore.GetAll() は UI スレッドから逃がして実行する
+        // （SystemInfo.CollectAll は WMI 等で長時間ブロックする可能性があり、UI スレッドを止めないため）
+        return await Task.Run(async () =>
         {
-            // スクリーンショット取得・SystemInfo 収集・LogStore.GetAll() は UI スレッドから逃がして実行する
-            // （SystemInfo.CollectAll は WMI 等で長時間ブロックする可能性があり、UI スレッドを止めないため）
-            return await Task.Run(async () =>
-            {
                 // スクリーンショット取得デリゲートが指定されている場合のみキャプチャを実行する
                 // 取得失敗時は screenshot=null で続行（バグレポート送信自体は止めない）
                 byte[]? screenshot = null;
@@ -131,13 +124,7 @@ public sealed class BugReportEngine
                 if (!sent)
                     throw new CRDebuggerBugReportSendException();
 
-                return report;
-            }, effectiveToken).ConfigureAwait(false);
-        }
-        finally
-        {
-            // 内部 CTS を生成した場合のみ解放する（外部 CTS は呼び出し元の責任で解放）
-            internalCts?.Dispose();
-        }
+            return report;
+        }, effectiveToken).ConfigureAwait(false);
     }
 }

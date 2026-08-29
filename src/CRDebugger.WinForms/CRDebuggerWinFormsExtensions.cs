@@ -18,10 +18,10 @@ public static class CRDebuggerWinFormsExtensions
     /// <returns>メソッドチェーン用に同じ <see cref="CRDebuggerOptions"/> インスタンスを返す。</returns>
     public static CRDebuggerOptions UseWinForms(this CRDebuggerOptions options)
     {
-        // WinForms用デバッガーウィンドウ実装を登録
-        options.Window = new WinFormsDebuggerWindow();
-        // WinForms用UIスレッドマーシャリング実装を登録
-        options.UiThread = new WinFormsUiThread();
+        // Window と UiThread を対で生成し、フォーム生成時にマーシャル先を接続できるようにする
+        var uiThread = new WinFormsUiThread();
+        options.Window = new WinFormsDebuggerWindow(uiThread);
+        options.UiThread = uiThread;
         // Windows OSのテーマ検出・監視プロバイダーを登録
         options.ThemeProvider = new WinFormsThemeProvider();
         return options;

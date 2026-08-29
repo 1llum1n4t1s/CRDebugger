@@ -140,7 +140,6 @@ public sealed class BugReporterViewModel : ViewModelBase
         // 再入ガードにより、ここで破棄されるのは必ず完了済みの送信の CTS になる。
         _sendCts?.Dispose();
         _sendCts = new CancellationTokenSource();
-        _sendCts.CancelAfter(TimeSpan.FromSeconds(60));
 
         try
         {

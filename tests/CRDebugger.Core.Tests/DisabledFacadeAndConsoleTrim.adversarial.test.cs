@@ -197,6 +197,7 @@ public sealed class ConsoleViewModelTrimTests
         Assert.NotEmpty(vm.DisplayEntries);
         Assert.True(vm.DisplayEntries.Count <= capacity,
             $"DisplayEntries が上限 {capacity} を超えている（実際: {vm.DisplayEntries.Count}）");
+        Assert.Equal(capacity, vm.InfoCount);
     }
 
     /// <summary>

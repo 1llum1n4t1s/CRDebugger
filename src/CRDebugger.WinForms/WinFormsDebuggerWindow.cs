@@ -13,8 +13,22 @@ namespace CRDebugger.WinForms;
 /// </summary>
 public sealed class WinFormsDebuggerWindow : IDebuggerWindow
 {
+    /// <summary>フォーム生成後にマーシャル先を接続する UI スレッド実装。</summary>
+    private readonly WinFormsUiThread? _uiThread;
+
     /// <summary>管理対象の <see cref="DebuggerForm"/> インスタンス。未生成または破棄済みの場合は null。</summary>
     private DebuggerForm? _form;
+
+    /// <summary>独立したウィンドウ実装を生成する。</summary>
+    public WinFormsDebuggerWindow()
+    {
+    }
+
+    /// <summary>UI スレッド実装と対で管理されるウィンドウを生成する。</summary>
+    internal WinFormsDebuggerWindow(WinFormsUiThread uiThread)
+    {
+        _uiThread = uiThread;
+    }
 
     /// <summary>
     /// デバッガーウィンドウが現在表示されているかどうかを取得する。
@@ -39,6 +53,9 @@ public sealed class WinFormsDebuggerWindow : IDebuggerWindow
 
         // フォームを新規生成してフォームクローズイベントを購読
         _form = new DebuggerForm(viewModel);
+        // InvokeRequired が正しく判定できるよう、UI スレッド上でハンドルを先に生成してから接続する
+        _ = _form.Handle;
+        _uiThread?.SetMarshalControl(_form);
         _form.FormClosed += OnFormClosed;
         _form.Show();
     }

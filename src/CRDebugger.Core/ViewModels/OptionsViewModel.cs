@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Windows.Input;
+using CRDebugger.Core.Abstractions;
 using CRDebugger.Core.Options;
 
 namespace CRDebugger.Core.ViewModels;
@@ -13,6 +14,7 @@ namespace CRDebugger.Core.ViewModels;
 public sealed class OptionsViewModel : ViewModelBase
 {
     private readonly OptionsEngine _engine;
+    private readonly IUiThread? _uiThread;
 
     /// <summary>カテゴリの展開/折りたたみ状態をリフレッシュ間で保持する辞書</summary>
     private readonly Dictionary<string, bool> _expandedState = new();
@@ -51,9 +53,25 @@ public sealed class OptionsViewModel : ViewModelBase
     /// <summary>オプション一覧を手動で再スキャンするコマンド</summary>
     public ICommand RefreshCommand { get; }
 
+    /// <summary>同期更新を行う互換用 ViewModel を生成する。</summary>
+    /// <param name="engine">オプションの検出と変更通知を提供するエンジン</param>
     public OptionsViewModel(OptionsEngine engine)
+        : this(engine, null, true)
+    {
+    }
+
+    /// <summary>UI スレッドへ動的更新を配送する ViewModel を生成する。</summary>
+    /// <param name="engine">オプションの検出と変更通知を提供するエンジン</param>
+    /// <param name="uiThread">動的更新の配送先 UI スレッド</param>
+    public OptionsViewModel(OptionsEngine engine, IUiThread uiThread)
+        : this(engine, uiThread ?? throw new ArgumentNullException(nameof(uiThread)), true)
+    {
+    }
+
+    private OptionsViewModel(OptionsEngine engine, IUiThread? uiThread, bool _)
     {
         _engine = engine;
+        _uiThread = uiThread;
         RefreshCommand = new RelayCommand(Refresh);
         // 名前付きハンドラ経由で購読し、Dispose 時に -= で確実に解除可能にする
         _engine.ContainersChanged += OnContainersChanged;
@@ -63,7 +81,13 @@ public sealed class OptionsViewModel : ViewModelBase
     /// <summary>
     /// <see cref="OptionsEngine.ContainersChanged"/> イベントハンドラ。
     /// </summary>
-    private void OnContainersChanged(object? sender, EventArgs e) => Refresh();
+    private void OnContainersChanged(object? sender, EventArgs e)
+    {
+        if (_uiThread == null)
+            Refresh();
+        else
+            _uiThread.Invoke(Refresh);
+    }
 
     /// <summary>
     /// エンジンを通じてコンテナを再スキャンし、カテゴリ一覧を更新する。

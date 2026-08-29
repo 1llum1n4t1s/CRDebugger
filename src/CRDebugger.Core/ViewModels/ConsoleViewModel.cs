@@ -36,6 +36,9 @@ public sealed class ConsoleViewModel : ViewModelBase
     /// <summary>フラッシュ実行中フラグ（同時実行を防ぐ）</summary>
     private int _flushing;
 
+    /// <summary>表示再構築の世代。Clear/RefreshFilter より前に予約された反映を破棄する。</summary>
+    private long _displayGeneration;
+
     /// <summary>現在のフィルタ条件のキャッシュ（フィルタ変更時のみ再生成、OnEntryAdded毎の生成を回避）</summary>
     private LogFilter _cachedFilter;
 
@@ -228,6 +231,7 @@ public sealed class ConsoleViewModel : ViewModelBase
         // 同時実行ガード（フラッシュが詰まった場合にコールバックが重ならないようにする）
         if (System.Threading.Interlocked.CompareExchange(ref _flushing, 1, 0) != 0) return;
 
+        var releaseGuard = true;
         try
         {
             // キューが両方空なら早期リターンして無駄な UI ディスパッチを避ける
@@ -242,38 +246,55 @@ public sealed class ConsoleViewModel : ViewModelBase
 
             if (adds.Count == 0 && updates.Count == 0) return;
 
+            var generation = System.Threading.Volatile.Read(ref _displayGeneration);
             _uiThread.Invoke(() =>
             {
-                // 追加分をまとめてカウント＆フィルタ適用
-                foreach (var entry in adds)
+                try
                 {
-                    UpdateCount(entry.Level, 1);
-                    if (_cachedFilter.Matches(entry))
-                        _displayEntries.Add(entry);
-                }
+                    // Clear/RefreshFilter 後に到着した古い Post は表示へ戻さない
+                    if (generation != System.Threading.Volatile.Read(ref _displayGeneration)) return;
 
-                // 更新分は DisplayEntries 内の同一 Id を置換（線形探索だがバッチサイズは限定的）
-                if (updates.Count > 0)
-                {
-                    // 更新エントリの最新版を Id でまとめる（複数回更新された場合は最後の値を採用）
-                    var latest = new Dictionary<int, LogEntry>(updates.Count);
-                    foreach (var u in updates) latest[u.Id] = u;
-
-                    for (int i = 0; i < _displayEntries.Count; i++)
+                    // RefreshFilter のスナップショットとキューが重なっても同じ Id を二重追加しない
+                    var displayedIds = _displayEntries.Select(entry => entry.Id).ToHashSet();
+                    foreach (var entry in adds)
                     {
-                        if (latest.TryGetValue(_displayEntries[i].Id, out var updated))
+                        if (_cachedFilter.Matches(entry) && displayedIds.Add(entry.Id))
+                            _displayEntries.Add(entry);
+                    }
+
+                    // 更新分は DisplayEntries 内の同一 Id を置換
+                    if (updates.Count > 0)
+                    {
+                        var latest = new Dictionary<int, LogEntry>(updates.Count);
+                        foreach (var u in updates) latest[u.Id] = u;
+
+                        for (int i = 0; i < _displayEntries.Count; i++)
                         {
-                            // ObservableCollection のインデクサ代入で Replace イベントを発火（UI が更新を検知できる）
-                            _displayEntries[i] = updated;
+                            if (latest.TryGetValue(_displayEntries[i].Id, out var updated))
+                                _displayEntries[i] = updated;
                         }
                     }
-                }
 
-                // LogStore 側の循環バッファから追い出された分を表示リストからも切り捨てる。
-                // これを行わないと DisplayEntries だけが無制限に伸び、MaxLogEntries の設定が
-                // 表示側に効かなくなる（フィルタ操作をしない長時間セッションでメモリを食い続ける）。
-                TrimDisplayEntries();
+                    TrimDisplayEntries();
+
+                    // 循環バッファの追い出しを含むストアの正確な件数へ同期する
+                    var counts = _logStore.GetCounts();
+                    DebugCount = counts.Debug;
+                    InfoCount = counts.Info;
+                    WarningCount = counts.Warning;
+                    ErrorCount = counts.Error;
+                }
+                catch (Exception)
+                {
+                    // 非同期ディスパッチ実装でも UI 側の例外をホストへ逆流させない
+                }
+                finally
+                {
+                    System.Threading.Interlocked.Exchange(ref _flushing, 0);
+                }
             });
+            // 非同期 Post の場合も UI 側アクションが完了するまでガードを保持する
+            releaseGuard = false;
         }
         catch (Exception)
         {
@@ -284,8 +305,8 @@ public sealed class ConsoleViewModel : ViewModelBase
         }
         finally
         {
-            // ガード解除
-            System.Threading.Interlocked.Exchange(ref _flushing, 0);
+            if (releaseGuard)
+                System.Threading.Interlocked.Exchange(ref _flushing, 0);
         }
     }
 
@@ -306,6 +327,7 @@ public sealed class ConsoleViewModel : ViewModelBase
     /// </summary>
     private void RefreshFilter()
     {
+        System.Threading.Interlocked.Increment(ref _displayGeneration);
         // フィルタキャッシュを更新（OnEntryAdded でも使われる）
         _cachedFilter = CreateFilter();
         // ストアからフィルタ適用済みエントリを取得
@@ -328,6 +350,7 @@ public sealed class ConsoleViewModel : ViewModelBase
     /// </summary>
     private void Clear()
     {
+        System.Threading.Interlocked.Increment(ref _displayGeneration);
         // ストア本体をクリア
         _logStore.Clear();
         // 表示リストもクリア

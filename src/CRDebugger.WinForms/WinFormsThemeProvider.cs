@@ -27,6 +27,9 @@ public sealed class WinFormsThemeProvider : IThemeProvider, IDisposable
     /// <summary>前回のポーリング時のダークモード状態。変更検出に使用する。</summary>
     private bool _lastKnownDarkMode;
 
+    /// <summary>ポーリングコールバックの再入を防ぐ実行中フラグ。</summary>
+    private int _polling;
+
     /// <summary>
     /// 現在のシステムがダークモードかどうかをレジストリから判定する。
     /// レジストリアクセスに失敗した場合はライトモード (false) を返す。
@@ -88,6 +91,8 @@ public sealed class WinFormsThemeProvider : IThemeProvider, IDisposable
     /// <param name="state">タイマー状態（使用しない）。</param>
     private void PollThemeChange(object? state)
     {
+        if (Interlocked.CompareExchange(ref _polling, 1, 0) != 0) return;
+
         try
         {
             // 現在のダークモード状態を取得して前回と比較
@@ -104,6 +109,10 @@ public sealed class WinFormsThemeProvider : IThemeProvider, IDisposable
             // System.Threading.Timer のコールバック内の未処理例外はプロセスをクラッシュさせるため、
             // ProfilerEngine.OnTick / ConsoleViewModel.FlushPending と同じ規約でここで必ずキャッチする。
             // アプリ終了中のテーマ適用コールバックが投げるケースなどに到達する。
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _polling, 0);
         }
     }
 

@@ -55,7 +55,8 @@ public sealed class WinFormsUiThread : IUiThread
         }
         catch (ObjectDisposedException)
         {
-            // フォームが閉じられた後のInvoke呼び出しを無視
+            // フォーム破棄との競合時は、表示先がもう無いため呼び出し元で完了させる
+            action();
         }
         catch (InvalidOperationException)
         {
