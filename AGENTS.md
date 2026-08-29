@@ -1,6 +1,7 @@
-# CLAUDE.md
+# AGENTS.md
 
 This file provides guidance to Claude Code and other coding agents working in this repository.
+システム構造と設計判断の正本は [DESIGN.md](DESIGN.md) を参照する。
 
 ## Build & Test Commands
 
@@ -9,10 +10,10 @@ This file provides guidance to Claude Code and other coding agents working in th
 dotnet build CRDebugger.slnx
 
 # テスト実行
-dotnet test --project tests/CRDebugger.Core.Tests/CRDebugger.Core.Tests.csproj
+dotnet test --project tests/CRDebugger.Core.Tests/CRDebugger.Core.Tests.csproj --minimum-expected-tests 1
 
 # 単一テスト実行
-dotnet test --project tests/CRDebugger.Core.Tests/CRDebugger.Core.Tests.csproj --filter "FullyQualifiedName~TestMethodName"
+dotnet test --project tests/CRDebugger.Core.Tests/CRDebugger.Core.Tests.csproj --minimum-expected-tests 1 --filter "FullyQualifiedName~TestMethodName"
 
 # NuGetパッケージ作成（3パッケージ）
 dotnet pack src/CRDebugger.WinForms -c Release -o artifacts
@@ -99,4 +100,5 @@ CRDebugger は **SuperLightLogger** を使用してファイルログ出力を�
 ## Test Structure
 
 テストは `tests/CRDebugger.Core.Tests/` に集約。xUnit + Moq を使用。
+- `global.json` で Microsoft Testing Platform を選択している。プロジェクト指定は `--project`、TRX出力は xUnit の `--report-xunit-trx` を使う。
 - `*.adversarial.test.cs` — 嫌がらせテスト（境界値、並行性、リソース枯渇、状態遷移、型パンチ、環境異常）
