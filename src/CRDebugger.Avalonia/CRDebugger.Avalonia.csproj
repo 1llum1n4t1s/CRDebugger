@@ -19,7 +19,7 @@
     <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.1" />
     <!-- SuperLightLogger 1.0.15 が Logging.Abstractions >= 10.0.11 を要求するため、TFM 共通で 10.0.11 -->
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.11" />
-    <PackageReference Include="SuperLightLogger" Version="1.0.15" />
+    <PackageReference Include="SuperLightLogger" Version="1.0.16" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.400" PrivateAssets="all" />
