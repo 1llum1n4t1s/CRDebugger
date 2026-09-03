@@ -13,11 +13,11 @@
     <InternalsVisibleTo Include="CRDebugger.Core.Tests" />
   </ItemGroup>
   <ItemGroup>
-    <!-- SuperLightLogger 1.0.15 が Microsoft.Extensions.Logging.Abstractions >= 10.0.11 を要求するため、
+    <!-- SuperLightLogger 1.0.16 が Microsoft.Extensions.Logging.Abstractions >= 10.0.11 を要求するため、
          net8.0 / net10.0 共通で 10.0.11 を指定。利用者側で 8.x 系の依存衝突が出る場合は
          NuGet の Floating Version 解決で 10.0.11 に揃う想定。 -->
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.11" />
-    <PackageReference Include="SuperLightLogger" Version="1.0.15" />
+    <PackageReference Include="SuperLightLogger" Version="1.0.16" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.400" PrivateAssets="all" />

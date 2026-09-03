@@ -8,8 +8,8 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\CRDebugger.Avalonia\CRDebugger.Avalonia.csproj" />
-    <PackageReference Include="Avalonia.Desktop" Version="12.1.1" />
-    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.1" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.2" />
     <PackageReference Include="Tmds.DBus.Protocol" Version="0.95.0" />
   </ItemGroup>
 </Project>

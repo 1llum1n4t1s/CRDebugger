@@ -7,8 +7,24 @@ updates:
       day: "monday"
       time: "09:00"
       timezone: "Asia/Tokyo"
+    commit-message:
+      prefix: "依存関係"
     groups:
       actions:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: "dotnet-sdk"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Tokyo"
+    commit-message:
+      prefix: "依存関係"
+    groups:
+      dotnet-sdk-minor-patch:
         patterns: ["*"]
         update-types: ["minor", "patch"]
 
@@ -20,6 +36,8 @@ updates:
       time: "09:00"
       timezone: "Asia/Tokyo"
     open-pull-requests-limit: 5
+    commit-message:
+      prefix: "依存関係"
     groups:
       nuget-minor-patch:
         patterns: ["*"]
