@@ -90,6 +90,7 @@ CRDebugger は **SuperLightLogger** を使用してファイルログ出力を�
 ## Version Management
 
 - バージョンは `Directory.Build.props` の `<Version>` で一元管理
+- `CRDebugger.Avalonia` の直接参照元、更新対象ファイル、復元条件、検証コマンドは、リポジトリ直下の `vava.config.json` を正本とする。直接参照元を追加・削除したときは、同じ変更内で `consumerUpdates.targets` を同期する。
 
 ## CI/CD
 

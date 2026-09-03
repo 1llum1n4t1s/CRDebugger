@@ -1,0 +1,44 @@
+{
+  "consumerUpdates": {
+    "targets": [
+      {
+        "name": "Komorebi",
+        "path": "../Komorebi",
+        "remote": "origin",
+        "reference": "CRDebugger.Avalonia",
+        "ready": "dotnet package search CRDebugger.Avalonia --exact-match --source https://api.nuget.org/v3/index.json --format json",
+        "update": "pwsh -NoProfile -File ../CRDebugger/scripts/update-nuget-consumer.ps1 -PackageId CRDebugger.Avalonia -ProjectPaths 'src/Komorebi.csproj' -OldVersion {{OLD_VERSION}} -Version {{NEW_VERSION}} && dotnet restore Komorebi.slnx --force-evaluate --source https://api.nuget.org/v3/index.json --no-http-cache",
+        "allowedPaths": [
+          "src/Komorebi.csproj",
+          "src/packages.lock.json",
+          "tests/Komorebi.Tests/packages.lock.json"
+        ],
+        "verify": [
+          "dotnet restore Komorebi.slnx --locked-mode --source https://api.nuget.org/v3/index.json --no-http-cache",
+          "dotnet build Komorebi.slnx --configuration Release --no-restore",
+          "dotnet test --project tests/Komorebi.Tests/Komorebi.Tests.csproj --configuration Release --no-build --no-restore"
+        ],
+        "commitMessage": "CRDebugger.Avaloniaを{{NEW_VERSION}}へ更新する"
+      },
+      {
+        "name": "Lhamiel",
+        "path": "../Lhamiel",
+        "remote": "origin",
+        "reference": "CRDebugger.Avalonia",
+        "ready": "dotnet package search CRDebugger.Avalonia --exact-match --source https://api.nuget.org/v3/index.json --format json",
+        "update": "pwsh -NoProfile -File ../CRDebugger/scripts/update-nuget-consumer.ps1 -PackageId CRDebugger.Avalonia -ProjectPaths 'src/Lhamiel/Lhamiel.csproj' -OldVersion {{OLD_VERSION}} -Version {{NEW_VERSION}} && dotnet restore Lhamiel.slnx --force-evaluate --source https://api.nuget.org/v3/index.json --no-http-cache -p:Configuration=Debug",
+        "allowedPaths": [
+          "src/Lhamiel/Lhamiel.csproj",
+          "src/Lhamiel/packages.lock.json",
+          "src/Lhamiel.Tests.Unit/packages.lock.json"
+        ],
+        "verify": [
+          "dotnet restore Lhamiel.slnx --locked-mode --source https://api.nuget.org/v3/index.json --no-http-cache -p:Configuration=Debug",
+          "dotnet build Lhamiel.slnx --configuration Debug --no-restore"
+        ],
+        "commitMessage": "CRDebugger.Avaloniaを{{NEW_VERSION}}へ更新する"
+      }
+    ]
+  }
+}
+
