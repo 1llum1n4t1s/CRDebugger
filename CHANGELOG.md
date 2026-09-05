@@ -173,6 +173,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Core ソースリンク方式に移行 — NuGet パッケージから `CRDebugger.Core` 依存を完全除去
 - 各プラットフォーム DLL に Core のソースを `<Compile Include>` で取り込む単一 DLL 構成
 
+## [1.0.9] — Git 記録日: 2026-03-27
+
+- CRDebugger.Core を通常のNuGet依存に復元
+
+出典: [版の記録](https://github.com/1llum1n4t1s/CRDebugger/commit/94739b3dc29626417c51c5192b6ed87dbe7decea) / [変更差分](https://github.com/1llum1n4t1s/CRDebugger/compare/7ab3b4217b27cdebf800e6a10a3822eaea04bd47...94739b3dc29626417c51c5192b6ed87dbe7decea)。
+
 ## [1.0.8] - 2026
 
 ### Fixed
@@ -193,3 +199,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - UI モダン化 — アクリル効果・丸角・アニメーション導入
 - テスト整備（xUnit + Moq）
 - NuGet 公開設定
+
+## [1.0.0] — Git 記録日: 2026-03-26
+
+- CRDebugger v1.0.0 - SRDebuggerライクなデスクトップ向けデバッグパネル
+
+出典: [版の記録](https://github.com/1llum1n4t1s/CRDebugger/commit/d09a43838ebb0ea608822d22f31b28a30f248106)。
