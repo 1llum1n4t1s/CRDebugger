@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.0.32] - 2026-09-12
+
+### Fixed
+- `IsEnabled = false` で初期化した場合に、`GetLogger<T>()` / `GetLogger(Type)` がホストのログ出力先へ記録してしまう問題を修正。無効化中はメッセージの書式評価も行わないロガーを返す
+
 ## [1.0.30] - 2026-08-30
 
 ### Fixed
