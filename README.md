@@ -79,7 +79,7 @@ using CRDebugger.Wpf; // or CRDebugger.Avalonia / CRDebugger.WinForms
 CRDebuggerWpfExtensions.Initialize(options =>
 {
     options.Theme = CRTheme.Dark;
-    options.IsEnabled = !System.Diagnostics.Debugger.IsAttached; // 本番ビルドで無効化
+    options.IsEnabled = System.Diagnostics.Debugger.IsAttached; // デバッガー接続時だけ有効化
 });
 ```
 
@@ -91,11 +91,11 @@ CRDebuggerWpfExtensions.Initialize(options =>
 | `RequireOptInAttribute` | `true` の場合、Options タブには `[CROption]` が付いたプロパティのみ表示 | `false` |
 | `SystemInfoCollectionLevel` | BugReport 収集情報の詳細度（`Minimal` / `Standard` / `Full`） | `Standard` |
 | `OptionsStore` | UI 変更値を永続化するストア（`JsonFileOptionsStore` 等。`null` で永続化なし） | `null` |
-| `FileLogPath` | SuperLightLogger によるファイル出力先（`null` でファイル出力なし） | `null` |
+| `FileLogPath` | CRDebugger が構成するファイル出力先（`null` で再構成なし。ホストの既存設定は維持） | `null` |
 | `AttachToSuperLightLoggerManager` | ファイルログを有効にするために `FileLogPath` と併せて `true` にする | `false` |
 
 ```csharp
-// 例: Release で無効化 + Options 永続化
+// 例: デバッガー接続時だけ有効化 + Options 永続化
 var options = new CRDebuggerOptions
 {
     IsEnabled = System.Diagnostics.Debugger.IsAttached, // デバッガー接続時だけ有効化
@@ -282,12 +282,18 @@ CRDebugger.LogError("error", exception);
 // 2. Microsoft.Extensions.Logging
 services.AddLogging(b => b.AddProvider(CRDebugger.CreateLoggerProvider()));
 
-// 3. System.Diagnostics.Trace / Debug
+// 3. System.Diagnostics.Trace
 System.Diagnostics.Trace.WriteLine("traced message");  // 自動キャプチャ
 
 // 4. 未処理例外
 // AppDomain.UnhandledException を自動キャプチャ（設定で無効化可能）
 ```
+
+`CRDebugger.GetLogger<T>()` / `GetLogger(typeof(MyClass))` で SuperLightLogger の `ILog` を取得できます。出力先はホストの `LogManager` 構成先であり、コンソールUIへ直接転送されません。UIに表示する場合は `CRDebugger.Log*` または `CreateLoggerProvider()` を使います。
+
+`GetLogger` は初期化前でも利用できますが、`IsEnabled=false` で初期化中に取得すると、メッセージや書式を評価しない no-op ロガーを返します。すでに取得したロガーには遡って適用されず、ホスト自身のログ出力も無効化しません。
+
+ファイル出力を CRDebugger に設定させるには、主要なオプションの例のように `FileLogPath` と `AttachToSuperLightLoggerManager=true` を指定します。既存のホスト設定がある場合は、それらを指定しなくても `CRDebugger.Log` / `LogWarning` / `LogError` はその構成先へ出力します。`LogRich` / `LogMarkup` はコンソールUIのみへの出力です。
 
 ## エラーハンドリング
 
@@ -329,6 +335,8 @@ var options = new CRDebuggerOptions
 - .NET 8.0 以上（.NET 8 / .NET 10 対応）
 - WinForms / WPF: Windows のみ
 - Avalonia: Windows / macOS / Linux
+
+開発時のビルド・検証手順は [AGENTS.md](AGENTS.md)、構造と設計判断は [DESIGN.md](DESIGN.md) を参照してください。
 
 ## License
 

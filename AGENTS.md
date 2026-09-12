@@ -26,19 +26,9 @@ gh workflow run publish.yml --ref release/x.y.z
 
 ## Architecture
 
-### ソースリンク方式
+### Core 変更時の検証
 
-CRDebugger.Core は **NuGetパッケージとして公開しない**（`IsPackable=false`）。各プラットフォームプロジェクトが Core の `.cs` ファイルを `<Compile Include>` で直接コンパイルし、単一DLLとして利用者に提供する。
-
-```
-CRDebugger.Core (IsPackable=false, 共有ソース)
-  ↓ <Compile Include="..\CRDebugger.Core\**\*.cs" .../>
-CRDebugger.Avalonia.dll  ← Core のコードを内包
-CRDebugger.Wpf.dll       ← Core のコードを内包
-CRDebugger.WinForms.dll  ← Core のコードを内包
-```
-
-この設計により利用者は `dotnet add package CRDebugger.Avalonia` だけで全機能が使える。`CRDebugger.Core` への推移的依存は発生しない。
+共有ソースの構造と理由は [DESIGN.md](DESIGN.md#パッケージと境界) を参照する。Core 変更時は Core テストに加え、全体ビルドで3つのUIプロジェクトへの組み込みを検証する。Core は公開対象に含めない。
 
 ### WPF XAML の注意
 
@@ -82,14 +72,11 @@ FluentTheme の ToggleButton/Button がアクセントカラーを使う問題�
 
 ### SuperLightLogger 統合
 
-CRDebugger は **SuperLightLogger** を使用してファイルログ出力をサポート。ログの流れ:
-- `CRDebugger.Log()` → LogStore（コンソールUI） + SuperLightLogger（ファイル出力）
-- `CRDebugger.GetLogger<T>()` で SuperLightLogger の ILog を直接取得可能
-- `CRDebuggerOptions.FileLogPath` でファイル出力先を設定（null ならファイル出力なし）
+ログの出力先とホスト構成の境界は [DESIGN.md](DESIGN.md#ログ) を参照する。ログ取得・無効化の変更時は `tests/CRDebugger.Core.Tests/SuperLightLoggerFacade.adversarial.test.cs` で両方の `GetLogger` オーバーロード、ホスト構成の保持、no-op ロガーの全メンバーを検証する。
 
 ## Version Management
 
-- バージョンは `Directory.Build.props` の `<Version>` で一元管理
+- バージョンは `Directory.Build.props` の `<Version>` で一元管理。公開ワークフローは patch が偶数かつ 999 未満であることを要求する。
 - `CRDebugger.Avalonia` の直接参照元、更新対象ファイル、復元条件、検証コマンドは、リポジトリ直下の `vava.config.json` を正本とする。直接参照元を追加・削除したときは、同じ変更内で `consumerUpdates.targets` を同期する。
 
 ## CI/CD
