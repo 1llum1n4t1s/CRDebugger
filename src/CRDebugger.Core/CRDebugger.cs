@@ -247,21 +247,23 @@ public static class CRDebugger
 
     /// <summary>
     /// SuperLightLogger の ILog を取得する。
-    /// CRDebugger のコンソールUIとファイルログの両方に出力される。
+    /// ホストの LogManager 構成先に出力する。CRDebugger のコンソールUIには直接転送しない。
+    /// 未初期化でも取得できるが、IsEnabled = false で初期化済みの場合は何も記録しない。
     /// </summary>
     /// <typeparam name="T">ロガーのカテゴリとなる型</typeparam>
     /// <returns>SuperLightLogger の ILog インスタンス</returns>
     public static ILog GetLogger<T>() =>
-        LogManager.GetLogger<T>();
+        GetLogger(typeof(T));
 
     /// <summary>
     /// SuperLightLogger の ILog を取得する。
-    /// CRDebugger のコンソールUIとファイルログの両方に出力される。
+    /// ホストの LogManager 構成先に出力する。CRDebugger のコンソールUIには直接転送しない。
+    /// 未初期化でも取得できるが、IsEnabled = false で初期化済みの場合は何も記録しない。
     /// </summary>
     /// <param name="type">ロガーのカテゴリとなる型</param>
     /// <returns>SuperLightLogger の ILog インスタンス</returns>
     public static ILog GetLogger(Type type) =>
-        LogManager.GetLogger(type);
+        _disabled ? NullSuperLightLogger.Instance : LogManager.GetLogger(type);
 
     // ── Options ──
 
