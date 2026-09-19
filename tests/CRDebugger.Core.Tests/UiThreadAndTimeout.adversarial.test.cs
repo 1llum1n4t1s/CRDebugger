@@ -143,9 +143,12 @@ public sealed class ProfilerReentrancyAdversarialTests
         private int _active;
         private int _maxActive;
         private int _callCount;
+        private readonly TaskCompletionSource _secondCallCompleted =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public int MaxActive => Volatile.Read(ref _maxActive);
         public int CallCount => Volatile.Read(ref _callCount);
+        public Task SecondCallCompleted => _secondCallCompleted.Task;
 
         public double GetUsagePercent()
         {
@@ -154,7 +157,8 @@ public sealed class ProfilerReentrancyAdversarialTests
             try
             {
                 Thread.Sleep(100);
-                Interlocked.Increment(ref _callCount);
+                if (Interlocked.Increment(ref _callCount) >= 2)
+                    _secondCallCompleted.TrySetResult();
                 return 0;
             }
             finally
@@ -183,12 +187,12 @@ public sealed class ProfilerReentrancyAdversarialTests
     public async Task OnTick_WhenSamplingExceedsInterval_DoesNotOverlap()
     {
         var gpuMonitor = new SlowGpuMonitor();
-        using var engine = new ProfilerEngine(TimeSpan.FromMilliseconds(1), gpuMonitor);
+        using var engine = new ProfilerEngine(TimeSpan.FromMilliseconds(20), gpuMonitor);
         engine.Start();
 
-        var deadline = DateTime.UtcNow.AddSeconds(5);
-        while (gpuMonitor.CallCount < 2 && DateTime.UtcNow < deadline)
-            await Task.Delay(10, TestContext.Current.CancellationToken);
+        await gpuMonitor.SecondCallCompleted.WaitAsync(
+            TimeSpan.FromSeconds(10),
+            TestContext.Current.CancellationToken);
 
         Assert.True(gpuMonitor.CallCount >= 2, "再入防止後もサンプリングが継続すること");
         Assert.Equal(1, gpuMonitor.MaxActive);
