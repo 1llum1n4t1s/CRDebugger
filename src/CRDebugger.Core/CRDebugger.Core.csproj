@@ -15,7 +15,7 @@
   <ItemGroup>
     <!-- SuperLightLogger の最小要件を満たす Logging.Abstractions 10.x を全 TFM で共通参照する。 -->
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.12" />
-    <PackageReference Include="SuperLightLogger" Version="1.0.16" />
+    <PackageReference Include="SuperLightLogger" Version="1.0.17" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.401" PrivateAssets="all" />
