@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.0.34] - 2026-09-19
+
+### Changed
+- 公開APIの予期しない失敗を `InternalError` イベントへ変換して握りつぶさず、元の例外を呼び出し元へ伝播するよう変更
+- `Shutdown()` で組み込み UI のデバッガーウィンドウも閉じ、再初期化時に旧 ViewModel とネイティブウィンドウを残さないよう変更
+
+### Fixed
+- バグレポートのスクリーンショット取得元や送信先がキャンセルトークンを無視しても、設定済みタイムアウトで呼び出し元の待機を打ち切るよう修正
+- WPF の OS テーマ変更通知を非同期配送して `SystemEvents` とのデッドロックを防ぎ、WinForms は配送先消失時に呼び出し元スレッドで UI 更新しないよう修正
+- Options の保存と Flush が競合すると未保存フラグが失われる問題を修正
+- Options の保留中の変更を通常のプロセス終了時にもフラッシュし、`Shutdown()` の呼び忘れで設定が失われる問題を修正
+- 例外付きログで例外型・メッセージ・内部例外が欠落し、スタックトレースだけになる問題を修正
+- WinForms の初回表示前に Options 登録が失敗する問題と、一時的な UI 配送失敗で表示待ちログが失われる問題を修正
+- WPF のタイトルバーから閉じるとウィンドウが破棄され、再表示のたびに ViewModel 購読が累積する問題を修正
+- ロジック単位プロファイルへマシン全体のネットワーク量と WorkingSet が I/O として混入する問題を修正し、明示記録した I/O を並行する論理スコープごとに分離
+
+### Removed
+- SuperLightLogger 依存と外部ログへの複製を廃止し、`GetLogger`、`FileLogPath`、`AttachToSuperLightLoggerManager`、`InternalError` を削除
+
 ## [1.0.32] - 2026-09-12
 
 ### Fixed
