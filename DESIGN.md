@@ -34,15 +34,15 @@ CRDebugger は .NET デスクトップアプリへ組み込むランタイムデ
 
 1. プラットフォーム拡張が `IDebuggerWindow`、`IUiThread`、`IThemeProvider` を `CRDebuggerOptions` へ登録する。
 2. 静的ファサード `CRDebugger` が初期化を直列化し、`CRDebuggerContext` を1つだけ保持する。`IsEnabled=false` はコンテキストを作らず、以後の公開APIを no-op にする。
-3. `CRDebuggerContext` が Core サービスを依存順に構築し、ViewModelへ配線する。必要に応じて Trace、未処理例外、OSテーマ監視を購読し、プロファイラーを開始する。
+3. `CRDebuggerContext` が Core サービスを依存順に構築し、ViewModelへ配線する。必要に応じて Trace、未処理例外、OSテーマ監視を購読し、プロファイラーを開始する。途中で失敗した場合は構築済みリソースと購読をロールバックしてから元の例外を伝播する。
 4. `Show` はルートViewModelをプラットフォームウィンドウへ渡し、UI実装が表示とスクリーンショット取得を担当する。
-5. `Shutdown` はタイマーとテーマ監視を停止し、デバッガーウィンドウを閉じ、ViewModel購読、TraceListener、未処理例外ハンドラーを解除し、Optionsストアをフラッシュする。通常のプロセス終了時も Options ストアだけを best-effort でフラッシュする。完了後は再初期化できる。
+5. `Shutdown` はタイマーとテーマ監視を停止し、デバッガーウィンドウを閉じ、ViewModel購読、TraceListener、未処理例外ハンドラーを解除し、Optionsストアをフラッシュする。各解放処理は他の解放を妨げず、失敗は最後に呼び出し元へ伝播する。静的な `PanelVisibilityChanged` 購読も解除し、例外の有無にかかわらず再初期化できる状態へ戻す。通常のプロセス終了時は Options ストアだけを best-effort でフラッシュする。
 
 ## 主要サービスとデータフロー
 
 ### ログ
 
-`CRDebugger.Log*`、`Microsoft.Extensions.Logging`、`System.Diagnostics.Trace`、未処理例外を `LogStore` へ集約し、`ConsoleViewModel` がフィルター済みの表示状態へ変換する。`LogStore` はロック付き循環バッファで件数を制限し、連続する同一ログを任意に折りたたむ。
+`CRDebugger.Log*`、`Microsoft.Extensions.Logging`、`System.Diagnostics.Trace`、未処理例外を `LogStore` へ集約し、`ConsoleViewModel` がフィルター済みの表示状態へ変換する。`LogStore` はロック付き循環バッファで件数を制限し、連続する同一ログを任意に折りたたむ。UI配送に一時失敗しても `LogStore` を正本として次回配送時に表示を再構築するため、ドレイン済みログを失わない。
 
 すべてのログソースはデバッガー画面用のメモリ内 `LogStore` だけへ転送する。CRDebugger はファイルや外部ロガーを構成せず、ホストのログ基盤にも複製しない。ホストが同じログを永続化する場合は、ホスト自身が構成したログ基盤へ明示的に出力する。
 
@@ -52,7 +52,7 @@ CRDebugger は .NET デスクトップアプリへ組み込むランタイムデ
 
 ### プロファイリング
 
-`ProfilerEngine` は `System.Threading.Timer` でCPU、メモリ、GC、FPS、任意のGPU情報を定期採取し、上限付き履歴へ `ProfilerSnapshot` を保存する。`OperationTracker` は `Profile` / `Measure` / `MeasureAsync` の処理時間・CPU・メモリと、明示記録されたネットワーク/ストレージ量をロジック名ごとに集計する。OS APIやイベント購読者の失敗はサンプリングを停止させず、前回の周期処理が続いている場合は次回をスキップして並列実行を防ぐ。
+`ProfilerEngine` は `System.Threading.Timer` でCPU、メモリ、GC、FPS、任意のGPU情報を定期採取し、上限付き履歴へ `ProfilerSnapshot` を保存する。`OperationTracker` は `Profile` / `Measure` / `MeasureAsync` の処理時間・CPU・メモリと、`RecordNetworkIO` / `RecordStorageIO` で明示記録されたI/O量をロジック名ごとに集計する。I/Oはマシン全体のOSカウンターから推測せず、`AsyncLocal` で現在の論理スコープとその親へ帰属させるため、並行スコープ間では混在しない。OS APIやイベント購読者の失敗はサンプリングを停止させず、前回の周期処理が続いている場合は次回をスキップして並列実行を防ぐ。
 
 ### システム情報とバグレポート
 
@@ -60,7 +60,7 @@ CRDebugger は .NET デスクトップアプリへ組み込むランタイムデ
 
 ### テーマと入力
 
-`ThemeManager` がテーマ種別と解決済みカラーを管理し、プラットフォームの `IThemeProvider` がOSテーマ変化を通知する。UI更新は `IUiThread` を通す。ショートカットは Core の `KeyboardShortcutManager` が管理し、各UIがキー入力を転送する。Avalonia はOSアクセント色の流入を避けるため、不透明色と独自 `ControlTheme` を使った固定ダーク配色を採用する。
+`ThemeManager` がテーマ種別と解決済みカラーを管理し、プラットフォームの `IThemeProvider` がOSテーマ変化を通知する。タイマーやOSイベントから届く通知は `IUiThread` を通してUIへ配送する。一方、ウィンドウを直接操作する `Show` / `Hide` / `Toggle` / `SetTheme` / `SetTabEnabled` はUIスレッドから呼ぶ契約とし、同期マーシャリングによるデッドロックを避ける。ショートカットは Core の `KeyboardShortcutManager` が管理し、各UIがキー入力を転送する。Avalonia はOSアクセント色の流入を避けるため、不透明色と独自 `ControlTheme` を使った固定ダーク配色を採用する。
 
 ## 重要な不変条件
 
@@ -68,7 +68,7 @@ CRDebugger は .NET デスクトップアプリへ組み込むランタイムデ
 - 有効状態の初期化には `IDebuggerWindow` と `IUiThread` が必須であり、UIフレームワーク固有処理は Core 抽象の外側へ置く。
 - 公開APIの既知の契約違反は専用例外で通知し、外部プロバイダーやUI実装を含む予期しない失敗も原因の例外を保ったまま呼び出し元へ伝播する。
 - ログ、プロファイル履歴、操作メトリクスは上限を持ち、共有状態はロックまたは並行コレクションで保護する。
-- UIスレッド境界を越える通知は `IUiThread` でマーシャリングする。
+- UIスレッド境界を越える内部通知は `IUiThread` でマーシャリングし、ウィンドウ操作の公開APIはUIスレッドから呼ぶ。
 - プロファイラ採取とOSテーマ監視の周期コールバックは再入させず、前回処理と重なる回をスキップする。
 - Trace、AppDomainイベント、OSテーマ監視、タイマーは `Shutdown` で解除・破棄する。
 - Options永続化、GPU監視、外部へのバグレポート送信は明示設定時だけ接続する。CRDebugger は外部ログ基盤やファイル出力先を構成しない。
@@ -82,6 +82,7 @@ CRDebugger は .NET デスクトップアプリへ組み込むランタイムデ
 | CoreのViewModelを全UIで共有 | 機能と状態遷移を揃えられる一方、表示差は各UIアダプターで吸収する。 |
 | 反射スキャンと動的記述子の併用 | 既存オブジェクトを少ない記述で公開しつつ、実行時生成も扱える。反射結果はキャッシュし、動的コンテナは毎回読み直す。 |
 | 容量制限と失敗隔離を既定化 | デバッグ機能によるメモリ増大やホスト停止を避ける代わりに、古い履歴や取得不能な補助情報は捨てる。 |
+| 同期公開APIの例外を伝播 | 呼び出し元が原因と失敗を観測できる一方、ホスト側で必要な例外処理が要る。タイマー・OSイベント・プロセス終了フックなど返却先のないコールバックだけは内部で隔離する。 |
 
 ## ビルドと配布
 

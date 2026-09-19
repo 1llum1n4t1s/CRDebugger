@@ -23,7 +23,7 @@ Unity の [SRDebugger](https://www.stompyrobot.uk/tools/srdebugger/) にイン�
 - **タブ制御** - タブの有効/無効を動的に切替可能
 - **常に前面に固定** - ピン📌ボタンで Topmost を切替
 - **テーマ** - ダーク / ライト / システム追従（WinForms / WPF 版。Avalonia 版はダーク配色固定）
-- **エラーハンドリング** - ホストアプリをクラッシュさせない安全設計
+- **エラーハンドリング** - 公開APIの失敗を原因の例外ごと呼び出し元へ通知
 
 ## Packages
 
@@ -73,6 +73,8 @@ CRDebugger.Initialize(options);
 
 `JsonFileOptionsStore` は変更をメモリへまとめ、`CRDebugger.Shutdown()` または通常のプロセス終了時にファイルへフラッシュします。再初期化やホスト側で終了処理の失敗を扱う場合は、アプリの終了経路から `CRDebugger.Shutdown()` を明示的に呼んでください。強制終了やプロセスクラッシュ時の保存は保証されません。
 
+`Shutdown()` はデバッガーウィンドウと内部購読も破棄し、再初期化できる状態へ戻します。`PanelVisibilityChanged` の購読も解除されるため、再初期化後も通知が必要なら購読し直してください。
+
 または `Initialize(Action<CRDebuggerOptions>)` ヘルパー（Avalonia / WPF / WinForms で統一）:
 
 ```csharp
@@ -92,6 +94,7 @@ CRDebuggerWpfExtensions.Initialize(options =>
 | `IsEnabled` | `false` で CRDebugger 全体を no-op 化（Release ビルド向け） | `true` |
 | `RequireOptInAttribute` | `true` の場合、Options タブには `[CROption]` が付いたプロパティのみ表示 | `false` |
 | `SystemInfoCollectionLevel` | BugReport 収集情報の詳細度（`Minimal` / `Standard` / `Full`） | `Standard` |
+| `BugReportSendTimeout` | スクリーンショット取得から送信完了までの待機上限 | 60秒 |
 | `OptionsStore` | UI 変更値を永続化するストア（`JsonFileOptionsStore` 等。`null` で永続化なし） | `null` |
 
 ```csharp
@@ -128,6 +131,8 @@ builder.Logging.AddProvider(CRDebugger.CreateLoggerProvider());
 // Options タブにオブジェクトを登録
 CRDebugger.AddOptionContainer(myOptions);
 ```
+
+`Show` / `Hide` / `Toggle` / `SetTheme` / `SetTabEnabled` は UI スレッドから呼んでください。別スレッドから呼ぶとUIフレームワークの例外が呼び出し元へ伝播します。ログ出力、`RecordFrame`、I/O記録、`Profile` / `Measure` は任意のスレッドから呼べます。
 
 ## Options タブの使い方
 

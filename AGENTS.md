@@ -30,6 +30,12 @@ gh workflow run publish.yml --ref release/x.y.z
 
 共有ソースの構造と理由は [DESIGN.md](DESIGN.md#パッケージと境界) を参照する。Core 変更時は Core テストに加え、全体ビルドで3つのUIプロジェクトへの組み込みを検証する。Core は公開対象に含めない。
 
+### UIスレッドとライフサイクル
+
+`Show` / `Hide` / `Toggle` / `SetTheme` / `SetTabEnabled` は UI スレッドから呼ぶ公開契約であり、失敗は呼び出し元へ伝播する。同期的な `IUiThread.Invoke` で包んでバックグラウンド呼び出しを許容すると WPF / WinForms でデッドロック経路を増やすため、この境界を変えない。ログやプロファイラー等から届くバックグラウンド通知だけを `IUiThread` で UI へ配送する。
+
+初期化・終了処理を変更するときは、途中失敗時の購読解除、組み込みウィンドウの破棄、`PanelVisibilityChanged` の解除、例外後も再初期化できる状態への復帰を `tests/CRDebugger.Core.Tests/CRDebuggerFacade.adversarial.test.cs` で検証する。
+
 ### WPF XAML の注意
 
 WPF の XAML で Core の型を参照する場合、`assembly=` を省略する（ソースリンクで同一アセンブリに含まれるため）:
