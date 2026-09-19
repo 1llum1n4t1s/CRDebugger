@@ -85,6 +85,17 @@ public sealed class BugReportTimeoutAdversarialTests
         }
     }
 
+    private sealed class CancellationIgnoringSender : IBugReportSender
+    {
+        private readonly TaskCompletionSource<bool> _completion =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task<bool> SendAsync(BugReport report, CancellationToken cancellationToken = default) =>
+            _completion.Task;
+
+        public void Complete() => _completion.TrySetResult(true);
+    }
+
     [Fact]
     public async Task CreateAndSendAsync_WithCancelableCallerToken_StillAppliesConfiguredTimeout()
     {
@@ -101,6 +112,27 @@ public sealed class BugReportTimeoutAdversarialTests
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
             await operation.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task CreateAndSendAsync_WhenSenderIgnoresToken_StillAppliesConfiguredTimeout()
+    {
+        var sender = new CancellationIgnoringSender();
+        var engine = new BugReportEngine(
+            new LogStore(),
+            new SystemInfoCollector(SystemInfoCollectionLevel.Minimal),
+            sender,
+            TimeSpan.FromMilliseconds(50));
+
+        var operation = engine.CreateAndSendAsync(
+            "timeout",
+            string.Empty,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+            await operation.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
+
+        sender.Complete();
     }
 }
 

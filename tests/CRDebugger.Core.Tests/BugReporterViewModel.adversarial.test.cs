@@ -22,8 +22,8 @@ public sealed class BugReporterViewModelTests
     }
 
     /// <summary>指定した送信先でエンジンを組み立てる</summary>
-    private static BugReportEngine CreateEngine(IBugReportSender sender) =>
-        new(new LogStore(50), new SystemInfoCollector(SystemInfoCollectionLevel.Minimal), sender);
+    private static BugReportEngine CreateEngine(IBugReportSender sender, TimeSpan? timeout = null) =>
+        new(new LogStore(50), new SystemInfoCollector(SystemInfoCollectionLevel.Minimal), sender, timeout);
 
     /// <summary>送信完了を外部から制御できる送信先</summary>
     private sealed class GatedSender : IBugReportSender
@@ -147,6 +147,28 @@ public sealed class BugReporterViewModelTests
         Assert.StartsWith("送信失敗:", vm.StatusMessage);
         // 失敗時は入力内容を消さない（ユーザーが再送できるようにするため）
         Assert.Equal("失敗するはず", vm.UserMessage);
+    }
+
+    [Fact]
+    public async Task SendCommand_SenderIgnoresCancellation_TimeoutRestoresUiState()
+    {
+        var sender = new GatedSender();
+        using var vm = new BugReporterViewModel(
+            CreateEngine(sender, TimeSpan.FromMilliseconds(50)),
+            CreateWindow())
+        {
+            UserMessage = "タイムアウトするはず"
+        };
+
+        vm.SendCommand.Execute(null);
+        await WaitUntilIdleAsync(vm);
+
+        Assert.False(vm.IsSending);
+        Assert.True(vm.SendCommand.CanExecute(null));
+        Assert.Equal("送信がタイムアウトまたはキャンセルされました。", vm.StatusMessage);
+        Assert.Equal("タイムアウトするはず", vm.UserMessage);
+
+        sender.Release(true);
     }
 
     /// <summary>送信中フラグが下りるまで待つ（CI ランナー向けに最大 5 秒）</summary>

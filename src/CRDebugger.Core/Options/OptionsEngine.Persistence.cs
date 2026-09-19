@@ -35,6 +35,16 @@ public sealed partial class OptionsEngine
     }
 
     /// <summary>
+    /// 通常のプロセス終了時に保留中の変更を best-effort でフラッシュする。
+    /// ProcessExit には例外を返せる呼び出し元がないため、明示的な Shutdown の Flush とは異なり失敗を伝播しない。
+    /// </summary>
+    internal void FlushStoreOnProcessExit()
+    {
+        try { OptionsStore?.Flush(); }
+        catch { /* プロセス終了処理を永続化失敗で中断しない */ }
+    }
+
+    /// <summary>
     /// 既に復元処理を適用した記述子 ID の集合。
     /// <see cref="ScanAll"/> はコンテナ追加のたびに呼ばれるため、
     /// 「保存値の復元は各オプションにつき 1 回だけ」を保証してユーザーの実行時変更を上書きしないようにする。

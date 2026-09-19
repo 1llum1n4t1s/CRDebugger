@@ -11,7 +11,7 @@ namespace CRDebugger.WinForms;
 /// <see cref="DebuggerForm"/> のライフサイクル（生成・表示・非表示・破棄）を管理する。
 /// フォームが既に存在する場合は再利用し、閉じられた場合は次回 Show 時に再生成する。
 /// </summary>
-public sealed class WinFormsDebuggerWindow : IDebuggerWindow
+public sealed class WinFormsDebuggerWindow : IDebuggerWindow, IDebuggerWindowLifetime
 {
     /// <summary>フォーム生成後にマーシャル先を接続する UI スレッド実装。</summary>
     private readonly WinFormsUiThread? _uiThread;
@@ -69,6 +69,40 @@ public sealed class WinFormsDebuggerWindow : IDebuggerWindow
         if (_form != null && !_form.IsDisposed)
         {
             _form.Hide();
+        }
+    }
+
+    /// <inheritdoc />
+    void IDebuggerWindowLifetime.Close()
+    {
+        var form = _form;
+        if (form == null) return;
+
+        _form = null;
+        form.FormClosed -= OnFormClosed;
+        _uiThread?.ClearMarshalControl(form);
+
+        void CloseForm()
+        {
+            if (!form.IsDisposed)
+            {
+                form.RequestShutdown();
+                form.Close();
+            }
+        }
+
+        if (form.IsDisposed)
+            return;
+
+        if (form.IsHandleCreated && form.InvokeRequired)
+        {
+            try { form.BeginInvoke(CloseForm); }
+            catch (ObjectDisposedException) { }
+            catch (InvalidOperationException) { }
+        }
+        else
+        {
+            CloseForm();
         }
     }
 
@@ -184,11 +218,13 @@ public sealed class WinFormsDebuggerWindow : IDebuggerWindow
     /// <param name="e">フォームクローズイベント引数。</param>
     private void OnFormClosed(object? sender, FormClosedEventArgs e)
     {
-        if (_form != null)
+        if (sender is DebuggerForm closedForm)
         {
             // イベント購読を解除してメモリリークを防ぐ
-            _form.FormClosed -= OnFormClosed;
-            _form = null;
+            closedForm.FormClosed -= OnFormClosed;
+            _uiThread?.ClearMarshalControl(closedForm);
+            if (ReferenceEquals(_form, closedForm))
+                _form = null;
         }
     }
 }

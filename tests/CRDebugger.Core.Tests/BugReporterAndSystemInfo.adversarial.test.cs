@@ -128,11 +128,11 @@ public sealed class BugReporterAndSystemInfoAdversarialTests
 
     /// <summary>
     /// @adversarial @category resource @severity critical
-    /// スクリーンショットキャプチャが永遠に完了しない場合の動作
-    /// （タイムアウトなしの設計バグ確認）
+    /// スクリーンショットキャプチャがキャンセルを受け取らず永遠に完了しない場合も、
+    /// 設定済みタイムアウトで呼び出し元へ制御を返すこと。
     /// </summary>
     [Fact]
-    public async Task BugReport_ScreenshotHangs_TaskNeverCompletes()
+    public async Task BugReport_ScreenshotIgnoresCancellation_ConfiguredTimeoutStillAbortsWait()
     {
         var store = new LogStore();
         var sysInfo = new SystemInfoCollector();
@@ -140,7 +140,11 @@ public sealed class BugReporterAndSystemInfoAdversarialTests
         mockSender.Setup(s => s.SendAsync(It.IsAny<BugReport>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
-        var engine = new BugReportEngine(store, sysInfo, mockSender.Object);
+        var engine = new BugReportEngine(
+            store,
+            sysInfo,
+            mockSender.Object,
+            TimeSpan.FromMilliseconds(50));
 
         // 永遠に完了しないスクリーンショット
         var neverComplete = new TaskCompletionSource<byte[]?>();
@@ -148,13 +152,15 @@ public sealed class BugReporterAndSystemInfoAdversarialTests
             screenshotCapture: () => neverComplete.Task,
             cancellationToken: TestContext.Current.CancellationToken);
 
-        // 2秒以内に完了しないことを確認（タイムアウトなしのバグ）
-        var completed = await Task.WhenAny(reportTask, Task.Delay(2000, TestContext.Current.CancellationToken));
-        Assert.NotEqual(reportTask, completed); // レポートタスクは完了していない
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+            await reportTask.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
 
-        // クリーンアップ
+        mockSender.Verify(
+            s => s.SendAsync(It.IsAny<BugReport>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+
+        // 放棄された外部 Task をテスト終了後に解放する。タイムアウト済みなので送信工程へは進まない。
         neverComplete.SetResult(null);
-        await reportTask;
     }
 
     /// <summary>

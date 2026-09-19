@@ -1,5 +1,6 @@
 using CRDebugger.Core.Abstractions;
 using Microsoft.Win32;
+using System.Windows;
 
 namespace CRDebugger.Wpf;
 
@@ -93,7 +94,24 @@ public sealed class WpfThemeProvider : IThemeProvider
         {
             // 最新のダークモード状態をレジストリから取得してコールバックに通知
             var isDark = IsSystemDarkMode();
-            _callback?.Invoke(isDark);
+            var dispatcher = Application.Current?.Dispatcher;
+
+            void Notify()
+            {
+                // StopMonitoring 後にキュー済み通知が到着しても旧 Context を更新しない。
+                _callback?.Invoke(isDark);
+            }
+
+            if (dispatcher == null || dispatcher.CheckAccess())
+            {
+                Notify();
+            }
+            else
+            {
+                // SystemEvents の専用スレッドを UI スレッド待ちにすると、OS 側の同期待ちと
+                // ロック順序が逆転し得るため、このイベント経路だけは非同期に配送する。
+                dispatcher.BeginInvoke(Notify);
+            }
         }
     }
 }

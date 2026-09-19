@@ -86,7 +86,7 @@ public sealed class BugReportEngine
 
         // スクリーンショット取得・SystemInfo 収集・LogStore.GetAll() は UI スレッドから逃がして実行する
         // （SystemInfo.CollectAll は WMI 等で長時間ブロックする可能性があり、UI スレッドを止めないため）
-        return await Task.Run(async () =>
+        var pipelineTask = Task.Run(async () =>
         {
                 // スクリーンショット取得デリゲートが指定されている場合のみキャプチャを実行する
                 // 取得失敗時は screenshot=null で続行（バグレポート送信自体は止めない）
@@ -104,6 +104,9 @@ public sealed class BugReportEngine
                     }
                 }
 
+                // タイムアウト後に遅れてスクリーンショット取得が完了しても、送信工程へは進めない。
+                effectiveToken.ThrowIfCancellationRequested();
+
                 // 収集したすべての情報を組み合わせてイミュータブルなレポートレコードを生成する
                 var report = new BugReport(
                     Id: Guid.NewGuid(),                  // 一意識別子をランダム生成
@@ -117,6 +120,7 @@ public sealed class BugReportEngine
 
                 // 設定された送信先にレポートを非同期送信する（タイムアウト・キャンセル制御は effectiveToken に集約）。
                 // _sender ではなくローカルキャプチャ済み sender を使い、本呼び出し中の差し替えに影響されないようにする (#50)
+                effectiveToken.ThrowIfCancellationRequested();
                 var sent = await sender.SendAsync(report, effectiveToken).ConfigureAwait(false);
 
                 // IBugReportSender は「失敗時は false を返す」契約なので、戻り値を捨てずに例外へ変換する。
@@ -125,6 +129,11 @@ public sealed class BugReportEngine
                     throw new CRDebuggerBugReportSendException();
 
             return report;
-        }, effectiveToken).ConfigureAwait(false);
+        });
+
+        // CancellationToken を無視するスクリーンショット取得元・送信先や、同期的に長時間停止する
+        // システム情報収集が含まれていても、呼び出し元の待機時間は設定済みタイムアウトで必ず打ち切る。
+        // 実行中の外部処理そのものを強制停止することはできないため、協調的な中断用トークンも引き続き送信先へ渡す。
+        return await pipelineTask.WaitAsync(effectiveToken).ConfigureAwait(false);
     }
 }

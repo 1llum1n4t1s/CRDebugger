@@ -5,11 +5,17 @@ namespace CRDebugger.WinForms;
 /// <summary>
 /// WinForms用UIスレッドマーシャリング実装。
 /// <see cref="IUiThread"/> インターフェースを実装し、
-/// <see cref="Control.Invoke"/> を使ってUIスレッド上でアクションを安全に実行する。
+/// <see cref="Control.Invoke(Delegate)"/> を使ってUIスレッド上でアクションを安全に実行する。
 /// マーシャリングの基準となるコントロールは <see cref="SetMarshalControl"/> で設定する。
 /// </summary>
 public sealed class WinFormsUiThread : IUiThread
 {
+    /// <summary>
+    /// このインスタンスを生成した WinForms UI スレッドの ID。
+    /// フォーム生成前でも、初期化を行った UI スレッド自身は安全に直接実行できる。
+    /// </summary>
+    private readonly int _uiThreadId = Environment.CurrentManagedThreadId;
+
     /// <summary>
     /// UIスレッド判定とマーシャリングに使用するWinFormsコントロール。
     /// フォーム初期化時に <see cref="SetMarshalControl"/> で設定される。
@@ -18,31 +24,45 @@ public sealed class WinFormsUiThread : IUiThread
 
     /// <summary>
     /// 現在のスレッドがUIスレッドかどうかを取得する。
-    /// マーシャルコントロールが未設定または破棄済みの場合は true を返す（安全側に倒す）。
+    /// マーシャルコントロールが未設定・ハンドル未作成・破棄済みの場合は、
+    /// このインスタンスを生成したスレッドとの一致で判定する。
     /// </summary>
     public bool IsOnUiThread
     {
         get
         {
-            // コントロールが未設定または破棄済みの場合はUIスレッドとみなす
-            if (_marshalControl == null || _marshalControl.IsDisposed)
-                return true;
+            var control = Volatile.Read(ref _marshalControl);
+            if (control == null || control.IsDisposed || !control.IsHandleCreated)
+                return Environment.CurrentManagedThreadId == _uiThreadId;
             // InvokeRequired が false = 既にUIスレッド
-            return !_marshalControl.InvokeRequired;
+            return !control.InvokeRequired;
         }
     }
 
     /// <summary>
     /// 指定したアクションをUIスレッドで実行する。
     /// 既にUIスレッド上にいる場合はそのまま同期実行し、
-    /// 別スレッドの場合は <see cref="Control.Invoke"/> でマーシャリングする。
-    /// フォームが閉じられた後の呼び出しは安全に無視される。
+    /// 別スレッドの場合は <see cref="Control.Invoke(Delegate)"/> でマーシャリングする。
+    /// 配送先が無い場合は、呼び出し元スレッドで誤って UI 更新を実行せず例外を返す。
     /// </summary>
     /// <param name="action">UIスレッド上で実行するアクション。</param>
     public void Invoke(Action action)
     {
-        // マーシャルコントロールが未設定・破棄済み・または既にUIスレッドの場合はそのまま実行
-        if (_marshalControl == null || _marshalControl.IsDisposed || !_marshalControl.InvokeRequired)
+        var control = Volatile.Read(ref _marshalControl);
+
+        // フォーム生成前でも、UseWinForms を呼んだ UI スレッド自身からの初期化処理は安全に実行できる。
+        if ((control == null || control.IsDisposed || !control.IsHandleCreated) &&
+            Environment.CurrentManagedThreadId == _uiThreadId)
+        {
+            action();
+            return;
+        }
+
+        // 配送先が無い別スレッドから UI 更新を実行すると、クロススレッド違反になる。
+        if (control == null || control.IsDisposed || !control.IsHandleCreated)
+            throw new InvalidOperationException("WinForms UI の配送先が利用できません。");
+
+        if (!control.InvokeRequired)
         {
             action();
             return;
@@ -50,18 +70,15 @@ public sealed class WinFormsUiThread : IUiThread
 
         try
         {
-            // UIスレッドにマーシャリングして実行
-            _marshalControl.Invoke(action);
+            control.Invoke(action);
         }
-        catch (ObjectDisposedException)
+        catch (ObjectDisposedException ex)
         {
-            // フォーム破棄との競合時は、表示先がもう無いため呼び出し元で完了させる
-            action();
+            throw new InvalidOperationException("WinForms UI の配送中にフォームが破棄されました。", ex);
         }
-        catch (InvalidOperationException)
+        catch (InvalidOperationException ex)
         {
-            // ハンドル未作成時（フォーム表示前など）のフォールバック: 直接実行
-            action();
+            throw new InvalidOperationException("WinForms UI の配送先が利用できません。", ex);
         }
     }
 
@@ -73,5 +90,11 @@ public sealed class WinFormsUiThread : IUiThread
     internal void SetMarshalControl(Control control)
     {
         _marshalControl = control;
+    }
+
+    /// <summary>指定したコントロールが現在の配送先なら参照を解除する。</summary>
+    internal void ClearMarshalControl(Control control)
+    {
+        Interlocked.CompareExchange(ref _marshalControl, null, control);
     }
 }

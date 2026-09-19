@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using CRDebugger.Core.Abstractions;
 using CRDebugger.Core.Logging;
 using CRDebugger.Core.Theming;
@@ -13,6 +14,17 @@ namespace CRDebugger.Core.Tests;
 [Collection(CRDebuggerFacadeCollection.Name)]
 public sealed class CRDebuggerFacadeAdversarialTests : IDisposable
 {
+    private sealed class LifetimeTrackingWindow : IDebuggerWindow, IDebuggerWindowLifetime
+    {
+        public bool IsVisible => false;
+        public int CloseCount { get; private set; }
+        public void Show(DebuggerViewModel viewModel) { }
+        public void Hide() { }
+        public void ApplyTheme(ThemeColors colors) { }
+        public Task<byte[]?> CaptureScreenshotAsync() => Task.FromResult<byte[]?>(null);
+        public void Close() => CloseCount++;
+    }
+
     public CRDebuggerFacadeAdversarialTests()
     {
         // 各テスト前にShutdownしてクリーン状態にする
@@ -24,7 +36,9 @@ public sealed class CRDebuggerFacadeAdversarialTests : IDisposable
         CRDebugger.Shutdown();
     }
 
-    private static CRDebuggerOptions CreateTestOptions()
+    private static CRDebuggerOptions CreateTestOptions(
+        IDebuggerWindow? window = null,
+        IThemeProvider? themeProvider = null)
     {
         var mockWindow = new Mock<IDebuggerWindow>();
         mockWindow.Setup(w => w.IsVisible).Returns(false);
@@ -45,10 +59,13 @@ public sealed class CRDebuggerFacadeAdversarialTests : IDisposable
         // InternalプロパティをリフレクションでSet
         typeof(CRDebuggerOptions).GetProperty("Window",
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
-            .SetValue(options, mockWindow.Object);
+            .SetValue(options, window ?? mockWindow.Object);
         typeof(CRDebuggerOptions).GetProperty("UiThread",
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
             .SetValue(options, mockUiThread.Object);
+        typeof(CRDebuggerOptions).GetProperty("ThemeProvider",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+            .SetValue(options, themeProvider);
 
         return options;
     }
@@ -129,6 +146,18 @@ public sealed class CRDebuggerFacadeAdversarialTests : IDisposable
         CRDebugger.Shutdown(); // 二重Shutdown
     }
 
+    [Fact]
+    public void Shutdown_ClosesBuiltInWindowLifetimeExactlyOnce()
+    {
+        var window = new LifetimeTrackingWindow();
+        CRDebugger.Initialize(CreateTestOptions(window));
+
+        CRDebugger.Shutdown();
+        CRDebugger.Shutdown();
+
+        Assert.Equal(1, window.CloseCount);
+    }
+
     /// <summary>
     /// @adversarial @category state @severity high
     /// Shutdown後にAPIを呼ぶとInvalidOperationExceptionがスローされること
@@ -174,7 +203,16 @@ public sealed class CRDebuggerFacadeAdversarialTests : IDisposable
         CRDebugger.Log("Debug message", CRLogLevel.Debug);
         CRDebugger.LogWarning("Warning message");
         CRDebugger.LogError("Error message");
-        CRDebugger.LogError("Error with exception", new Exception("test"));
+        Exception? detailedException = null;
+        try
+        {
+            throw new InvalidOperationException("outer failure", new ArgumentException("inner failure"));
+        }
+        catch (Exception ex)
+        {
+            detailedException = ex;
+        }
+        CRDebugger.LogError("Error with exception", detailedException);
 
         // 「例外が出ない」だけでは Log が全件握りつぶしても合格してしまうため、
         // ストアに実際に記録されたレベルとメッセージまで検証する。
@@ -185,7 +223,73 @@ public sealed class CRDebuggerFacadeAdversarialTests : IDisposable
         Assert.Contains(entries, e => e.Level == CRLogLevel.Debug && e.Message == "Debug message");
         Assert.Contains(entries, e => e.Level == CRLogLevel.Warning && e.Message == "Warning message");
         Assert.Contains(entries, e => e.Level == CRLogLevel.Error && e.Message == "Error message");
-        Assert.Contains(entries, e => e.Level == CRLogLevel.Error && e.Message == "Error with exception");
+        var exceptionEntry = Assert.Single(entries, e =>
+            e.Level == CRLogLevel.Error && e.Message == "Error with exception");
+        Assert.Contains(nameof(InvalidOperationException), exceptionEntry.StackTrace);
+        Assert.Contains("outer failure", exceptionEntry.StackTrace);
+        Assert.Contains(nameof(ArgumentException), exceptionEntry.StackTrace);
+        Assert.Contains("inner failure", exceptionEntry.StackTrace);
+    }
+
+    /// <summary>
+    /// 公開API内で発生した予期しない例外を握りつぶさず、同じ例外インスタンスを呼び出し元へ返すこと。
+    /// </summary>
+    [Fact]
+    public void Show_WindowThrows_PropagatesOriginalException()
+    {
+        var expected = new InvalidOperationException("window failure");
+        var window = new Mock<IDebuggerWindow>();
+        window.SetupGet(w => w.IsVisible).Returns(false);
+        window.Setup(w => w.CaptureScreenshotAsync()).ReturnsAsync((byte[]?)null);
+        window.Setup(w => w.Show(It.IsAny<DebuggerViewModel>())).Throws(expected);
+        CRDebugger.Initialize(CreateTestOptions(window.Object));
+
+        var actual = Assert.Throws<InvalidOperationException>(() => CRDebugger.Show());
+
+        Assert.Same(expected, actual);
+    }
+
+    /// <summary>
+    /// 初期化中に外部プロバイダーが投げた例外を構成例外へ変換せず、そのまま呼び出し元へ返すこと。
+    /// </summary>
+    [Fact]
+    public void Initialize_ThemeProviderThrows_PropagatesOriginalException()
+    {
+        var expected = new InvalidOperationException("theme failure");
+        var themeProvider = new Mock<IThemeProvider>();
+        themeProvider.Setup(p => p.IsSystemDarkMode()).Returns(false);
+        themeProvider.Setup(p => p.StartMonitoring(It.IsAny<Action<bool>>())).Throws(expected);
+        var traceListenerCount = Trace.Listeners.OfType<CRTraceListener>().Count();
+        var options = CreateTestOptions(themeProvider: themeProvider.Object);
+        options.CaptureTraceOutput = true;
+        options.CaptureUnhandledExceptions = true;
+
+        var actual = Assert.Throws<InvalidOperationException>(() =>
+            CRDebugger.Initialize(options));
+
+        Assert.Same(expected, actual);
+        Assert.False(CRDebugger.IsInitialized);
+        Assert.Equal(traceListenerCount, Trace.Listeners.OfType<CRTraceListener>().Count());
+        themeProvider.Verify(p => p.StopMonitoring(), Times.Once);
+    }
+
+    /// <summary>
+    /// 終了処理の例外を呼び出し元へ返しつつ、静的状態は必ず未初期化へ戻すこと。
+    /// </summary>
+    [Fact]
+    public void Shutdown_ThemeProviderThrows_PropagatesAndResetsState()
+    {
+        var expected = new InvalidOperationException("theme shutdown failure");
+        var themeProvider = new Mock<IThemeProvider>();
+        themeProvider.Setup(p => p.IsSystemDarkMode()).Returns(false);
+        themeProvider.Setup(p => p.StopMonitoring()).Throws(expected);
+        CRDebugger.Initialize(CreateTestOptions(themeProvider: themeProvider.Object));
+
+        var actual = Assert.Throws<InvalidOperationException>(() => CRDebugger.Shutdown());
+
+        Assert.Same(expected, actual);
+        Assert.False(CRDebugger.IsInitialized);
+        CRDebugger.Shutdown();
     }
 
     /// <summary>
@@ -497,24 +601,31 @@ public sealed class CRLoggerProviderAdversarialTests
 
     /// <summary>
     /// @adversarial @category boundary @severity high
-    /// 例外付きログでスタックトレースが保存されること
+    /// 例外付きログで型・メッセージ・内部例外を含む詳細全体が保存されること
     /// </summary>
     [Fact]
-    public void Log_WithException_StackTracePreserved()
+    public void Log_WithException_ExceptionDetailsPreserved()
     {
         var store = new LogStore();
         var provider = new CRLoggerProvider(store);
         var logger = provider.CreateLogger("test");
 
         Exception? caughtEx = null;
-        try { throw new InvalidOperationException("テスト例外"); }
+        try
+        {
+            throw new InvalidOperationException(
+                "外側の例外",
+                new ArgumentException("内側の例外"));
+        }
         catch (Exception ex) { caughtEx = ex; }
 
         logger.LogError(caughtEx, "Something failed");
 
         var entry = store.GetAll()[0];
         Assert.NotNull(entry.StackTrace);
-        // スタックトレースにはメソッド名等が含まれる（例外型名は含まれない場合がある）
-        Assert.NotEmpty(entry.StackTrace);
+        Assert.Contains(nameof(InvalidOperationException), entry.StackTrace);
+        Assert.Contains("外側の例外", entry.StackTrace);
+        Assert.Contains(nameof(ArgumentException), entry.StackTrace);
+        Assert.Contains("内側の例外", entry.StackTrace);
     }
 }

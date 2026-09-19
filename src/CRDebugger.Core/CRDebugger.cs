@@ -3,7 +3,6 @@ using CRDebugger.Core.Logging;
 using CRDebugger.Core.Profiler;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using SuperLightLogger;
 
 namespace CRDebugger.Core;
 
@@ -15,8 +14,7 @@ public sealed record PanelVisibilityChangedEventArgs(bool IsVisible);
 
 /// <summary>
 /// CRDebugger 静的ファサード - メインエントリポイント。
-/// 全パブリックAPIはCRDebugger内部エラーをCRDebuggerExceptionにラップし、
-/// ホストアプリに影響を与えないよう設計されている。
+/// 公開APIで発生した例外は、呼び出し元が処理できるようそのまま伝播する。
 /// </summary>
 public static class CRDebugger
 {
@@ -41,9 +39,6 @@ public static class CRDebugger
 
     /// <summary>パネルの表示/非表示が変更された時に発火</summary>
     public static event EventHandler<PanelVisibilityChangedEventArgs>? PanelVisibilityChanged;
-
-    /// <summary>CRDebugger内部でエラーが発生した時に発火（ホストアプリのクラッシュを防ぐ）</summary>
-    public static event EventHandler<CRDebuggerException>? InternalError;
 
     /// <summary>
     /// 初期化済みかどうか。<see cref="CRDebuggerOptions.IsEnabled"/> が false で初期化した場合も
@@ -73,18 +68,9 @@ public static class CRDebugger
                 return;
             }
 
-            try
-            {
-                // 全サービスを生成・配線するコンテキストを構築
-                _context = new CRDebuggerContext(options);
-            }
-            catch (CRDebuggerException) { throw; } // CRDebugger由来の例外はそのまま再スロー
-            catch (Exception ex)
-            {
-                // 予期しない例外は構成エラーとしてラップしてスロー
-                throw new CRDebuggerConfigurationException(
-                    "初期化中にエラーが発生しました。オプション設定を確認してください。", ex);
-            }
+            // 全サービスを生成・配線するコンテキストを構築。
+            // 構築中の例外は原因を失わないよう呼び出し元へそのまま伝播する。
+            _context = new CRDebuggerContext(options);
         }
     }
 
@@ -92,18 +78,17 @@ public static class CRDebugger
     //
     // 【スレッド契約】この節の API（Show / Hide / Toggle）と SetTheme / SetTabEnabled は
     // 「UI スレッドから呼ぶこと」を前提とする。内部で UI フレームワークのウィンドウを直接操作するため、
-    // バックグラウンドスレッドから呼ぶとスレッド違反例外になり、SafeExecute が InternalError へ変換して
-    // 握りつぶすため「無音で何も起きない」状態になる。
+    // バックグラウンドスレッドから呼ぶとスレッド違反例外が呼び出し元へ伝播する。
     // なお Log 系 / RecordFrame / RecordNetworkIO / RecordStorageIO / Profile 系は任意スレッドから安全に呼べる。
     // （IUiThread.Invoke で包む案は WPF / WinForms では同期ブロッキングになりデッドロック経路を増やすため採らない）
 
     /// <summary>
     /// デバッガーウィンドウを表示する。
-    /// <para><b>UI スレッドから呼ぶこと。</b>他スレッドからの呼び出しは無音で失敗する。</para>
+    /// <para><b>UI スレッドから呼ぶこと。</b>他スレッドからの呼び出しは例外になる。</para>
     /// </summary>
     public static void Show()
     {
-        SafeExecute(() =>
+        Execute(() =>
         {
             var ctx = GetContext();
             ctx.Window.Show(ctx.RootViewModel); // ViewModelをバインドしてウィンドウを表示
@@ -116,7 +101,7 @@ public static class CRDebugger
     /// <param name="tab">表示するタブ</param>
     public static void Show(CRTab tab)
     {
-        SafeExecute(() =>
+        Execute(() =>
         {
             var ctx = GetContext();
             ctx.RootViewModel.SelectedTab = tab; // 先にタブを切り替えてからウィンドウを表示
@@ -127,7 +112,7 @@ public static class CRDebugger
     /// <summary>デバッガーウィンドウを非表示</summary>
     public static void Hide()
     {
-        SafeExecute(() =>
+        Execute(() =>
         {
             GetContext().Window.Hide(); // ウィンドウを非表示にする
             PanelVisibilityChanged?.Invoke(null, new PanelVisibilityChangedEventArgs(false)); // 非表示状態変更を通知
@@ -137,7 +122,7 @@ public static class CRDebugger
     /// <summary>表示/非表示を切り替え</summary>
     public static void Toggle()
     {
-        SafeExecute(() =>
+        Execute(() =>
         {
             var ctx = GetContext();
             // 現在の表示状態に応じて Hide または Show を呼び分ける
@@ -148,51 +133,45 @@ public static class CRDebugger
     /// <summary>ウィンドウの表示状態</summary>
     public static bool IsVisible => _context?.Window.IsVisible ?? false;
 
-    // ── ロギングAPI（ホストアプリをクラッシュさせない安全設計） ──
+    // ── ロギングAPI ──
 
     /// <summary>Infoレベルでログを記録する</summary>
     /// <param name="message">ログメッセージ</param>
     public static void Log(string message) =>
-        SafeExecute(() =>
+        Execute(() =>
         {
             var ctx = GetContext();
             ctx.LogStore.Append(CRLogLevel.Info, "App", message);
-            ctx.AppLogger.Info(message);
         });
 
     /// <summary>指定レベルでログを記録する</summary>
     /// <param name="message">ログメッセージ</param>
     /// <param name="level">ログレベル</param>
     public static void Log(string message, CRLogLevel level) =>
-        SafeExecute(() =>
+        Execute(() =>
         {
             var ctx = GetContext();
             ctx.LogStore.Append(level, "App", message);
-            LogWithLevel(ctx.AppLogger, level, message);
         });
 
     /// <summary>Warningレベルでログを記録する</summary>
     /// <param name="message">ログメッセージ</param>
     public static void LogWarning(string message) =>
-        SafeExecute(() =>
+        Execute(() =>
         {
             var ctx = GetContext();
             ctx.LogStore.Append(CRLogLevel.Warning, "App", message);
-            ctx.AppLogger.Warn(message);
         });
 
     /// <summary>Errorレベルでログを記録する</summary>
     /// <param name="message">ログメッセージ</param>
     /// <param name="ex">関連する例外（省略可）</param>
     public static void LogError(string message, Exception? ex = null) =>
-        SafeExecute(() =>
+        Execute(() =>
         {
             var ctx = GetContext();
-            ctx.LogStore.Append(CRLogLevel.Error, "App", message, ex?.StackTrace);
-            if (ex != null)
-                ctx.AppLogger.Error(message, ex);
-            else
-                ctx.AppLogger.Error(message);
+            // ToString() で例外型・メッセージ・InnerException 連鎖・各スタックをまとめて保持する。
+            ctx.LogStore.Append(CRLogLevel.Error, "App", message, ex?.ToString());
         });
 
     /// <summary>リッチテキスト付きログを記録する</summary>
@@ -200,14 +179,14 @@ public static class CRDebugger
     /// <param name="richSpans">リッチテキストスパンのリスト</param>
     /// <param name="level">ログレベル（デフォルト: Info）</param>
     public static void LogRich(string message, IReadOnlyList<RichTextSpan> richSpans, CRLogLevel level = CRLogLevel.Info) =>
-        SafeExecute(() => GetContext().LogStore.Append(level, "App", message, richSpans: richSpans));
+        Execute(() => GetContext().LogStore.Append(level, "App", message, richSpans: richSpans));
 
     /// <summary>リッチテキスト付きログをビルダーAPIで記録する</summary>
     /// <param name="level">ログレベル</param>
     /// <param name="builder">リッチテキストを構築するデリゲート</param>
     public static void LogRich(CRLogLevel level, Action<RichTextBuilder> builder)
     {
-        SafeExecute(() =>
+        Execute(() =>
         {
             var b = new RichTextBuilder();
             builder(b); // 呼び出し元がビルダーにスパンを追加する
@@ -222,7 +201,7 @@ public static class CRDebugger
     /// <param name="level">ログレベル（デフォルト: Info）</param>
     public static void LogMarkup(string markup, CRLogLevel level = CRLogLevel.Info)
     {
-        SafeExecute(() =>
+        Execute(() =>
         {
             var spans = RichTextParser.Parse(markup);
             var message = string.Concat(spans.Select(s => s.Text));
@@ -230,7 +209,7 @@ public static class CRDebugger
         });
     }
 
-    // ── ILogger / SuperLightLogger 統合 ──
+    // ── Microsoft.Extensions.Logging 統合 ──
 
     /// <summary>Microsoft.Extensions.Logging用プロバイダーを取得する</summary>
     /// <returns>CRDebuggerに統合されたILoggerProvider（無効化時は何も記録しないプロバイダー）</returns>
@@ -245,37 +224,17 @@ public static class CRDebugger
     public static ILogger CreateLogger(string categoryName) =>
         _disabled ? NullLogger.Instance : GetContext().LoggerProvider.CreateLogger(categoryName);
 
-    /// <summary>
-    /// SuperLightLogger の ILog を取得する。
-    /// ホストの LogManager 構成先に出力する。CRDebugger のコンソールUIには直接転送しない。
-    /// 未初期化でも取得できるが、IsEnabled = false で初期化済みの場合は何も記録しない。
-    /// </summary>
-    /// <typeparam name="T">ロガーのカテゴリとなる型</typeparam>
-    /// <returns>SuperLightLogger の ILog インスタンス</returns>
-    public static ILog GetLogger<T>() =>
-        GetLogger(typeof(T));
-
-    /// <summary>
-    /// SuperLightLogger の ILog を取得する。
-    /// ホストの LogManager 構成先に出力する。CRDebugger のコンソールUIには直接転送しない。
-    /// 未初期化でも取得できるが、IsEnabled = false で初期化済みの場合は何も記録しない。
-    /// </summary>
-    /// <param name="type">ロガーのカテゴリとなる型</param>
-    /// <returns>SuperLightLogger の ILog インスタンス</returns>
-    public static ILog GetLogger(Type type) =>
-        _disabled ? NullSuperLightLogger.Instance : LogManager.GetLogger(type);
-
     // ── Options ──
 
     /// <summary>Optionsタブにオプションコンテナを登録する</summary>
     /// <param name="container">CROption属性付きプロパティを持つオブジェクト</param>
     public static void AddOptionContainer(object container) =>
-        SafeExecute(() => GetContext().Options.AddContainer(container));
+        Execute(() => GetContext().Options.AddContainer(container));
 
     /// <summary>Optionsタブからオプションコンテナを解除する</summary>
     /// <param name="container">解除するコンテナオブジェクト</param>
     public static void RemoveOptionContainer(object container) =>
-        SafeExecute(() => GetContext().Options.RemoveContainer(container));
+        Execute(() => GetContext().Options.RemoveContainer(container));
 
     // ── SystemInfo ──
 
@@ -284,7 +243,7 @@ public static class CRDebugger
     /// <param name="key">キー名（例: "Device Name"）</param>
     /// <param name="value">値（例: "GeForce RTX 4090"）</param>
     public static void AddSystemInfo(string category, string key, string value) =>
-        SafeExecute(() => GetContext().SystemInfo.AddCustomInfo(category, key, value));
+        Execute(() => GetContext().SystemInfo.AddCustomInfo(category, key, value));
 
     // ── Profiler ──
 
@@ -341,13 +300,13 @@ public static class CRDebugger
     public static Task MeasureAsync(string operationName, Func<Task> action, string category = "General") =>
         _disabled ? action() : GetContext().Profiler.Operations.MeasureAsync(operationName, action, category);
 
-    /// <summary>ネットワークI/Oを手動で記録する</summary>
+    /// <summary>現在の Profile / Measure 論理スコープへネットワークI/Oを手動で記録する</summary>
     /// <param name="bytesRead">読み込みバイト数</param>
     /// <param name="bytesWritten">書き込みバイト数</param>
     public static void RecordNetworkIO(long bytesRead, long bytesWritten) =>
         _context?.Profiler.Operations.RecordNetworkIO(bytesRead, bytesWritten);
 
-    /// <summary>ストレージI/Oを手動で記録する</summary>
+    /// <summary>現在の Profile / Measure 論理スコープへストレージI/Oを手動で記録する</summary>
     /// <param name="bytesRead">読み込みバイト数</param>
     /// <param name="bytesWritten">書き込みバイト数</param>
     public static void RecordStorageIO(long bytesRead, long bytesWritten) =>
@@ -393,7 +352,7 @@ public static class CRDebugger
 
     /// <summary>
     /// テーマを変更する。
-    /// <para><b>UI スレッドから呼ぶこと。</b>他スレッドからの呼び出しは無音で失敗する。</para>
+    /// <para><b>UI スレッドから呼ぶこと。</b>他スレッドからの呼び出しは例外になる。</para>
     /// <para>
     /// <b>プラットフォーム差</b>: WPF / WinForms はウィンドウ配色が即時更新される。
     /// Avalonia 版は意匠を不透明リテラル色で固定しているため、テーマ変更は表示に反映されない。
@@ -402,7 +361,7 @@ public static class CRDebugger
     /// <param name="theme">適用するテーマ</param>
     public static void SetTheme(Theming.CRTheme theme)
     {
-        SafeExecute(() =>
+        Execute(() =>
         {
             var ctx = GetContext();
             ctx.ThemeManager.SetTheme(theme); // テーママネージャーに新しいテーマをセット
@@ -416,7 +375,7 @@ public static class CRDebugger
     /// <param name="tab">対象タブ</param>
     /// <param name="enabled">有効にする場合true</param>
     public static void SetTabEnabled(CRTab tab, bool enabled) =>
-        SafeExecute(() => GetContext().RootViewModel.SetTabEnabled(tab, enabled));
+        Execute(() => GetContext().RootViewModel.SetTabEnabled(tab, enabled));
 
     /// <summary>タブが有効かどうかを返す</summary>
     /// <param name="tab">確認するタブ</param>
@@ -430,12 +389,12 @@ public static class CRDebugger
     /// <param name="combination">キーの組み合わせ</param>
     /// <param name="action">ショートカット押下時に実行するアクション</param>
     public static void RegisterShortcut(KeyCombination combination, Action action) =>
-        SafeExecute(() => GetContext().ShortcutManager.Register(combination, action));
+        Execute(() => GetContext().ShortcutManager.Register(combination, action));
 
     /// <summary>キーボードショートカットを解除する</summary>
     /// <param name="combination">解除するキーの組み合わせ</param>
     public static void UnregisterShortcut(KeyCombination combination) =>
-        SafeExecute(() => GetContext().ShortcutManager.Unregister(combination));
+        Execute(() => GetContext().ShortcutManager.Unregister(combination));
 
     /// <summary>キー入力を処理する（UIフレームワーク層から呼ぶ）</summary>
     /// <param name="key">押下されたキー</param>
@@ -449,10 +408,11 @@ public static class CRDebugger
     /// <summary>
     /// CRDebuggerを破棄する。
     /// <para>
-    /// <b>副作用</b>: 静的イベント <see cref="PanelVisibilityChanged"/> と <see cref="InternalError"/> の
-    /// 購読者は全て解除される（静的イベントがホストのオブジェクトを GC ルートとして保持し続けるのを防ぐため）。
+    /// <b>副作用</b>: 静的イベント <see cref="PanelVisibilityChanged"/> の購読者は全て解除される
+    /// （静的イベントがホストのオブジェクトを GC ルートとして保持し続けるのを防ぐため）。
     /// Shutdown 後に再度 <see cref="Initialize"/> して通知を受け取る場合は、購読を張り直すこと。
     /// </para>
+    /// <para>表示・非表示を問わず、組み込み UI が保持するデバッガーウィンドウも閉じる。</para>
     /// </summary>
     public static void Shutdown()
     {
@@ -462,46 +422,18 @@ public static class CRDebugger
             {
                 _context?.Dispose(); // コンテキストのリソース（タイマー・TraceListener等）を解放
             }
-            catch (Exception ex)
+            finally
             {
-                // Dispose 中の例外はInternalErrorイベントで通知するが再スローしない
-                RaiseInternalError("Shutdown中にエラーが発生しました。", ex);
-            }
-            _context = null; // コンテキストをnullにして未初期化状態に戻す
-            _disabled = false; // 無効化フラグも解除し、次回 Initialize を受け付ける
+                _context = null; // 例外時もコンテキストを破棄済みとして扱う
+                _disabled = false; // 無効化フラグも解除し、次回 Initialize を受け付ける
 
-            // 静的イベントの購読者を全クリア（Re-Initialize 時の重複発火とホストオブジェクトのリークを防止）
-            PanelVisibilityChanged = null;
-            InternalError = null;
+                // 静的イベントの購読者を全クリア（Re-Initialize 時の重複発火とホストオブジェクトのリークを防止）
+                PanelVisibilityChanged = null;
+            }
         }
     }
 
     // ── 内部ヘルパー ──
-
-    /// <summary>
-    /// CRLogLevel に応じて SuperLightLogger の適切なログメソッドを呼び出す。
-    /// </summary>
-    /// <param name="logger">SuperLightLogger の ILog</param>
-    /// <param name="level">CRDebugger のログレベル</param>
-    /// <param name="message">ログメッセージ</param>
-    private static void LogWithLevel(ILog logger, CRLogLevel level, string message)
-    {
-        switch (level)
-        {
-            case CRLogLevel.Debug:
-                logger.Debug(message);
-                break;
-            case CRLogLevel.Info:
-                logger.Info(message);
-                break;
-            case CRLogLevel.Warning:
-                logger.Warn(message);
-                break;
-            case CRLogLevel.Error:
-                logger.Error(message);
-                break;
-        }
-    }
 
     /// <summary>
     /// 初期化済みコンテキストを取得する。未初期化の場合は例外をスローする。
@@ -512,45 +444,14 @@ public static class CRDebugger
         _context ?? throw new CRDebuggerNotInitializedException();
 
     /// <summary>
-    /// パブリックAPIをCRDebugger内部エラーから保護する。
-    /// ログ記録やオプション追加など「失敗してもホストアプリに影響しない」操作に使用。
+    /// 明示的に無効化されている場合だけ処理を省略し、有効時の例外は呼び出し元へ伝播する。
     /// </summary>
     /// <param name="action">実行する処理</param>
-    private static void SafeExecute(Action action)
+    private static void Execute(Action action)
     {
         // 明示的に無効化されている場合は何もしない（IsEnabled = false の no-op 契約）
         if (_disabled) return;
 
-        try
-        {
-            action();
-        }
-        catch (CRDebuggerNotInitializedException) { throw; } // 未初期化例外は呼び出し元に再スロー
-        catch (CRDebuggerAlreadyInitializedException) { throw; } // 二重初期化例外は呼び出し元に再スロー
-        catch (CRDebuggerException) { throw; } // CRDebugger既知例外はそのまま再スロー
-        catch (Exception ex)
-        {
-            // 予期しない内部例外はInternalErrorイベントで通知して握りつぶす（ホストアプリを守る）
-            RaiseInternalError("予期しないエラーが発生しました。", ex);
-        }
-    }
-
-    /// <summary>
-    /// 内部エラーを <see cref="InternalError"/> イベントで通知する。
-    /// イベントハンドラー自身が例外をスローしても握りつぶす。
-    /// </summary>
-    /// <param name="message">エラーメッセージ</param>
-    /// <param name="innerException">原因となった例外</param>
-    private static void RaiseInternalError(string message, Exception innerException)
-    {
-        var error = new CRDebuggerInternalException(message, innerException);
-        try
-        {
-            InternalError?.Invoke(null, error); // 登録済みハンドラーにエラーを通知
-        }
-        catch
-        {
-            // InternalErrorハンドラ自体がスローした場合も握りつぶす（ハンドラのバグでクラッシュさせない）
-        }
+        action();
     }
 }

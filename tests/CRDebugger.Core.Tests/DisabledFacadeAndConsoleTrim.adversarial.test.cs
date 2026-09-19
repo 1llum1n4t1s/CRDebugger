@@ -205,28 +205,32 @@ public sealed class ConsoleViewModelTrimTests
     /// 漏らすとスレッドプールスレッドの未処理例外としてホストプロセスが即死する。
     /// </summary>
     [Fact]
-    public void FlushPending_UiThreadThrows_DoesNotCrashTimerThread()
+    public void FlushPending_UiThreadThrowsOnce_RetriesWithoutLosingEntry()
     {
         var store = new LogStore(100);
         var invokeCount = 0;
         var throwingUiThread = new Mock<IUiThread>();
         throwingUiThread.Setup(u => u.IsOnUiThread).Returns(true);
         throwingUiThread.Setup(u => u.Invoke(It.IsAny<Action>()))
-            .Callback(() => Interlocked.Increment(ref invokeCount))
-            .Throws(new InvalidOperationException("UI ディスパッチャがシャットダウン済み"));
+            .Callback<Action>(action =>
+            {
+                if (Interlocked.Increment(ref invokeCount) == 1)
+                    throw new InvalidOperationException("UI ディスパッチャが一時的に未準備");
+                action();
+            });
 
         using var vm = new ConsoleViewModel(store, throwingUiThread.Object);
 
         store.Append(CRLogLevel.Error, "ch", "boom");
 
-        // タイマーが実際に発火して例外が投げられるまで待つ。
-        // 発火を待たずに終えると「何も起きなかっただけ」でも合格してしまうため、
-        // Invoke が呼ばれたことを待ち条件にする。ここで例外が漏れていればテストホストごと落ちる。
+        // 初回の配送例外がタイマースレッドへ漏れず、次回配送で LogStore から復元されるまで待つ。
         var deadline = DateTime.UtcNow.Add(PollTimeout);
-        while (Volatile.Read(ref invokeCount) == 0 && DateTime.UtcNow < deadline)
+        while (vm.DisplayEntries.Count == 0 && DateTime.UtcNow < deadline)
             Thread.Sleep(20);
 
-        Assert.True(Volatile.Read(ref invokeCount) > 0, "フラッシュタイマーが発火していない");
-        Assert.Empty(vm.DisplayEntries);
+        Assert.True(Volatile.Read(ref invokeCount) >= 2, "配送失敗後の再試行が行われていない");
+        var entry = Assert.Single(vm.DisplayEntries);
+        Assert.Equal("boom", entry.Message);
+        Assert.Equal(1, vm.ErrorCount);
     }
 }

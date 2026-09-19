@@ -76,18 +76,3 @@ public sealed class CRDebuggerBugReportSendException : CRDebuggerException
     public CRDebuggerBugReportSendException()
         : base("バグレポートの送信に失敗しました。送信先（IBugReportSender）が false を返しました。") { }
 }
-
-/// <summary>
-/// CRDebugger内部でエラーが発生した場合の例外。
-/// これはCRDebuggerのバグである可能性が高い。
-/// </summary>
-public sealed class CRDebuggerInternalException : CRDebuggerException
-{
-    /// <summary>
-    /// 指定されたメッセージと内部例外で <see cref="CRDebuggerInternalException"/> を生成する
-    /// </summary>
-    /// <param name="message">エラーメッセージ</param>
-    /// <param name="innerException">原因となった内部例外</param>
-    public CRDebuggerInternalException(string message, Exception innerException)
-        : base($"内部エラー: {message} （これはCRDebuggerのバグの可能性があります。GitHubでIssueを報告してください）", innerException) { }
-}

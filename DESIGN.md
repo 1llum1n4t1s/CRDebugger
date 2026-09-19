@@ -36,7 +36,7 @@ CRDebugger は .NET デスクトップアプリへ組み込むランタイムデ
 2. 静的ファサード `CRDebugger` が初期化を直列化し、`CRDebuggerContext` を1つだけ保持する。`IsEnabled=false` はコンテキストを作らず、以後の公開APIを no-op にする。
 3. `CRDebuggerContext` が Core サービスを依存順に構築し、ViewModelへ配線する。必要に応じて Trace、未処理例外、OSテーマ監視を購読し、プロファイラーを開始する。
 4. `Show` はルートViewModelをプラットフォームウィンドウへ渡し、UI実装が表示とスクリーンショット取得を担当する。
-5. `Shutdown` はタイマーとテーマ監視を停止し、ViewModel購読、TraceListener、未処理例外ハンドラーを解除し、Optionsストアをフラッシュする。完了後は再初期化できる。
+5. `Shutdown` はタイマーとテーマ監視を停止し、デバッガーウィンドウを閉じ、ViewModel購読、TraceListener、未処理例外ハンドラーを解除し、Optionsストアをフラッシュする。通常のプロセス終了時も Options ストアだけを best-effort でフラッシュする。完了後は再初期化できる。
 
 ## 主要サービスとデータフロー
 
@@ -44,9 +44,7 @@ CRDebugger は .NET デスクトップアプリへ組み込むランタイムデ
 
 `CRDebugger.Log*`、`Microsoft.Extensions.Logging`、`System.Diagnostics.Trace`、未処理例外を `LogStore` へ集約し、`ConsoleViewModel` がフィルター済みの表示状態へ変換する。`LogStore` はロック付き循環バッファで件数を制限し、連続する同一ログを任意に折りたたむ。
 
-`CRDebugger.Log` / `LogWarning` / `LogError` と未処理例外は SuperLightLogger の `AppLogger` にも出力する。`LogRich` / `LogMarkup`、`CRLoggerProvider`、`CRTraceListener` は `LogStore` へ直接転送し、SuperLightLogger には転送しない。グローバルな `LogManager` の再構成は `AttachToSuperLightLoggerManager=true` と空でない `FileLogPath` がそろった場合だけ行い、それ以外ではホストの既存構成を使う。このため `FileLogPath=null` はホスト側のファイル出力を停止する指定ではない。
-
-`GetLogger<T>()` / `GetLogger(Type)` はホストの `LogManager` 構成先へ出力する `ILog` を返し、コンソールUIへ直接転送しない。未初期化でも取得できる互換性を維持しつつ、`IsEnabled=false` で初期化中に取得した場合は `NullSuperLightLogger` を返す。このロガーは全レベル無効で、メッセージ変換・書式評価も行わず、ホストのロガー構成に触れない。取得時に選択するため、以前返したロガーの動作を後から切り替えるものではない。`Shutdown` は無効化状態を解除する。
+すべてのログソースはデバッガー画面用のメモリ内 `LogStore` だけへ転送する。CRDebugger はファイルや外部ロガーを構成せず、ホストのログ基盤にも複製しない。ホストが同じログを永続化する場合は、ホスト自身が構成したログ基盤へ明示的に出力する。
 
 ### 実行時オプション
 
@@ -68,12 +66,12 @@ CRDebugger は .NET デスクトップアプリへ組み込むランタイムデ
 
 - `CRDebugger.Initialize` は同時に1コンテキストだけを許可し、二重初期化は専用例外にする。
 - 有効状態の初期化には `IDebuggerWindow` と `IUiThread` が必須であり、UIフレームワーク固有処理は Core 抽象の外側へ置く。
-- 公開APIの既知の契約違反は専用例外で通知し、予期しない内部失敗は `InternalError` へ通知してホストへ逆流させない。
+- 公開APIの既知の契約違反は専用例外で通知し、外部プロバイダーやUI実装を含む予期しない失敗も原因の例外を保ったまま呼び出し元へ伝播する。
 - ログ、プロファイル履歴、操作メトリクスは上限を持ち、共有状態はロックまたは並行コレクションで保護する。
 - UIスレッド境界を越える通知は `IUiThread` でマーシャリングする。
 - プロファイラ採取とOSテーマ監視の周期コールバックは再入させず、前回処理と重なる回をスキップする。
 - Trace、AppDomainイベント、OSテーマ監視、タイマーは `Shutdown` で解除・破棄する。
-- Options永続化、GPU監視、外部へのバグレポート送信は明示設定時だけ接続する。ログはホストの既存構成を尊重し、CRDebugger によるファイル出力先の再構成は明示的なオプトインを必要とする。
+- Options永続化、GPU監視、外部へのバグレポート送信は明示設定時だけ接続する。CRDebugger は外部ログ基盤やファイル出力先を構成しない。
 
 ## 採用済み設計判断
 

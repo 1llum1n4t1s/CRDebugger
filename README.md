@@ -71,6 +71,8 @@ options.UseWpf();           // or UseWinForms(), UseAvalonia()
 CRDebugger.Initialize(options);
 ```
 
+`JsonFileOptionsStore` は変更をメモリへまとめ、`CRDebugger.Shutdown()` または通常のプロセス終了時にファイルへフラッシュします。再初期化やホスト側で終了処理の失敗を扱う場合は、アプリの終了経路から `CRDebugger.Shutdown()` を明示的に呼んでください。強制終了やプロセスクラッシュ時の保存は保証されません。
+
 または `Initialize(Action<CRDebuggerOptions>)` ヘルパー（Avalonia / WPF / WinForms で統一）:
 
 ```csharp
@@ -91,8 +93,6 @@ CRDebuggerWpfExtensions.Initialize(options =>
 | `RequireOptInAttribute` | `true` の場合、Options タブには `[CROption]` が付いたプロパティのみ表示 | `false` |
 | `SystemInfoCollectionLevel` | BugReport 収集情報の詳細度（`Minimal` / `Standard` / `Full`） | `Standard` |
 | `OptionsStore` | UI 変更値を永続化するストア（`JsonFileOptionsStore` 等。`null` で永続化なし） | `null` |
-| `FileLogPath` | CRDebugger が構成するファイル出力先（`null` で再構成なし。ホストの既存設定は維持） | `null` |
-| `AttachToSuperLightLoggerManager` | ファイルログを有効にするために `FileLogPath` と併せて `true` にする | `false` |
 
 ```csharp
 // 例: デバッガー接続時だけ有効化 + Options 永続化
@@ -102,9 +102,6 @@ var options = new CRDebuggerOptions
     RequireOptInAttribute = true,
     SystemInfoCollectionLevel = SystemInfoCollectionLevel.Full,
     OptionsStore = new JsonFileOptionsStore("crdebugger-options.json"),
-    // ファイルログは 2 つのオプションが両方そろったときだけ有効になる
-    FileLogPath = "logs/app.log",
-    AttachToSuperLightLoggerManager = true,
 };
 options.UseWpf();
 CRDebugger.Initialize(options);
@@ -248,12 +245,21 @@ var result = CRDebugger.Measure("JSON解析", () => JsonSerializer.Deserialize<T
 // 非同期計測
 await CRDebugger.MeasureAsync("API呼び出し", () => httpClient.GetAsync(url));
 
+// I/O量は Profile / Measure の論理スコープ内で明示的に記録
+using (CRDebugger.Profile("アセット読込", "IO"))
+{
+    var data = await File.ReadAllBytesAsync(path);
+    CRDebugger.RecordStorageIO(bytesRead: data.LongLength, bytesWritten: 0);
+}
+
 // ホットスポット分析
 var tracker = CRDebugger.GetOperationTracker();
 var cpuHeavy = tracker.GetCpuHotspots(5);      // CPU使用率TOP5
 var memHeavy = tracker.GetMemoryHotspots(5);    // メモリ消費TOP5
 var slowOps  = tracker.GetDurationHotspots(5);  // 処理時間TOP5
 ```
+
+ネットワーク／ストレージ量は OS のマシン全体カウンターから推測せず、`RecordNetworkIO` / `RecordStorageIO` で明示した値だけを現在の論理スコープへ集計します。並行する `Profile` / `MeasureAsync` の値は互いに混入しません。
 
 ## テーマ
 
@@ -289,25 +295,18 @@ System.Diagnostics.Trace.WriteLine("traced message");  // 自動キャプチャ
 // AppDomain.UnhandledException を自動キャプチャ（設定で無効化可能）
 ```
 
-`CRDebugger.GetLogger<T>()` / `GetLogger(typeof(MyClass))` で SuperLightLogger の `ILog` を取得できます。出力先はホストの `LogManager` 構成先であり、コンソールUIへ直接転送されません。UIに表示する場合は `CRDebugger.Log*` または `CreateLoggerProvider()` を使います。
-
-`GetLogger` は初期化前でも利用できますが、`IsEnabled=false` で初期化中に取得すると、メッセージや書式を評価しない no-op ロガーを返します。すでに取得したロガーには遡って適用されず、ホスト自身のログ出力も無効化しません。
-
-ファイル出力を CRDebugger に設定させるには、主要なオプションの例のように `FileLogPath` と `AttachToSuperLightLoggerManager=true` を指定します。既存のホスト設定がある場合は、それらを指定しなくても `CRDebugger.Log` / `LogWarning` / `LogError` はその構成先へ出力します。`LogRich` / `LogMarkup` はコンソールUIのみへの出力です。
+すべてのログはデバッガー画面用のメモリ内 `LogStore` だけへ記録されます。CRDebugger 自身はファイルや外部ロガーへ出力しません。ホスト側でも記録したい場合は、ホストが構成した `Microsoft.Extensions.Logging` 等へ同じ内容を明示的に出力してください。
 
 ## エラーハンドリング
 
-CRDebugger はホストアプリをクラッシュさせない安全設計：
+公開APIで発生した例外は握りつぶさず、呼び出し元へそのまま伝播します。ホスト側の方針に合わせて必要な範囲を処理してください：
 
 ```csharp
 // CRDebugger 由来の例外だけキャッチ
 try { CRDebugger.Initialize(options); }
 catch (CRDebuggerConfigurationException ex) { /* 設定ミス */ }
 catch (CRDebuggerAlreadyInitializedException) { /* 二重初期化 */ }
-
-// 内部エラーをモニタリング（クラッシュしない）
-CRDebugger.InternalError += (_, ex) =>
-    logger.LogWarning("CRDebugger内部エラー: {Message}", ex.Message);
+catch (Exception ex) { /* 外部プロバイダーやUI実装から伝播した例外 */ }
 ```
 
 ## バグレポート

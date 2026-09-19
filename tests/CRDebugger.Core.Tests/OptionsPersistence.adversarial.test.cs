@@ -14,6 +14,15 @@ public sealed class OptionsPersistenceTests : IDisposable
     private readonly string _tempDir =
         Path.Combine(Path.GetTempPath(), "crdebugger-tests-" + Guid.NewGuid().ToString("N"));
 
+    private sealed class CountingOptionsStore : IOptionsStore
+    {
+        public int FlushCount { get; private set; }
+        public string? Load(string key) => null;
+        public void Save(string key, string value) { }
+        public void Clear() { }
+        public void Flush() => FlushCount++;
+    }
+
     public OptionsPersistenceTests() => Directory.CreateDirectory(_tempDir);
 
     public void Dispose()
@@ -316,5 +325,19 @@ public sealed class OptionsPersistenceTests : IDisposable
         store.Flush();
 
         Assert.False(File.Exists(path));
+    }
+
+    /// <summary>
+    /// 通常終了フックが、明示的な Shutdown がなくても構成済みストアをフラッシュすること。
+    /// </summary>
+    [Fact]
+    public void OptionsStore_ProcessExitFlush_FlushesConfiguredStore()
+    {
+        var store = new CountingOptionsStore();
+        var engine = new OptionsEngine(optionsStore: store);
+
+        engine.FlushStoreOnProcessExit();
+
+        Assert.Equal(1, store.FlushCount);
     }
 }

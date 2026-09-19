@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.ExceptionServices;
 using CRDebugger.Core.Abstractions;
 using CRDebugger.Core.BugReporter;
 using CRDebugger.Core.Input;
@@ -8,8 +9,6 @@ using CRDebugger.Core.Profiler;
 using CRDebugger.Core.SystemInfo;
 using CRDebugger.Core.Theming;
 using CRDebugger.Core.ViewModels;
-using Microsoft.Extensions.Logging;
-using SuperLightLogger;
 
 namespace CRDebugger.Core;
 
@@ -44,9 +43,6 @@ internal sealed class CRDebuggerContext : IDisposable
     /// <summary>Microsoft.Extensions.Logging 統合用のLoggerProvider</summary>
     public CRLoggerProvider LoggerProvider { get; }
 
-    /// <summary>SuperLightLogger のアプリケーション用ロガー（CRDebugger.Log等で使用）</summary>
-    public ILog AppLogger { get; }
-
     /// <summary>キーボードショートカットの登録・処理を管理するマネージャー</summary>
     public KeyboardShortcutManager ShortcutManager { get; }
 
@@ -61,6 +57,12 @@ internal sealed class CRDebuggerContext : IDisposable
 
     /// <summary>システムテーマ監視プロバイダー（Dispose 時に StopMonitoring を呼ぶため保持）</summary>
     private readonly IThemeProvider? _themeProvider;
+
+    /// <summary>テーマ監視の開始を試みた後で、停止処理が必要な場合は true</summary>
+    private bool _themeMonitoringStarted;
+
+    /// <summary>Options ストアの通常終了時 Flush 用 ProcessExit 購読を解除する必要がある場合は true。</summary>
+    private bool _processExitSubscribed;
 
     /// <summary>
     /// CRDebuggerContextを構築し、全サービスを初期化・配線する。
@@ -78,6 +80,7 @@ internal sealed class CRDebuggerContext : IDisposable
         // UIフレームワーク固有実装をフィールドに保持
         Window = window;
         UiThread = uiThread;
+        _themeProvider = options.ThemeProvider;
 
         // コアサービスを順に初期化（依存関係の少ないものから順番に生成）
         LogStore = new LogStore(options.MaxLogEntries, options.CollapseDuplicateLogs);
@@ -88,36 +91,11 @@ internal sealed class CRDebuggerContext : IDisposable
         ThemeManager = new ThemeManager(options.Theme);
         LoggerProvider = new CRLoggerProvider(LogStore);
 
-        // SuperLightLogger の構成はオプトイン（デフォルト false）。
-        // ホストアプリが既に LogManager.Configure 済みのケースを破壊しないため、
-        // AttachToSuperLightLoggerManager = true「かつ」FileLogPath 指定という
-        // 明示的な 2 条件がそろった場合にだけ構成する（FileLogPath 単独では構成しない）。
-        if (options.AttachToSuperLightLoggerManager && !string.IsNullOrEmpty(options.FileLogPath))
-        {
-            LogManager.Configure(builder => builder.AddSuperLightFile(options.FileLogPath));
-        }
-
-        // アプリケーション用の SuperLightLogger ロガーを取得
-        AppLogger = LogManager.GetLogger(typeof(CRDebuggerContext));
-
         // キーボードショートカットマネージャーを生成し、初期有効状態をオプションから設定
         ShortcutManager = new KeyboardShortcutManager
         {
             Enabled = options.EnableKeyboardShortcuts
         };
-
-        // System.Diagnostics.Trace/Debug 出力のキャプチャを有効化
-        if (options.CaptureTraceOutput)
-        {
-            _traceListener = new CRTraceListener(LogStore);
-            Trace.Listeners.Add(_traceListener); // グローバルリスナーに登録
-        }
-
-        // AppDomain レベルの未処理例外をキャプチャしてログに記録
-        if (options.CaptureUnhandledExceptions)
-        {
-            AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
-        }
 
         // 各タブのViewModelをサービスから生成
         var systemInfoVm = new SystemInfoViewModel(SystemInfo);
@@ -134,22 +112,62 @@ internal sealed class CRDebuggerContext : IDisposable
         // F1〜F5・Esc などのデフォルトショートカットを登録
         RegisterDefaultShortcuts();
 
-        // システムテーマ（ライト/ダーク）の監視を開始
-        _themeProvider = options.ThemeProvider;
-        if (_themeProvider != null)
+        try
         {
-            // 現在のシステムテーマを即時反映
-            ThemeManager.NotifySystemThemeChanged(_themeProvider.IsSystemDarkMode());
-
-            // システムテーマ変更の監視コールバックを登録（UIスレッドで適用）
-            _themeProvider.StartMonitoring(isDark =>
+            // System.Diagnostics.Trace/Debug 出力のキャプチャを有効化
+            if (options.CaptureTraceOutput)
             {
-                UiThread.Invoke(() => ThemeManager.NotifySystemThemeChanged(isDark));
-            });
-        }
+                _traceListener = new CRTraceListener(LogStore);
+                Trace.Listeners.Add(_traceListener); // グローバルリスナーに登録
+            }
 
-        // プロファイラーのサンプリングタイマーを開始
-        Profiler.Start();
+            // AppDomain レベルの未処理例外をキャプチャしてログに記録
+            if (options.CaptureUnhandledExceptions)
+            {
+                AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
+            }
+
+            // Shutdown の呼び忘れでも、通常のプロセス終了なら保留中の Options を永続化する。
+            // ウィンドウ破棄などは行わず、終了イベントから安全に実行できる Flush だけに限定する。
+            if (options.OptionsStore != null)
+            {
+                AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
+                _processExitSubscribed = true;
+            }
+
+            // システムテーマ（ライト/ダーク）の監視を開始
+            if (_themeProvider != null)
+            {
+                // 現在のシステムテーマを即時反映
+                ThemeManager.NotifySystemThemeChanged(_themeProvider.IsSystemDarkMode());
+
+                // システムテーマ変更の監視コールバックを登録（UIスレッドで適用）
+                _themeMonitoringStarted = true;
+                _themeProvider.StartMonitoring(isDark =>
+                {
+                    UiThread.Invoke(() => ThemeManager.NotifySystemThemeChanged(isDark));
+                });
+            }
+
+            // プロファイラーのサンプリングタイマーを開始
+            Profiler.Start();
+        }
+        catch (Exception initializationError)
+        {
+            try
+            {
+                Dispose();
+            }
+            catch (Exception cleanupError)
+            {
+                throw new AggregateException(
+                    "CRDebugger の初期化とロールバックの両方でエラーが発生しました。",
+                    initializationError,
+                    cleanupError);
+            }
+
+            ExceptionDispatchInfo.Capture(initializationError).Throw();
+        }
     }
 
     /// <summary>
@@ -177,7 +195,7 @@ internal sealed class CRDebuggerContext : IDisposable
 
     /// <summary>
     /// AppDomain の未処理例外イベントハンドラー。
-    /// 例外情報をエラーレベルでログに記録し、ファイルログにも書き出す。
+    /// 例外情報をコンソールUI用のログストアに記録する。
     /// </summary>
     /// <param name="sender">イベント送信元</param>
     /// <param name="e">未処理例外イベント引数</param>
@@ -196,51 +214,75 @@ internal sealed class CRDebuggerContext : IDisposable
 
         LogStore.Append(CRLogLevel.Error, "UnhandledException", message, detail);
 
-        try
-        {
-            // プロセスを終了させる種類のイベントなので、揮発する LogStore だけでなく
-            // ファイルログにも必ず流す（FileLogPath 構成時に事後調査できるようにする）。
-            if (ex != null)
-                AppLogger.Error(message, ex);
-            else
-                AppLogger.Error(message);
-        }
-        catch (Exception)
-        {
-            // クラッシュ処理中のログ出力失敗で、さらに例外を重ねない
-        }
     }
+
+    /// <summary>通常のプロセス終了時に Options ストアだけを best-effort でフラッシュする。</summary>
+    private void OnProcessExit(object? sender, EventArgs e) => Options.FlushStoreOnProcessExit();
 
     /// <summary>
     /// コンテキストが保持するリソースをすべて解放する。
     /// プロファイラータイマーの停止、ThemeProvider 監視停止、
     /// TraceListenerの解除、未処理例外イベントの登録解除、
-    /// RootViewModel の Dispose、OptionsStore.Flush を行う。
+    /// デバッガーウィンドウの破棄、RootViewModel の Dispose、OptionsStore.Flush を行う。
     /// </summary>
     public void Dispose()
     {
+        List<Exception>? errors = null;
+
+        void RunCleanup(Action action)
+        {
+            try
+            {
+                action();
+            }
+            catch (Exception ex)
+            {
+                (errors ??= []).Add(ex);
+            }
+        }
+
+        if (_processExitSubscribed)
+        {
+            _processExitSubscribed = false;
+            AppDomain.CurrentDomain.ProcessExit -= OnProcessExit;
+        }
+
         // システムテーマ監視を停止して OS イベント購読を解除
-        try { _themeProvider?.StopMonitoring(); } catch { /* 解放経路で握りつぶし */ }
-        (_themeProvider as IDisposable)?.Dispose();
+        if (_themeMonitoringStarted)
+        {
+            _themeMonitoringStarted = false;
+            RunCleanup(() => _themeProvider?.StopMonitoring());
+        }
+        RunCleanup(() => (_themeProvider as IDisposable)?.Dispose());
+
+        // 非表示ウィンドウもネイティブハンドルと旧 ViewModel を保持するため、再初期化前に実体を閉じる。
+        if (Window is IDebuggerWindowLifetime windowLifetime)
+            RunCleanup(windowLifetime.Close);
 
         // RootViewModel を Dispose して ThemeManager/LogStore/Profiler 等のイベント購読を解除
-        try { RootViewModel.Dispose(); } catch { /* 解放経路で握りつぶし */ }
+        RunCleanup(RootViewModel.Dispose);
 
         // プロファイラーのサンプリングタイマーを停止・解放
-        Profiler.Dispose();
+        RunCleanup(Profiler.Dispose);
 
         // Options 永続化ストアに保留中の変更をフラッシュ
-        try { Options.FlushStore(); } catch { /* 解放経路で握りつぶし */ }
+        RunCleanup(Options.FlushStore);
 
         // グローバルTraceListenerから自分自身を解除＆Disposeしてリーク防止
         if (_traceListener != null)
         {
-            Trace.Listeners.Remove(_traceListener);
-            _traceListener.Dispose();
+            var traceListener = _traceListener;
             _traceListener = null;
+            RunCleanup(() => Trace.Listeners.Remove(traceListener));
+            RunCleanup(traceListener.Dispose);
         }
 
         // 未処理例外ハンドラーの登録を解除
         AppDomain.CurrentDomain.UnhandledException -= OnUnhandledException;
+
+        if (errors is [var error])
+            ExceptionDispatchInfo.Capture(error).Throw();
+        if (errors is { Count: > 1 })
+            throw new AggregateException("CRDebugger の終了処理中に複数のエラーが発生しました。", errors);
     }
 }

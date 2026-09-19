@@ -8,15 +8,16 @@ internal static class ControlExtensions
     /// <summary>
     /// UIスレッドで安全にアクションを実行する。
     /// InvokeRequired の場合は Invoke でマーシャリングし、
-    /// ObjectDisposedException は握り潰す（コントロール破棄済み時の安全策）。
+    /// ハンドル未作成・破棄済み・破棄競合時は何もしない。
     /// </summary>
     public static void SafeInvoke(this Control control, Action action)
     {
-        if (control.IsDisposed) return;
+        if (control.IsDisposed || !control.IsHandleCreated) return;
         if (control.InvokeRequired)
         {
             try { control.Invoke(action); }
             catch (ObjectDisposedException) { }
+            catch (InvalidOperationException) { }
         }
         else
         {

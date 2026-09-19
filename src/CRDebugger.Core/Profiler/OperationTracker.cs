@@ -1,6 +1,4 @@
 using System.Collections.Concurrent;
-using System.Diagnostics;
-using System.Net.NetworkInformation;
 
 namespace CRDebugger.Core.Profiler;
 
@@ -35,17 +33,36 @@ public sealed class OperationTracker
     /// <summary>手動記録されたストレージ書き込みバイト数の累計（Interlocked で操作）</summary>
     private long _manualStorageWrite;
 
-    /// <summary>キャッシュ済みネットワーク受信総バイト数（OS API 呼び出しを <see cref="UpdateCounterSnapshot"/> 経由に集約）</summary>
-    private long _cachedNetworkRead;
+    /// <summary>現在の論理実行コンテキストで有効な I/O 計測スコープ。</summary>
+    private readonly AsyncLocal<ScopeIoCounters?> _activeIoScope = new();
 
-    /// <summary>キャッシュ済みネットワーク送信総バイト数</summary>
-    private long _cachedNetworkWrite;
+    /// <summary>1つの論理スコープへ明示記録された I/O 量。</summary>
+    internal sealed class ScopeIoCounters
+    {
+        internal ScopeIoCounters? Parent { get; }
+        private long _networkRead;
+        private long _networkWrite;
+        private long _storageRead;
+        private long _storageWrite;
 
-    /// <summary>キャッシュ済みストレージ読み込み総バイト数（プロセスのワーキングセット近似）</summary>
-    private long _cachedStorageRead;
+        internal ScopeIoCounters(ScopeIoCounters? parent) => Parent = parent;
 
-    /// <summary>キャッシュ済みストレージ書き込み総バイト数</summary>
-    private long _cachedStorageWrite;
+        internal void AddNetwork(long bytesRead, long bytesWritten)
+        {
+            Interlocked.Add(ref _networkRead, bytesRead);
+            Interlocked.Add(ref _networkWrite, bytesWritten);
+        }
+
+        internal void AddStorage(long bytesRead, long bytesWritten)
+        {
+            Interlocked.Add(ref _storageRead, bytesRead);
+            Interlocked.Add(ref _storageWrite, bytesWritten);
+        }
+
+        internal (long NetworkRead, long NetworkWrite, long StorageRead, long StorageWrite) Snapshot() =>
+            (Interlocked.Read(ref _networkRead), Interlocked.Read(ref _networkWrite),
+             Interlocked.Read(ref _storageRead), Interlocked.Read(ref _storageWrite));
+    }
 
     /// <summary>
     /// いずれかの操作のメトリクスが更新された時に発火するイベント。
@@ -62,7 +79,9 @@ public sealed class OperationTracker
     /// <returns>Dispose 時に計測を完了する <see cref="ProfilingScope"/></returns>
     public ProfilingScope BeginScope(string operationName, string category = "General")
     {
-        return new ProfilingScope(this, operationName, category);
+        var ioCounters = new ScopeIoCounters(_activeIoScope.Value);
+        _activeIoScope.Value = ioCounters;
+        return new ProfilingScope(this, operationName, category, ioCounters);
     }
 
     /// <summary>
@@ -124,106 +143,72 @@ public sealed class OperationTracker
 
     /// <summary>
     /// ネットワークI/Oを手動で記録する。
-    /// OSレベルで取得できないネットワーク通信量をアプリ側で計上する際に使用する。
+    /// 現在の論理スコープとその親スコープへ帰属し、OS全体の通信量は自動加算しない。
     /// </summary>
     /// <param name="bytesRead">受信バイト数</param>
     /// <param name="bytesWritten">送信バイト数</param>
     public void RecordNetworkIO(long bytesRead, long bytesWritten)
     {
-        // Interlocked.Add でスレッドセーフに加算
+        // 全体の明示記録量を保持しつつ、現在の論理スコープとその親へだけ帰属させる。
         Interlocked.Add(ref _manualNetworkRead, bytesRead);
         Interlocked.Add(ref _manualNetworkWrite, bytesWritten);
+        for (var scope = _activeIoScope.Value; scope != null; scope = scope.Parent)
+            scope.AddNetwork(bytesRead, bytesWritten);
     }
 
     /// <summary>
     /// ストレージI/Oを手動で記録する。
-    /// OSレベルで取得できないディスクI/O量をアプリ側で計上する際に使用する。
+    /// 現在の論理スコープとその親スコープへ帰属し、ワーキングセット等は自動加算しない。
     /// </summary>
     /// <param name="bytesRead">読み込みバイト数</param>
     /// <param name="bytesWritten">書き込みバイト数</param>
     public void RecordStorageIO(long bytesRead, long bytesWritten)
     {
-        // Interlocked.Add でスレッドセーフに加算
+        // 全体の明示記録量を保持しつつ、現在の論理スコープとその親へだけ帰属させる。
         Interlocked.Add(ref _manualStorageRead, bytesRead);
         Interlocked.Add(ref _manualStorageWrite, bytesWritten);
+        for (var scope = _activeIoScope.Value; scope != null; scope = scope.Parent)
+            scope.AddStorage(bytesRead, bytesWritten);
     }
 
     /// <summary>
-    /// ネットワーク／ストレージカウンタのキャッシュを最新化する。
-    /// OS API（<see cref="NetworkInterface.GetAllNetworkInterfaces"/> や
-    /// <see cref="Process.GetCurrentProcess"/>）を呼ぶ唯一のポイント。
-    /// <see cref="ProfilerEngine"/> から定期 Tick (例: 500ms 毎) で呼び出すことで、
-    /// <see cref="GetNetworkCounters"/> / <see cref="GetStorageCounters"/> の OS 呼び出しオーバーヘッドを排除する (#22)。
+    /// 旧バージョンとのソース互換性のために残されたメソッド。
+    /// I/O は <see cref="RecordNetworkIO"/> / <see cref="RecordStorageIO"/> で即時反映されるため、
+    /// 現在は OS 全体のカウンターやワーキングセットを読み取らず何もしない。
     /// </summary>
     public void UpdateCounterSnapshot()
     {
-        // ネットワーク総量を集計してキャッシュに書き込む
-        long netRead = 0, netWrite = 0;
-        try
-        {
-            var interfaces = NetworkInterface.GetAllNetworkInterfaces();
-            foreach (var ni in interfaces)
-            {
-                // 稼働中のインターフェースのみを対象にする
-                if (ni.OperationalStatus != OperationalStatus.Up) continue;
-                var stats = ni.GetIPStatistics();
-                netRead += stats.BytesReceived;
-                netWrite += stats.BytesSent;
-            }
-        }
-        catch
-        {
-            // OS 統計取得失敗時は前回値を維持するため、加算前にゼロ初期化済みの値で上書きしない（後段の Volatile.Write をスキップ）
-            netRead = Interlocked.Read(ref _cachedNetworkRead) - Interlocked.Read(ref _manualNetworkRead);
-            netWrite = Interlocked.Read(ref _cachedNetworkWrite) - Interlocked.Read(ref _manualNetworkWrite);
-            if (netRead < 0) netRead = 0;
-            if (netWrite < 0) netWrite = 0;
-        }
-
-        // 手動記録分を加算してキャッシュに反映（Interlocked.Exchange でアトミックに更新）
-        Interlocked.Exchange(ref _cachedNetworkRead, netRead + Interlocked.Read(ref _manualNetworkRead));
-        Interlocked.Exchange(ref _cachedNetworkWrite, netWrite + Interlocked.Read(ref _manualNetworkWrite));
-
-        // ストレージカウンタ（プロセスのワーキングセット近似）を取得してキャッシュに反映
-        long storageRead;
-        try
-        {
-            using var process = Process.GetCurrentProcess();
-            storageRead = process.WorkingSet64;
-        }
-        catch
-        {
-            // 取得失敗時は 0 として扱う（手動分のみ加算される）
-            storageRead = 0;
-        }
-        Interlocked.Exchange(ref _cachedStorageRead, storageRead + Interlocked.Read(ref _manualStorageRead));
-        Interlocked.Exchange(ref _cachedStorageWrite, Interlocked.Read(ref _manualStorageWrite));
     }
 
     /// <summary>
-    /// 現在のネットワークI/Oカウンター値を取得する（キャッシュ値を返却し、OS API を呼ばない）。
-    /// 最新化は <see cref="UpdateCounterSnapshot"/> 経由で行う設計に変更 (#22 / #C1-001)。
+    /// 現在の明示記録済みネットワークI/Oカウンター値を取得する。
     /// </summary>
     /// <returns>（受信バイト数, 送信バイト数）のタプル</returns>
     internal (long Read, long Write) GetNetworkCounters()
     {
         return (
-            Interlocked.Read(ref _cachedNetworkRead),
-            Interlocked.Read(ref _cachedNetworkWrite)
+            Interlocked.Read(ref _manualNetworkRead),
+            Interlocked.Read(ref _manualNetworkWrite)
         );
     }
 
     /// <summary>
-    /// 現在のストレージI/Oカウンター値を取得する（キャッシュ値を返却し、OS API を呼ばない）。
-    /// 最新化は <see cref="UpdateCounterSnapshot"/> 経由で行う設計に変更 (#22 / #C1-001)。
+    /// 現在の明示記録済みストレージI/Oカウンター値を取得する。
     /// </summary>
     /// <returns>（読み込みバイト数, 書き込みバイト数）のタプル</returns>
     internal (long Read, long Write) GetStorageCounters()
     {
         return (
-            Interlocked.Read(ref _cachedStorageRead),
-            Interlocked.Read(ref _cachedStorageWrite)
+            Interlocked.Read(ref _manualStorageRead),
+            Interlocked.Read(ref _manualStorageWrite)
         );
+    }
+
+    /// <summary>完了した論理スコープを現在値から外し、親スコープへ戻す。</summary>
+    internal void CompleteIoScope(ScopeIoCounters scope)
+    {
+        if (ReferenceEquals(_activeIoScope.Value, scope))
+            _activeIoScope.Value = scope.Parent;
     }
 
     /// <summary>
@@ -390,10 +375,5 @@ public sealed class OperationTracker
         Interlocked.Exchange(ref _manualStorageRead, 0);
         Interlocked.Exchange(ref _manualStorageWrite, 0);
 
-        // キャッシュ済みカウンタもゼロ化（次回 UpdateCounterSnapshot で最新化される）
-        Interlocked.Exchange(ref _cachedNetworkRead, 0);
-        Interlocked.Exchange(ref _cachedNetworkWrite, 0);
-        Interlocked.Exchange(ref _cachedStorageRead, 0);
-        Interlocked.Exchange(ref _cachedStorageWrite, 0);
     }
 }

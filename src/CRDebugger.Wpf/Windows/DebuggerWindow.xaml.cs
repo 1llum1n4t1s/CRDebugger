@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using CRDebugger.Core;
@@ -15,6 +16,9 @@ namespace CRDebugger.Wpf.Windows;
 /// </summary>
 public partial class DebuggerWindow : Window
 {
+    /// <summary>CRDebugger の終了処理から要求された実クローズなら true。</summary>
+    private bool _isShuttingDown;
+
     /// <summary>現在バインドされている DebuggerViewModel の参照</summary>
     private DebuggerViewModel? _viewModel;
 
@@ -26,6 +30,24 @@ public partial class DebuggerWindow : Window
         InitializeComponent();
         // DataContext が差し替わった際に各ビューの DataContext を更新する
         DataContextChanged += OnDataContextChanged;
+    }
+
+    /// <summary>次の Close を非表示へ差し替えず、実際の破棄まで進める。</summary>
+    internal void RequestShutdown() => _isShuttingDown = true;
+
+    /// <summary>
+    /// タイトルバーの X や Alt+F4 は通常利用時にはウィンドウを再利用できるよう Hide に差し替える。
+    /// CRDebugger.Shutdown からの明示的な終了時だけ実際に閉じる。
+    /// </summary>
+    protected override void OnClosing(CancelEventArgs e)
+    {
+        base.OnClosing(e);
+
+        if (!_isShuttingDown)
+        {
+            e.Cancel = true;
+            Hide();
+        }
     }
 
     /// <summary>
@@ -75,6 +97,11 @@ public partial class DebuggerWindow : Window
     /// <param name="e">旧値と新値を含む DependencyPropertyChangedEventArgs</param>
     private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
+        if (e.OldValue is DebuggerViewModel oldViewModel)
+            oldViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+
+        _viewModel = null;
+
         if (e.NewValue is DebuggerViewModel vm)
         {
             _viewModel = vm;
@@ -89,15 +116,44 @@ public partial class DebuggerWindow : Window
             // 初期タブを選択状態にする
             SelectTab(vm.SelectedTab);
 
-            // SelectedTab プロパティの変更を購読してサイドバーのラジオボタンと同期
-            vm.PropertyChanged += (_, args) =>
-            {
-                if (args.PropertyName == nameof(DebuggerViewModel.SelectedTab))
-                {
-                    SelectTab(vm.SelectedTab);
-                }
-            };
+            // 名前付きハンドラで購読し、DataContext 差し替え・Close 時に解除できるようにする
+            vm.PropertyChanged += OnViewModelPropertyChanged;
         }
+        else
+        {
+            ClearContentDataContexts();
+        }
+    }
+
+    /// <summary>ViewModel の選択タブ変更をサイドバーと表示内容へ反映する。</summary>
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(DebuggerViewModel.SelectedTab) &&
+            sender is DebuggerViewModel vm && ReferenceEquals(vm, _viewModel))
+        {
+            SelectTab(vm.SelectedTab);
+        }
+    }
+
+    /// <summary>ウィンドウ破棄時に ViewModel 購読と子ビューの参照を解除する。</summary>
+    protected override void OnClosed(EventArgs e)
+    {
+        DataContextChanged -= OnDataContextChanged;
+        if (_viewModel != null)
+            _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
+        _viewModel = null;
+        ClearContentDataContexts();
+        base.OnClosed(e);
+    }
+
+    /// <summary>子ビューが旧 ViewModel を保持し続けないよう DataContext を解除する。</summary>
+    private void ClearContentDataContexts()
+    {
+        SystemInfoContent.DataContext = null;
+        ConsoleContent.DataContext = null;
+        OptionsContent.DataContext = null;
+        ProfilerContent.DataContext = null;
+        BugReporterContent.DataContext = null;
     }
 
     /// <summary>

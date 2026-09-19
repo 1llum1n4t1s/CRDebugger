@@ -73,7 +73,7 @@ public sealed class OperationTrackerAndScopeAdversarialTests
     {
         var tracker = new OperationTracker();
 
-        // long.MaxValue を記録してもスナップショット更新・読み出しで例外が出ないこと
+        // long.MaxValue を記録しても互換用スナップショット更新・読み出しで例外が出ないこと
         // （Interlocked.Add / 集計が checked 演算になっていれば OverflowException で落ちる）。
         tracker.RecordNetworkIO(long.MaxValue, long.MaxValue);
         var thrown = Record.Exception(() =>
@@ -83,10 +83,9 @@ public sealed class OperationTrackerAndScopeAdversarialTests
         });
         Assert.Null(thrown);
 
-        // 加算そのものの契約（ラップアラウンドする＝飽和しない）は、
-        // OS 実測値が混ざらないストレージ書き込み側で厳密に検証する。
-        // ネットワーク読み書きは UpdateCounterSnapshot が OS の実測値を足し込むため厳密比較できないが、
-        // RecordNetworkIO と RecordStorageIO は同一の Interlocked.Add 実装を共有している。
+        // OS 実測値を混ぜず、明示記録した値だけがそのまま返る。
+        Assert.Equal(long.MaxValue, tracker.GetNetworkCounters().Read);
+
         tracker.RecordStorageIO(0, long.MaxValue);
         tracker.UpdateCounterSnapshot();
         Assert.Equal(long.MaxValue, tracker.GetStorageCounters().Write);
@@ -226,17 +225,74 @@ public sealed class OperationTrackerAndScopeAdversarialTests
         startSignal.Set();
         Task.WaitAll(tasks);
 
-        // 手動記録分をキャッシュへ反映してから検証する
+        // 互換 API を呼んでも OS 値は混入せず、明示記録分は既に反映済みである。
         tracker.UpdateCounterSnapshot();
 
         // Interlocked 加算により全スレッド分が正確に合算されていることを検証する。
         // 通常の += に書き換えるとロストアップデートでこのアサーションが落ちる。
-        // ストレージ書き込みキャッシュは手動記録分のみで構成されるため厳密比較できる。
+        // ネットワーク／ストレージのどちらも明示記録分だけなので厳密比較できる。
         Assert.Equal(threadCount * perThread, tracker.GetStorageCounters().Write);
+        Assert.Equal(threadCount * perThread, tracker.GetNetworkCounters().Read);
+    }
 
-        // ネットワーク側は OS 実測値が加算されるため、下限として手動記録分を含むことを確認する
-        Assert.True(tracker.GetNetworkCounters().Read >= threadCount * perThread,
-            "ネットワーク受信カウンタに手動記録分が反映されていない");
+    /// <summary>
+    /// 互換用 UpdateCounterSnapshot がマシン全体のネットワーク量や WorkingSet を取り込まないこと。
+    /// </summary>
+    [Fact]
+    public void UpdateCounterSnapshot_WithoutExplicitRecords_LeavesIoAtZero()
+    {
+        var tracker = new OperationTracker();
+
+        tracker.UpdateCounterSnapshot();
+
+        Assert.Equal((0L, 0L), tracker.GetNetworkCounters());
+        Assert.Equal((0L, 0L), tracker.GetStorageCounters());
+    }
+
+    /// <summary>
+    /// 並行する論理スコープの明示 I/O が互いのサンプルへ混入しないこと。
+    /// </summary>
+    [Fact]
+    public async Task ConcurrentScopes_ExplicitIo_IsAttributedToEachLogicalScope()
+    {
+        var tracker = new OperationTracker();
+        using var bothStarted = new CountdownEvent(2);
+
+        var first = Task.Run(() =>
+        {
+            using (tracker.BeginScope("first"))
+            {
+                bothStarted.Signal();
+                bothStarted.Wait(TestContext.Current.CancellationToken);
+                tracker.RecordNetworkIO(10, 20);
+                tracker.RecordStorageIO(30, 40);
+            }
+        }, TestContext.Current.CancellationToken);
+
+        var second = Task.Run(() =>
+        {
+            using (tracker.BeginScope("second"))
+            {
+                bothStarted.Signal();
+                bothStarted.Wait(TestContext.Current.CancellationToken);
+                tracker.RecordNetworkIO(100, 200);
+                tracker.RecordStorageIO(300, 400);
+            }
+        }, TestContext.Current.CancellationToken);
+
+        await Task.WhenAll(first, second);
+
+        var firstSample = tracker.GetMetrics("first")!.LastSample!;
+        Assert.Equal(10, firstSample.NetworkBytesRead);
+        Assert.Equal(20, firstSample.NetworkBytesWritten);
+        Assert.Equal(30, firstSample.StorageBytesRead);
+        Assert.Equal(40, firstSample.StorageBytesWritten);
+
+        var secondSample = tracker.GetMetrics("second")!.LastSample!;
+        Assert.Equal(100, secondSample.NetworkBytesRead);
+        Assert.Equal(200, secondSample.NetworkBytesWritten);
+        Assert.Equal(300, secondSample.StorageBytesRead);
+        Assert.Equal(400, secondSample.StorageBytesWritten);
     }
 
     /// <summary>

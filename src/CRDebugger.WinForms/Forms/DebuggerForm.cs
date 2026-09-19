@@ -16,6 +16,12 @@ namespace CRDebugger.WinForms.Forms;
 /// </summary>
 public sealed class DebuggerForm : Form
 {
+    /// <summary>CRDebugger の終了処理から要求された実クローズなら true。</summary>
+    private bool _isShuttingDown;
+
+    /// <summary>次の Close を非表示へ差し替えず、実際の破棄まで進める。</summary>
+    internal void RequestShutdown() => _isShuttingDown = true;
+
     /// <summary>デバッガー全体の状態とロジックを持つ ViewModel。</summary>
     private readonly DebuggerViewModel _viewModel;
 
@@ -463,7 +469,7 @@ public sealed class DebuggerForm : Form
     protected override void OnFormClosing(FormClosingEventArgs e)
     {
         // ユーザーによる閉じる操作の場合はキャンセルして非表示にする（破棄しない）
-        if (e.CloseReason == CloseReason.UserClosing)
+        if (!_isShuttingDown && e.CloseReason == CloseReason.UserClosing)
         {
             e.Cancel = true;
             Hide();

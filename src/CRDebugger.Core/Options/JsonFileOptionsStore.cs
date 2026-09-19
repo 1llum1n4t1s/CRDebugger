@@ -67,11 +67,11 @@ public sealed class JsonFileOptionsStore : IOptionsStore
                 if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
                     Directory.CreateDirectory(directory);
 
-                // スナップショットを先に確定させ、_dirty も先に落とす。
-                // 書き出し中に届いた Save は必ず「未保存」として次回 Flush の対象になる
-                // （後で落とすと、その Save がスナップショットにも入らず _dirty=false で埋もれる）。
-                var snapshot = new Dictionary<string, string>(_values);
+                // _dirty を先に落としてからスナップショットを確定する。
+                // 以後に届いた Save / Clear は必ず _dirty=true を残すため、スナップショットに
+                // 含まれなかった並行変更も次回 Flush の対象から脱落しない。
                 _dirty = false;
+                var snapshot = new Dictionary<string, string>(_values);
 
                 var json = JsonSerializer.Serialize(snapshot, JsonOpts);
 

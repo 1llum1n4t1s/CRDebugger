@@ -70,9 +70,9 @@ FluentTheme の ToggleButton/Button がアクセントカラーを使う問題�
 - `DWMWA_USE_IMMERSIVE_DARK_MODE` — ダークモードキャプションボタン
 - `WS_EX_DLGMODALFRAME` + `WM_SETICON` — タイトルバーアイコン非表示
 
-### SuperLightLogger 統合
+### ログと例外の境界
 
-ログの出力先とホスト構成の境界は [DESIGN.md](DESIGN.md#ログ) を参照する。ログ取得・無効化の変更時は `tests/CRDebugger.Core.Tests/SuperLightLoggerFacade.adversarial.test.cs` で両方の `GetLogger` オーバーロード、ホスト構成の保持、no-op ロガーの全メンバーを検証する。
+ログの出力先と例外伝播の境界は [DESIGN.md](DESIGN.md#ログ) を参照する。CRDebugger は外部ロガーやファイル出力を構成せず、公開APIの失敗は呼び出し元へ伝播する。変更時は `tests/CRDebugger.Core.Tests/CRDebuggerFacade.adversarial.test.cs` でログストアへの記録と元の例外インスタンスの伝播を検証する。
 
 ## Version Management
 

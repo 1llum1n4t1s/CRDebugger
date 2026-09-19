@@ -10,7 +10,7 @@ namespace CRDebugger.Avalonia;
 /// <see cref="IDebuggerWindow"/> の Avalonia 実装。
 /// デバッガーウィンドウの生成・表示・非表示・テーマ適用を担当する。
 /// </summary>
-public sealed class AvaloniaDebuggerWindow : IDebuggerWindow
+public sealed class AvaloniaDebuggerWindow : IDebuggerWindow, IDebuggerWindowLifetime
 {
     /// <summary>実際に表示する Avalonia ウィンドウのインスタンス（未表示時は null）</summary>
     private Windows.DebuggerWindow? _window;
@@ -51,6 +51,27 @@ public sealed class AvaloniaDebuggerWindow : IDebuggerWindow
     /// ウィンドウが存在しない場合は何もしない。
     /// </summary>
     public void Hide() => _window?.Hide();
+
+    /// <inheritdoc />
+    void IDebuggerWindowLifetime.Close()
+    {
+        var window = _window;
+        if (window == null) return;
+
+        _window = null;
+
+        void CloseWindow()
+        {
+            window.RequestShutdown();
+            window.DataContext = null;
+            window.Close();
+        }
+
+        if (Dispatcher.UIThread.CheckAccess())
+            CloseWindow();
+        else
+            Dispatcher.UIThread.Post(CloseWindow);
+    }
 
     /// <summary>
     /// テーマカラーをウィンドウに適用する。

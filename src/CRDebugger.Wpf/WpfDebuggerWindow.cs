@@ -15,7 +15,7 @@ namespace CRDebugger.Wpf;
 /// DebuggerWindow のライフサイクル管理（生成・表示・非表示）とテーマ適用、
 /// スクリーンショット取得を担当する。
 /// </summary>
-public sealed class WpfDebuggerWindow : IDebuggerWindow
+public sealed class WpfDebuggerWindow : IDebuggerWindow, IDebuggerWindowLifetime
 {
     /// <summary>実際の WPF ウィンドウインスタンス（未表示時は null）</summary>
     private DebuggerWindow? _window;
@@ -42,9 +42,14 @@ public sealed class WpfDebuggerWindow : IDebuggerWindow
         // ウィンドウが未生成またはすでにアンロードされている場合は再生成
         if (_window == null || !_window.IsLoaded)
         {
-            _window = new DebuggerWindow();
+            var window = new DebuggerWindow();
             // ウィンドウが閉じられたら参照をクリアしてメモリリークを防ぐ
-            _window.Closed += (_, _) => _window = null;
+            window.Closed += (_, _) =>
+            {
+                if (ReferenceEquals(_window, window))
+                    _window = null;
+            };
+            _window = window;
         }
 
         // DataContext を設定してからテーマカラーを適用
@@ -83,6 +88,31 @@ public sealed class WpfDebuggerWindow : IDebuggerWindow
     public void Hide()
     {
         _window?.Hide();
+    }
+
+    /// <inheritdoc />
+    void IDebuggerWindowLifetime.Close()
+    {
+        var window = _window;
+        if (window == null) return;
+
+        _window = null;
+        if (_viewModel != null && _themeChangedHandler != null)
+            _viewModel.PropertyChanged -= _themeChangedHandler;
+        _viewModel = null;
+        _themeChangedHandler = null;
+
+        void CloseWindow()
+        {
+            window.RequestShutdown();
+            window.DataContext = null;
+            window.Close();
+        }
+
+        if (window.Dispatcher.CheckAccess())
+            CloseWindow();
+        else
+            window.Dispatcher.BeginInvoke(CloseWindow);
     }
 
     /// <summary>

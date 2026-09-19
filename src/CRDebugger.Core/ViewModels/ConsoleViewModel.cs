@@ -36,6 +36,12 @@ public sealed class ConsoleViewModel : ViewModelBase
     /// <summary>フラッシュ実行中フラグ（同時実行を防ぐ）</summary>
     private int _flushing;
 
+    /// <summary>
+    /// UI 配送失敗でドレイン済みキューを反映できなかった場合に、
+    /// 次回配送成功時に <see cref="LogStore"/> から表示全体を再構築するためのフラグ。
+    /// </summary>
+    private int _rebuildPending;
+
     /// <summary>表示再構築の世代。Clear/RefreshFilter より前に予約された反映を破棄する。</summary>
     private long _displayGeneration;
 
@@ -235,7 +241,8 @@ public sealed class ConsoleViewModel : ViewModelBase
         try
         {
             // キューが両方空なら早期リターンして無駄な UI ディスパッチを避ける
-            if (_pendingAdds.IsEmpty && _pendingUpdates.IsEmpty) return;
+            if (_pendingAdds.IsEmpty && _pendingUpdates.IsEmpty &&
+                System.Threading.Volatile.Read(ref _rebuildPending) == 0) return;
 
             // 一旦ローカルにドレインしてから UI へ Post する
             var adds = new List<LogEntry>();
@@ -244,7 +251,8 @@ public sealed class ConsoleViewModel : ViewModelBase
             var updates = new List<LogEntry>();
             while (_pendingUpdates.TryDequeue(out var e)) updates.Add(e);
 
-            if (adds.Count == 0 && updates.Count == 0) return;
+            if (adds.Count == 0 && updates.Count == 0 &&
+                System.Threading.Volatile.Read(ref _rebuildPending) == 0) return;
 
             var generation = System.Threading.Volatile.Read(ref _displayGeneration);
             _uiThread.Invoke(() =>
@@ -253,6 +261,14 @@ public sealed class ConsoleViewModel : ViewModelBase
                 {
                     // Clear/RefreshFilter 後に到着した古い Post は表示へ戻さない
                     if (generation != System.Threading.Volatile.Read(ref _displayGeneration)) return;
+
+                    // 配送失敗時にドレインしたエントリは LogStore に残っている。
+                    // キュー末尾へ戻すと時系列順が崩れるため、次の配送成功時に正本から再構築する。
+                    if (System.Threading.Volatile.Read(ref _rebuildPending) != 0)
+                    {
+                        RefreshFilter();
+                        return;
+                    }
 
                     // RefreshFilter のスナップショットとキューが重なっても同じ Id を二重追加しない
                     var displayedIds = _displayEntries.Select(entry => entry.Id).ToHashSet();
@@ -287,6 +303,7 @@ public sealed class ConsoleViewModel : ViewModelBase
                 catch (Exception)
                 {
                     // 非同期ディスパッチ実装でも UI 側の例外をホストへ逆流させない
+                    System.Threading.Interlocked.Exchange(ref _rebuildPending, 1);
                 }
                 finally
                 {
@@ -302,6 +319,8 @@ public sealed class ConsoleViewModel : ViewModelBase
             // ProfilerEngine.OnTick と同じ規約でここで必ずキャッチする (#33)。
             // UI ディスパッチャがシャットダウン済みの場合や、UI 側の CollectionChanged ハンドラが
             // 例外を投げた場合に到達する。ホスト側に逆流させない。
+            // 既にキューから取り出したログは LogStore を正本として次回成功時に復元する。
+            System.Threading.Interlocked.Exchange(ref _rebuildPending, 1);
         }
         finally
         {
@@ -343,6 +362,7 @@ public sealed class ConsoleViewModel : ViewModelBase
         InfoCount = counts.Info;
         WarningCount = counts.Warning;
         ErrorCount = counts.Error;
+        System.Threading.Interlocked.Exchange(ref _rebuildPending, 0);
     }
 
     /// <summary>
@@ -358,6 +378,7 @@ public sealed class ConsoleViewModel : ViewModelBase
         // バッチング中のエントリも捨てる（クリア後に古いログが混入しないように）
         while (_pendingAdds.TryDequeue(out _)) { }
         while (_pendingUpdates.TryDequeue(out _)) { }
+        System.Threading.Interlocked.Exchange(ref _rebuildPending, 0);
         // 各レベルのカウントをゼロにリセット
         DebugCount = 0;
         InfoCount = 0;

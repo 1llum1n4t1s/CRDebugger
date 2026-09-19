@@ -4,8 +4,8 @@ namespace CRDebugger.Core.Profiler;
 
 /// <summary>
 /// usingパターンで操作の計測スコープを管理するクラス。
-/// コンストラクタで各メトリクスの開始値をキャプチャし、
-/// <see cref="Dispose"/> 時に終了値と差分を計算して <see cref="OperationTracker"/> に記録する。
+/// コンストラクタで CPU・メモリの開始値をキャプチャし、明示記録された I/O を論理実行単位で保持する。
+/// <see cref="Dispose"/> 時にそれらを <see cref="OperationTracker"/> へ記録する。
 /// 使用例:
 /// <code>
 /// using (CRDebugger.Profile("データベースクエリ"))
@@ -25,6 +25,9 @@ public sealed class ProfilingScope : IDisposable
     /// <summary>この計測スコープが属するカテゴリタグ</summary>
     private readonly string _category;
 
+    /// <summary>この論理スコープへ明示記録された I/O 量。</summary>
+    private readonly OperationTracker.ScopeIoCounters _ioCounters;
+
     /// <summary>処理時間（ウォールクロック時間）の計測に使用するストップウォッチ</summary>
     private readonly Stopwatch _stopwatch;
 
@@ -33,18 +36,6 @@ public sealed class ProfilingScope : IDisposable
 
     /// <summary>スコープ開始時点のGC管理メモリ量（バイト）</summary>
     private readonly long _startMemory;
-
-    /// <summary>スコープ開始時点のネットワーク受信バイト数</summary>
-    private readonly long _startNetworkRead;
-
-    /// <summary>スコープ開始時点のネットワーク送信バイト数</summary>
-    private readonly long _startNetworkWrite;
-
-    /// <summary>スコープ開始時点のストレージ読み込みバイト数</summary>
-    private readonly long _startStorageRead;
-
-    /// <summary>スコープ開始時点のストレージ書き込みバイト数</summary>
-    private readonly long _startStorageWrite;
 
     /// <summary><see cref="Dispose"/> が既に呼ばれたかどうかを示すフラグ（二重記録防止用）</summary>
     private bool _disposed;
@@ -56,19 +47,21 @@ public sealed class ProfilingScope : IDisposable
     /// <param name="tracker">計測結果の記録先トラッカー</param>
     /// <param name="operationName">計測する操作の名前</param>
     /// <param name="category">操作のカテゴリタグ</param>
-    internal ProfilingScope(OperationTracker tracker, string operationName, string category)
+    /// <param name="ioCounters">この論理スコープへ明示記録された I/O カウンター</param>
+    internal ProfilingScope(
+        OperationTracker tracker,
+        string operationName,
+        string category,
+        OperationTracker.ScopeIoCounters ioCounters)
     {
         _tracker = tracker;
         _operationName = operationName;
         _category = category;
+        _ioCounters = ioCounters;
 
-        // 開始時点の各メトリクス値をキャプチャ（終了時の差分計算に使用）。
-        // GetNetworkCounters / GetStorageCounters は OS API を呼ばずキャッシュ値を返す軽量実装に変更済み (#22 / #C1-001)。
-        // 実際のキャッシュ更新は ProfilerEngine.OnTick から OperationTracker.UpdateCounterSnapshot() 経由で 500ms 毎に行われる。
+        // CPU とメモリは開始時点との差分、I/O はこの論理スコープへ明示記録された量を使用する。
         _startCpuTime = GetProcessCpuTime();
         _startMemory = GC.GetTotalMemory(false);
-        (_startNetworkRead, _startNetworkWrite) = tracker.GetNetworkCounters();
-        (_startStorageRead, _startStorageWrite) = tracker.GetStorageCounters();
 
         // ウォールクロック計測を開始
         _stopwatch = Stopwatch.StartNew();
@@ -90,8 +83,7 @@ public sealed class ProfilingScope : IDisposable
         // 終了時点の各メトリクス値を取得
         var endCpuTime = GetProcessCpuTime();
         var endMemory = GC.GetTotalMemory(false);
-        var (endNetRead, endNetWrite) = _tracker.GetNetworkCounters();
-        var (endStoreRead, endStoreWrite) = _tracker.GetStorageCounters();
+        var io = _ioCounters.Snapshot();
 
         // 開始時との差分を計算してサンプルレコードを生成
         var sample = new OperationSample(
@@ -99,15 +91,22 @@ public sealed class ProfilingScope : IDisposable
             Duration: _stopwatch.Elapsed,
             CpuTime: endCpuTime - _startCpuTime,
             MemoryDeltaBytes: endMemory - _startMemory,
-            NetworkBytesRead: endNetRead - _startNetworkRead,
-            NetworkBytesWritten: endNetWrite - _startNetworkWrite,
-            StorageBytesRead: endStoreRead - _startStorageRead,
-            StorageBytesWritten: endStoreWrite - _startStorageWrite,
+            NetworkBytesRead: io.NetworkRead,
+            NetworkBytesWritten: io.NetworkWrite,
+            StorageBytesRead: io.StorageRead,
+            StorageBytesWritten: io.StorageWrite,
             GpuUsagePercent: 0 // GPU計測はプラットフォーム固有のため ProfilingScope では非対応（ProfilerEngine で取得）
         );
 
         // サンプルをトラッカーに記録
-        _tracker.RecordSample(_operationName, _category, sample);
+        try
+        {
+            _tracker.RecordSample(_operationName, _category, sample);
+        }
+        finally
+        {
+            _tracker.CompleteIoScope(_ioCounters);
+        }
     }
 
     /// <summary>

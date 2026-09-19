@@ -98,8 +98,8 @@ internal sealed class CRLogger : ILogger
 
         // フォーマッタでメッセージ文字列を生成する
         var message = formatter(state, exception);
-        // 例外があればスタックトレースも保存する
-        var stackTrace = exception?.StackTrace;
+        // 例外型・メッセージ・InnerException 連鎖・各スタックを失わないよう詳細全体を保存する
+        var stackTrace = exception?.ToString();
 
         _logStore.Append(level, _category, message, stackTrace);
     }

@@ -237,11 +237,6 @@ public sealed class ProfilerEngine : IDisposable
                 _latestSnapshot = snapshot;
             }
 
-            // OperationTracker のネットワーク／ストレージカウンタキャッシュを最新化する (#22)。
-            // Snapshot 生成後に行うことで、初回 Tick が OS API 列挙でブロックして Snapshot 生成が遅延するのを防ぐ。
-            // NetworkInterface.GetAllNetworkInterfaces() は初回呼び出しが重いため、計測の主目的（Snapshot）を優先する。
-            try { Operations?.UpdateCounterSnapshot(); } catch { /* キャッシュ更新失敗は次回 Tick で再試行 */ }
-
             try
             {
                 // スナップショット取得完了を通知（イベントハンドラの例外がタイマースレッドをクラッシュさせないようキャッチ）
