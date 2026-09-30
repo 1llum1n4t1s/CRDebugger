@@ -126,7 +126,7 @@ public sealed class AvaloniaDebuggerWindow : IDebuggerWindow, IDebuggerWindowLif
         using var rtb = new global::Avalonia.Media.Imaging.RenderTargetBitmap(size, dpi);
         rtb.Render(window);
         using var ms = new MemoryStream();
-        rtb.Save(ms);
+        rtb.Save(ms, global::Avalonia.Media.Imaging.PngBitmapEncoderOptions.Default);
         return ms.ToArray();
     }
 }
