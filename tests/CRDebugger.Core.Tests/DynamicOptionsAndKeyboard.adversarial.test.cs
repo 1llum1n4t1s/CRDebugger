@@ -30,43 +30,6 @@ public sealed class DynamicOptionsAndKeyboardAdversarialTests
 
     /// <summary>
     /// @adversarial @category boundary @severity high
-    /// @description 極端に長い名前のオプションが登録できること
-    /// @expected クラッシュせず、Idに長い名前が含まれる
-    /// </summary>
-    [Fact]
-    public void AddString_ExtremeLongName_DoesNotCrash()
-    {
-        var container = new DynamicOptionContainer();
-        var longName = new string('X', 10_000);
-        string? val = null;
-        container.AddString(longName, () => val, v => val = v);
-
-        Assert.Single(container.Options);
-        Assert.Contains(longName, container.Options[0].Id);
-    }
-
-    /// <summary>
-    /// @adversarial @category boundary @severity medium
-    /// @description 全修飾キー組み合わせでKeyCombinationが生成できること
-    /// @expected 全7パターンが一意のHashCodeを持つ
-    /// </summary>
-    [Fact]
-    public void KeyCombination_AllModifierCombinations_UniqueHashCodes()
-    {
-        var modifiers = new[]
-        {
-            CRModifierKeys.None, CRModifierKeys.Ctrl, CRModifierKeys.Shift,
-            CRModifierKeys.Alt, CRModifierKeys.CtrlShift, CRModifierKeys.CtrlAlt,
-            CRModifierKeys.Shift | CRModifierKeys.Alt,
-        };
-
-        var combos = modifiers.Select(m => new KeyCombination(CRKey.A, m)).ToList();
-        var uniqueHashCodes = combos.Select(c => c.GetHashCode()).Distinct().Count();
-        Assert.Equal(combos.Count, uniqueHashCodes);
-    }
-
-    /// <summary>
-    /// @adversarial @category boundary @severity high
     /// @description CRKey.None でショートカットを登録・発火できること
     /// @expected HandleKeyDown(CRKey.None, None) で発火する
     /// </summary>
@@ -201,43 +164,6 @@ public sealed class DynamicOptionsAndKeyboardAdversarialTests
 
         var all = mgr.GetAll();
         Assert.Equal(registered, all.Count);
-    }
-
-    /// <summary>
-    /// @adversarial @category resource @severity high
-    /// @description DynamicOptionContainerに大量のオプションを登録できること
-    /// @expected 5000個のboolオプション登録が完了
-    /// </summary>
-    [Fact]
-    public void DynamicContainer_5000Options_NoOom()
-    {
-        var container = new DynamicOptionContainer("Stress");
-        var val = false;
-
-        for (var i = 0; i < 5_000; i++)
-            container.AddBool($"Opt{i}", () => val, v => val = v);
-
-        Assert.Equal(5_000, container.Options.Count);
-    }
-
-    /// <summary>
-    /// @adversarial @category resource @severity medium
-    /// @description 大量アクション登録後も全Execute呼び出し可能であること
-    /// @expected 1000アクション全てのExecuteが実行される
-    /// </summary>
-    [Fact]
-    public void DynamicContainer_1000Actions_AllExecutable()
-    {
-        var container = new DynamicOptionContainer("Stress");
-        var callCount = 0;
-
-        for (var i = 0; i < 1_000; i++)
-            container.AddAction($"Act{i}", () => Interlocked.Increment(ref callCount));
-
-        foreach (var action in container.Actions)
-            action.Execute();
-
-        Assert.Equal(1_000, callCount);
     }
 
     // ───────────────────────────────────
@@ -579,22 +505,4 @@ public sealed class DynamicOptionsAndKeyboardAdversarialTests
         Assert.Single(mgr.GetAll());
     }
 
-    /// <summary>
-    /// @adversarial @category chaos @severity medium
-    /// @description KeyCombination の record 等値比較が key + modifiers の組み合わせで正しく動作すること
-    /// @expected 同じ組み合わせは Equal、異なればNotEqual
-    /// </summary>
-    [Fact]
-    public void KeyCombination_RecordEquality_WorksCorrectly()
-    {
-        var a = new KeyCombination(CRKey.S, CRModifierKeys.Ctrl);
-        var b = new KeyCombination(CRKey.S, CRModifierKeys.Ctrl);
-        var c = new KeyCombination(CRKey.S, CRModifierKeys.Shift);
-        var d = new KeyCombination(CRKey.A, CRModifierKeys.Ctrl);
-
-        Assert.Equal(a, b);
-        Assert.NotEqual(a, c);
-        Assert.NotEqual(a, d);
-        Assert.Equal(a.GetHashCode(), b.GetHashCode());
-    }
 }

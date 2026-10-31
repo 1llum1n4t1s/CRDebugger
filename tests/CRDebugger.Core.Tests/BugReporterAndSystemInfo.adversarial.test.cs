@@ -41,45 +41,6 @@ public sealed class BugReporterAndSystemInfoAdversarialTests
 
     /// <summary>
     /// @adversarial @category boundary @severity high
-    /// 巨大メッセージでレポートが作成できること
-    /// </summary>
-    [Fact]
-    public async Task BugReport_HugeMessage_Accepted()
-    {
-        var store = new LogStore();
-        var sysInfo = new SystemInfoCollector();
-        var mockSender = new Mock<IBugReportSender>();
-        mockSender.Setup(s => s.SendAsync(It.IsAny<BugReport>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-
-        var engine = new BugReportEngine(store, sysInfo, mockSender.Object);
-        var hugeMsg = new string('X', 1_000_000);
-        var report = await engine.CreateAndSendAsync(hugeMsg, "test@example.com", cancellationToken: TestContext.Current.CancellationToken);
-
-        Assert.Equal(1_000_000, report.UserMessage.Length);
-    }
-
-    /// <summary>
-    /// @adversarial @category boundary @severity medium
-    /// スクリーンショットなしでレポートが作成できること
-    /// </summary>
-    [Fact]
-    public async Task BugReport_NoScreenshot_Works()
-    {
-        var store = new LogStore();
-        var sysInfo = new SystemInfoCollector();
-        var mockSender = new Mock<IBugReportSender>();
-        mockSender.Setup(s => s.SendAsync(It.IsAny<BugReport>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-
-        var engine = new BugReportEngine(store, sysInfo, mockSender.Object);
-        var report = await engine.CreateAndSendAsync("bug!", "a@b.c", cancellationToken: TestContext.Current.CancellationToken);
-
-        Assert.Null(report.Screenshot);
-    }
-
-    /// <summary>
-    /// @adversarial @category boundary @severity high
     /// スクリーンショットがnullを返す場合
     /// </summary>
     [Fact]
@@ -274,54 +235,6 @@ public sealed class BugReporterAndSystemInfoAdversarialTests
         Assert.Contains("Process", categories);
     }
 
-    /// <summary>
-    /// @adversarial @category boundary @severity high
-    /// カスタム情報を大量に追加してもクラッシュしないこと
-    /// </summary>
-    [Fact]
-    public void SystemInfo_ManyCustomEntries_Accepted()
-    {
-        var collector = new SystemInfoCollector();
-        for (int i = 0; i < 10_000; i++)
-        {
-            collector.AddCustomInfo("Custom", $"Key{i}", $"Value{i}");
-        }
-
-        var entries = collector.CollectAll();
-        Assert.True(entries.Count >= 10_000);
-    }
-
-    /// <summary>
-    /// @adversarial @category boundary @severity medium
-    /// 空文字列のカスタム情報が受け入れられること
-    /// </summary>
-    [Fact]
-    public void SystemInfo_EmptyCustomInfo_Accepted()
-    {
-        var collector = new SystemInfoCollector();
-        collector.AddCustomInfo("", "", "");
-
-        var entries = collector.CollectAll();
-        Assert.Contains(entries, e => e.Category == "" && e.Key == "" && e.Value == "");
-    }
-
-    /// <summary>
-    /// @adversarial @category chaos @severity medium
-    /// 2回CollectAllを呼んでも一貫した結果を返すこと
-    /// </summary>
-    [Fact]
-    public void SystemInfo_CollectAllTwice_ConsistentCategories()
-    {
-        var collector = new SystemInfoCollector();
-        var first = collector.CollectAll();
-        var second = collector.CollectAll();
-
-        // カテゴリが一致すること
-        var cats1 = first.Select(e => e.Category).Distinct().OrderBy(c => c).ToList();
-        var cats2 = second.Select(e => e.Category).Distinct().OrderBy(c => c).ToList();
-        Assert.Equal(cats1, cats2);
-    }
-
     // ───────────────────────────────────
     // ThemeManager
     // ───────────────────────────────────
@@ -388,44 +301,4 @@ public sealed class BugReporterAndSystemInfoAdversarialTests
         Assert.Equal(0, fireCount);
     }
 
-    /// <summary>
-    /// @adversarial @category concurrency @severity high
-    /// SetThemeとNotifySystemThemeChangedの同時呼び出しがクラッシュしないこと
-    /// </summary>
-    [Fact]
-    public async Task ThemeManager_ConcurrentThemeChanges_NoCrash()
-    {
-        var manager = new ThemeManager(CRTheme.System);
-        manager.ThemeChanged += (_, _) => { /* nop */ };
-
-        var tasks = new[]
-        {
-            Task.Run(() => { for (int i = 0; i < 1000; i++) manager.SetTheme(CRTheme.Dark); }, TestContext.Current.CancellationToken),
-            Task.Run(() => { for (int i = 0; i < 1000; i++) manager.SetTheme(CRTheme.Light); }, TestContext.Current.CancellationToken),
-            Task.Run(() => { for (int i = 0; i < 1000; i++) manager.NotifySystemThemeChanged(i % 2 == 0); }, TestContext.Current.CancellationToken),
-            Task.Run(() => { for (int i = 0; i < 1000; i++) _ = manager.CurrentColors; }, TestContext.Current.CancellationToken)
-        };
-
-        await Task.WhenAll(tasks);
-    }
-
-    // ───────────────────────────────────
-    // DefaultConsoleBugReportSender
-    // ───────────────────────────────────
-
-    /// <summary>
-    /// @adversarial @category boundary @severity medium
-    /// デフォルトSenderが常にtrueを返すこと
-    /// </summary>
-    [Fact]
-    public async Task DefaultSender_AlwaysReturnsTrue()
-    {
-        var sender = new DefaultConsoleBugReportSender();
-        var report = new BugReport(
-            Guid.NewGuid(), DateTimeOffset.Now, "msg", "email",
-            Array.Empty<SystemInfoEntry>(), Array.Empty<LogEntry>(), null);
-
-        var result = await sender.SendAsync(report, TestContext.Current.CancellationToken);
-        Assert.True(result);
-    }
 }

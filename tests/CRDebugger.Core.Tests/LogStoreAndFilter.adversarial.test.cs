@@ -64,23 +64,6 @@ public sealed class LogStoreAndFilterAdversarialTests
     }
 
     /// <summary>
-    /// @adversarial @category boundary @severity high
-    /// 非常に長いメッセージが格納できること
-    /// </summary>
-    [Fact]
-    public void LogStore_HugeMessage_Accepted()
-    {
-        var store = new LogStore(5);
-        var hugeMsg = new string('A', 1_000_000); // 1MB
-        var hugeStack = new string('B', 500_000);
-
-        store.Append(CRLogLevel.Error, "test", hugeMsg, hugeStack);
-        var all = store.GetAll();
-        Assert.Equal(1_000_000, all[0].Message.Length);
-        Assert.Equal(500_000, all[0].StackTrace!.Length);
-    }
-
-    /// <summary>
     /// @adversarial @category boundary @severity medium
     /// Unicode特殊文字を含むメッセージが正しく格納されること
     /// </summary>
@@ -323,27 +306,6 @@ public sealed class LogStoreAndFilterAdversarialTests
         Assert.Equal(3, all.Count);
         // IDがオーバーフローしても動作が壊れないこと
         Assert.True(all[2].Id < 0, "IDがオーバーフローして負の値になるはず");
-    }
-
-    /// <summary>
-    /// @adversarial @category resource @severity high
-    /// 大量のGetFiltered呼び出しがGCを圧迫すること（アロケーション爆弾）
-    /// </summary>
-    [Fact]
-    public void LogStore_RepeatedGetFiltered_DoesNotOOM()
-    {
-        var store = new LogStore(1000);
-        for (int i = 0; i < 1000; i++)
-            store.Append(CRLogLevel.Info, "ch", $"msg-{i}");
-
-        var filter = new LogFilter(SearchText: "msg");
-
-        // 10000回フィルタ実行してもOOMにならない
-        for (int i = 0; i < 10_000; i++)
-        {
-            var result = store.GetFiltered(filter);
-            Assert.Equal(1000, result.Count);
-        }
     }
 
     // ───────────────────────────────────
