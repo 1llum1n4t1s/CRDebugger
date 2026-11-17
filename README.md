@@ -336,7 +336,7 @@ var options = new CRDebuggerOptions
 
 ## Requirements
 
-- .NET 8.0 以上（.NET 8 / .NET 10 対応）
+- .NET 11.0 以上
 - WinForms / WPF: Windows のみ
 - Avalonia: Windows / macOS / Linux
 

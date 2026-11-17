@@ -42,10 +42,8 @@ public sealed class ProfilerEngine : IDisposable
     /// <summary>前回のCPU時間タイムスタンプ（CPU使用率計算用）</summary>
     private DateTimeOffset _previousCpuTimestamp;
 
-#if NET9_0_OR_GREATER
     /// <summary>前回のGCポーズ時間（差分計算でインターバル中のポーズ時間を求める）</summary>
     private TimeSpan _previousGcPauseTime;
-#endif
 
     /// <summary>タイマーコールバックの再入を防ぐ実行中フラグ</summary>
     private int _ticking;
@@ -90,10 +88,8 @@ public sealed class ProfilerEngine : IDisposable
         catch { _previousCpuTime = TimeSpan.Zero; }
         _previousCpuTimestamp = DateTimeOffset.Now;
 
-#if NET9_0_OR_GREATER
-        // GCポーズ時間の基準値を初期化（.NET 9+ で利用可能）
+        // GCポーズ時間の基準値を初期化（ターゲットは .NET 11 のみなので GC.GetTotalPauseDuration() を常に利用できる）
         _previousGcPauseTime = GC.GetTotalPauseDuration();
-#endif
 
         // 初回は即座に実行し、以降は _interval ごとに OnTick を呼び出す
         _timer = new System.Threading.Timer(OnTick, null, TimeSpan.Zero, _interval);
@@ -260,18 +256,14 @@ public sealed class ProfilerEngine : IDisposable
 
     /// <summary>
     /// サンプリング間隔中のGCポーズ時間（ミリ秒）を返す。
-    /// .NET 9+ では GC.GetTotalPauseDuration() の差分、それ以前は常に 0。
+    /// GC.GetTotalPauseDuration() の累計値の前回サンプルからの差分で求める。
     /// </summary>
     private long GetGcPauseDeltaMs()
     {
-#if NET9_0_OR_GREATER
         var current = GC.GetTotalPauseDuration();
         var delta = (long)(current - _previousGcPauseTime).TotalMilliseconds;
         _previousGcPauseTime = current;
         return delta;
-#else
-        return 0;
-#endif
     }
 
     /// <summary>

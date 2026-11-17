@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <TargetFramework>net11.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>12</LangVersion>
@@ -10,6 +10,10 @@
     <Description>CRDebugger Avalonia UI - SRDebugger-like debug panel for Avalonia apps. Add runtime debugging, logging console, options editor, and profiler to any Avalonia application.</Description>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>
+
+  <!-- Microsoft.Extensions.Logging.Abstractions は
+       .NET 11 の共有フレームワーク (Microsoft.NETCore.App) に含まれるため PackageReference しない。
+       明示参照すると NU1510（フレームワーク提供パッケージの冗長参照）になる。.NET 8 系ターゲットは廃止済み。 -->
   <ItemGroup>
     <!-- Coreのソースファイルを直接コンパイル（NuGet依存なし） -->
     <Compile Include="..\CRDebugger.Core\**\*.cs" Link="Core\%(RecursiveDir)%(Filename)%(Extension)" Exclude="..\CRDebugger.Core\obj\**;..\CRDebugger.Core\bin\**" />
@@ -17,7 +21,6 @@
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="12.1.4" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.4" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.14" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.403" PrivateAssets="all" />

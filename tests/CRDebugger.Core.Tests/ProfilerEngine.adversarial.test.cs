@@ -318,10 +318,9 @@ public sealed class ProfilerEngineAdversarialTests : IDisposable
     /// <summary>
     /// @adversarial @category chaos @severity medium
     /// GcPauseTimeMs の契約確認。
-    /// .NET 9+ では GC.GetTotalPauseDuration() の差分なので非負の実測値、
-    /// .NET 8 では未サポートのため常に 0 になる。
+    /// GC.GetTotalPauseDuration() の差分なので非負の実測値になる。
     /// スイート全体を走らせると実際に GC ポーズが発生して 1ms 以上になりうるため、
-    /// 「常に 0」ではなく TFM ごとの契約で検証する。
+    /// 「常に 0」ではなく「非負」で検証する。
     /// </summary>
     [Fact]
     public void Snapshot_GcPauseTimeMs_MatchesRuntimeContract()
@@ -335,12 +334,8 @@ public sealed class ProfilerEngineAdversarialTests : IDisposable
 
         var history = _engine.GetHistory();
         Assert.NotEmpty(history);
-#if NET9_0_OR_GREATER
         // 累計ポーズ時間の差分なので負にはならない
         Assert.All(history, s => Assert.True(s.GcPauseTimeMs >= 0, $"GcPauseTimeMs が負値: {s.GcPauseTimeMs}"));
-#else
-        Assert.All(history, s => Assert.Equal(0, s.GcPauseTimeMs));
-#endif
     }
 
     /// <summary>

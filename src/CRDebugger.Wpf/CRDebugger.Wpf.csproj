@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>net8.0-windows;net10.0-windows</TargetFrameworks>
+    <TargetFramework>net11.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -10,12 +10,13 @@
     <PackageId>CRDebugger.Wpf</PackageId>
     <Description>CRDebugger WPF UI - SRDebugger-like debug panel for WPF apps. Add runtime debugging, logging console, options editor, and profiler to any WPF application.</Description>
   </PropertyGroup>
+
+  <!-- Microsoft.Extensions.Logging.Abstractions は
+       .NET 11 の共有フレームワーク (Microsoft.NETCore.App) に含まれるため PackageReference しない。
+       明示参照すると NU1510（フレームワーク提供パッケージの冗長参照）になる。.NET 8 系ターゲットは廃止済み。 -->
   <ItemGroup>
     <!-- Coreのソースファイルを直接コンパイル（NuGet依存なし） -->
     <Compile Include="..\CRDebugger.Core\**\*.cs" Link="Core\%(RecursiveDir)%(Filename)%(Extension)" Exclude="..\CRDebugger.Core\obj\**;..\CRDebugger.Core\bin\**" />
-  </ItemGroup>
-  <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.14" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.403" PrivateAssets="all" />

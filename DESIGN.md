@@ -86,4 +86,4 @@ CRDebugger は .NET デスクトップアプリへ組み込むランタイムデ
 
 ## ビルドと配布
 
-対象TFMは .NET 8 / .NET 10、WinFormsとWPFはWindows、Avaloniaはクロスプラットフォームである。バージョンは `Directory.Build.props` で一元管理する。`release/**` の公開ワークフローが3つのUIパッケージをビルド・テスト・packし、NuGet Trusted Publishingで公開する。Coreは公開対象に含めない。
+対象TFMは .NET 11（`net11.0` / `net11.0-windows`）、WinFormsとWPFはWindows、Avaloniaはクロスプラットフォームである。バージョンは `Directory.Build.props` で一元管理する。`release/**` の公開ワークフローが3つのUIパッケージをビルド・テスト・packし、NuGet Trusted Publishingで公開する。Coreは公開対象に含めない。
