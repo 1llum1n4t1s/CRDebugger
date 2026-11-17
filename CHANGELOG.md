@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.0.36] - 2026-11-18
+
+### 変更
+- 対象フレームワークを .NET 11（`net11.0` / `net11.0-windows`）のみに変更。.NET 8 / .NET 10 は対象外になったため、これらで利用する場合は .NET 11 への移行が必要
+- プロファイラーの GC ポーズ時間（`GcPauseTimeMs`）が常に `GC.GetTotalPauseDuration()` の差分による実測値になった
+
 ## [1.0.34] - 2026-09-19
 
 ### Changed
