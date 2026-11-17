@@ -41,6 +41,29 @@ jobs:
             $env:GIT_CONFIG_VALUE_0 = $null
           }
 
+      # 公開は release/x.y.z ブランチの Version からだけ行う。ref の制限とブランチ名・Version の照合は
+      # push / workflow_dispatch のどちらでも必須にし、skip させない。main など release 以外から手動実行すると
+      # 未公開の版が NuGet へ確定公開される。NuGet は版番号を永久に予約し、同一版を再アップロードできないため不可逆。
+      # restore / build より前に置き、数分ではなく数秒で落とす。
+      - name: Verify release branch and Version
+        shell: pwsh
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          REF_FULL: ${{ github.ref }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:REF_FULL -notlike 'refs/heads/release/*') {
+            Write-Error "This workflow must run on a 'release/x.y.z' branch. Current ref: '$env:REF_FULL'."
+            exit 1
+          }
+          $expectedVersion = $env:REF_NAME -replace '^release/', ''
+          $propsVersion = ([xml](Get-Content Directory.Build.props)).Project.PropertyGroup.Version
+          if ($propsVersion -ne $expectedVersion) {
+            Write-Error "Directory.Build.props Version='$propsVersion' does not match branch 'release/$expectedVersion'. Update <Version> before pushing."
+            exit 1
+          }
+          Write-Host "Version OK: Directory.Build.props=$propsVersion matches branch release/$expectedVersion"
+
       - name: Setup .NET
         shell: pwsh
         run: |
@@ -49,9 +72,7 @@ jobs:
           $installer = Join-Path $env:RUNNER_TEMP 'dotnet-install.ps1'
           Invoke-WebRequest 'https://raw.githubusercontent.com/actions/setup-dotnet/a98b56852c35b8e3190ac28c8c2271da59106c68/externals/install-dotnet.ps1' -OutFile $installer
           if ((Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash -ne 'B224982626C6DDF7CE915D7D560B7060D3C42754EB621F8CC53B8C775C0CC6B5') { throw 'Pinned .NET installer SHA-256 mismatch.' }
-          & $installer -Channel 8.0 -InstallDir $installRoot -NoPath
-          if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          & $installer -Channel 10.0 -InstallDir $installRoot -NoPath
+          & $installer -Channel 11.0 -InstallDir $installRoot -NoPath
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           "DOTNET_ROOT=$installRoot" >> $env:GITHUB_ENV
           $installRoot >> $env:GITHUB_PATH

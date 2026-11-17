@@ -86,7 +86,8 @@ FluentTheme の ToggleButton/Button がアクセントカラーを使う問題�
 
 ## CI/CD
 
-- `release/**` ブランチへのプッシュで NuGet 公開ワークフローが発動
+- `release/**` ブランチへのプッシュで NuGet 公開ワークフローが発動。手動実行（workflow_dispatch）も `refs/heads/release/*` の ref 限定で、ブランチ名と `Directory.Build.props` の `<Version>` の一致を必須とする
+- `dependency-validation.yml` は main への push と全 PR で restore・build・回帰テストを実行する
 - 3パッケージのみ pack & publish（Core は対象外）
 - NuGet.org Trusted Publishing が workflow と3パッケージを限定し、短期資格情報で公開
 
