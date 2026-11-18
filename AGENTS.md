@@ -20,8 +20,8 @@ dotnet pack src/CRDebugger.WinForms -c Release -o artifacts
 dotnet pack src/CRDebugger.Wpf -c Release -o artifacts
 dotnet pack src/CRDebugger.Avalonia -c Release -o artifacts
 
-# NuGet公開は release/** ブランチから Publish to NuGet workflow を実行
-gh workflow run publish.yml --ref release/x.y.z
+# NuGet公開は main のコミットに付けた軽量タグ vx.y.z の push で発動する（やり直しは既存タグを --ref に指定）
+gh workflow run publish.yml --ref vx.y.z
 ```
 
 ## Architecture
@@ -86,7 +86,7 @@ FluentTheme の ToggleButton/Button がアクセントカラーを使う問題�
 
 ## CI/CD
 
-- `release/**` ブランチへのプッシュで NuGet 公開ワークフローが発動。手動実行（workflow_dispatch）も `refs/heads/release/*` の ref 限定で、ブランチ名と `Directory.Build.props` の `<Version>` の一致を必須とする
+- main のコミットに付けた軽量タグ `vX.Y.Z` のプッシュで NuGet 公開ワークフローが発動（release ブランチと GitHub Release は使わない）。手動実行（workflow_dispatch）もタグ ref 限定で、タグであること・厳密な `vX.Y.Z` 形・軽量タグが実行 commit を指すこと・既定ブランチの祖先であること・`Directory.Build.props` の `<Version>` との一致を無条件に必須とする
 - `dependency-validation.yml` は main への push と全 PR で restore・build・回帰テストを実行する
 - 3パッケージのみ pack & publish（Core は対象外）
 - NuGet.org Trusted Publishing が workflow と3パッケージを限定し、短期資格情報で公開

@@ -1,7 +1,7 @@
 name: Dependency validation
 
 # main への push と全 PR（Dependabot 以外も）で restore・build・回帰テストを走らせる。
-# release/** の公開 workflow（publish.yml）も NuGet 公開前に同じ build・test を実行する。
+# 配信タグ（vx.y.z）の公開 workflow（publish.yml）も NuGet 公開前に同じ build・test を実行する。
 on:
   push:
     branches: [main]
