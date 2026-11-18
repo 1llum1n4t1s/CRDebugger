@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.0.38] - 2026-11-18
+
+### 変更
+
+- 利用者に見える変更はありません。配信の起動を release ブランチの push から、main のコミットに付けた版タグ（v1.0.38）の push へ変更しました（ライブラリの動作に変更なし）。
+
 ## [1.0.36] - 2026-11-18
 
 ### 変更
